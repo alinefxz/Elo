@@ -6,7 +6,7 @@
 asgiref==3.12.1
 
 # Framework principal: rotas, ORM, formularios, autenticacao e admin.
-Django==6.1
+Django==5.2.17
 
 # Driver que permite ao Python conversar com PostgreSQL.
 psycopg==3.3.4
