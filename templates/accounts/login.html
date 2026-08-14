@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Entrar | Elo{% endblock %}
+
+{% block content %}
+<h1>Entrar</h1>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+
+    {% if next %}
+        <input type="hidden" name="next" value="{{ next }}">
+    {% endif %}
+
+    <button type="submit">Entrar</button>
+</form>
+
+<p>
+    Ainda nao tem conta?
+    <a href="{% url 'accounts:cadastro' %}">Criar conta</a>
+</p>
+{% endblock %}

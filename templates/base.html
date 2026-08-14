@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Elo{% endblock %}</title>
+</head>
+<body>
+    <nav>
+        <a href="{% url 'accounts:dashboard' %}">Elo</a>
+
+        {% if user.is_authenticated %}
+            <span>{{ user.get_short_name }}</span>
+            <!-- Logout usa POST para proteger a sessao. -->
+            <form method="post" action="{% url 'accounts:logout' %}">
+                {% csrf_token %}
+                <button type="submit">Sair</button>
+            </form>
+        {% else %}
+            <a href="{% url 'accounts:login' %}">Entrar</a>
+            <a href="{% url 'accounts:cadastro' %}">Criar conta</a>
+        {% endif %}
+    </nav>
+
+    <main>
+        {% for message in messages %}
+            <p>{{ message }}</p>
+        {% endfor %}
+
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

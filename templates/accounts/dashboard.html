@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block title %}Painel | Elo{% endblock %}
+
+{% block content %}
+<h1>Ola, {{ user.get_short_name }}!</h1>
+<p>Seu login foi realizado com sucesso.</p>
+<p><strong>Perfil:</strong> {{ user.get_perfil_display }}</p>
+{% endblock %}

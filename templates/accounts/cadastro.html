@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Criar conta | Elo{% endblock %}
+
+{% block content %}
+<h1>Criar conta</h1>
+
+<!-- csrf_token protege o formulario contra envios externos. -->
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Criar conta</button>
+</form>
+
+<p>
+    Ja possui cadastro?
+    <a href="{% url 'accounts:login' %}">Entrar</a>
+</p>
+{% endblock %}
