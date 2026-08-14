@@ -53,7 +53,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     # Gerencia CSS, JavaScript e imagens quando forem adicionados.
     "django.contrib.staticfiles",
-    # App criado pelo projeto: usuario comum, cadastro, login e LGPD.
+    # App criado pelo projeto: usuario, dados iniciais, cadastro, login e LGPD.
     "accounts",
 ]
 

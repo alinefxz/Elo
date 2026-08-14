@@ -36,7 +36,7 @@ def obter_ip(request):
 
 
 def cadastro(request):
-    """Mostra o formulario e processa a criacao de uma conta comum."""
+    """Mostra o formulario e processa a criacao de uma conta do Elo."""
 
     # Uma pessoa que ja entrou nao precisa abrir cadastro novamente.
     if request.user.is_authenticated:

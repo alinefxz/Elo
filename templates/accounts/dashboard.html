@@ -13,4 +13,7 @@ A view possui login_required, portanto visitantes nao chegam a este template.
 <!-- get_short_name retorna o primeiro nome ou, se vazio, o e-mail. -->
 <h1>Ola, {{ user.get_short_name }}!</h1>
 <p>Seu login foi realizado com sucesso.</p>
+
+<!-- get_perfil_display troca o valor interno, como DOADOR, pelo texto Doador. -->
+<p><strong>Perfil inicial:</strong> {{ user.get_perfil_display }}</p>
 {% endblock %}

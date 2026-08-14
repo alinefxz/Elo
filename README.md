@@ -10,19 +10,21 @@ Esta entrega contém o ambiente inicial do sistema e um MVP de autenticação. J
 
 - projeto Django conectado ao PostgreSQL;
 - cadastro de usuários;
+- escolha inicial entre Doador, Receptor, Hemocentro e Observador;
+- dados iniciais de identificação e localização do usuário;
 - login por e-mail e senha;
 - logout seguro por requisição POST;
 - usuário-base personalizado do Django;
 - registro do consentimento LGPD no cadastro;
 - painel simples protegido por login;
 - painel administrativo do Django;
-- migration inicial do app `accounts`;
+- migrations versionadas do app `accounts`;
 - testes básicos de cadastro, senha e login;
 - templates HTML básicos, sem CSS ou Bootstrap.
 
 As senhas não são armazenadas como texto comum. O Django gera e salva um hash seguro na coluna `senha_hash`.
 
-Esta etapa implementa somente a conta comum que servirá como base para todos os usuários. O model atual não possui campo de perfil. As regras, campos adicionais, permissões, páginas e funcionalidades específicas de Doador, Receptor, Hemocentro, Observador e Administrador deverão ser desenvolvidas na próxima etapa por outra pessoa da equipe.
+Esta etapa implementa uma conta-base completa, com o perfil inicial escolhido no cadastro. O sistema já guarda CPF ou CNPJ, telefone, nascimento, sexo, cidade e estado. A próxima etapa poderá usar o campo `perfil` para criar regras, permissões, páginas e funcionalidades próprias de Doador, Receptor, Hemocentro, Observador e Administrador.
 
 ## Tecnologias utilizadas
 
@@ -198,7 +200,7 @@ python manage.py check
 python manage.py migrate
 ```
 
-Em um clone novo não é necessário executar `makemigrations`, porque a migration `accounts/0001_initial.py` já faz parte do repositório. Use `makemigrations` somente depois de alterar os modelos.
+Em um clone novo não é necessário executar `makemigrations`, porque as migrations numeradas do app `accounts` já fazem parte do repositório. Use `makemigrations` somente depois de alterar os modelos.
 
 ### 8. Criar um administrador
 
@@ -299,11 +301,15 @@ ALTER ROLE elo_user CREATEDB;
 
 Essa permissão é apropriada apenas para desenvolvimento local, não para um servidor de produção.
 
-## Funcionamento do usuário comum, cadastro e login
+## Funcionamento do usuário, cadastro e login
 
 - `accounts/models.py` define `Usuario` e `ConsentimentoLGPD`;
 - o e-mail é o identificador usado no login;
 - `accounts/forms.py` contém o formulário de cadastro e suas validações;
+- o cadastro público permite escolher Doador, Receptor, Hemocentro ou Observador;
+- Hemocentro informa CNPJ; os outros perfis informam CPF;
+- CPF e CNPJ são salvos somente com números;
+- a sigla do estado é salva em letras maiúsculas;
 - a senha precisa ter pelo menos oito caracteres, letras e números;
 - `set_password()` transforma a senha em hash antes de salvar;
 - `accounts/views.py` grava usuário e consentimento na mesma transação;
@@ -312,7 +318,7 @@ Essa permissão é apropriada apenas para desenvolvimento local, não para um se
 - o logout usa `POST` e proteção CSRF;
 - as sessões são administradas pelo próprio Django.
 
-O objetivo desta entrega termina no funcionamento da conta comum. Não existe classificação de perfil no model ou no formulário atual. A próxima pessoa deverá decidir e implementar, para cada tipo de usuário:
+O objetivo desta entrega termina no cadastro e na autenticação da conta-base. A classificação inicial já existe no model e no formulário, mas ainda não altera permissões nem mostra painéis diferentes. A próxima pessoa deverá implementar, para cada tipo de usuário:
 
 - campos adicionais necessários;
 - permissões e restrições de acesso;
@@ -323,7 +329,7 @@ O objetivo desta entrega termina no funcionamento da conta comum. Não existe cl
 
 ## Tabelas principais
 
-- `usuarios`: dados da conta comum;
+- `usuarios`: dados da conta, documento, localização e perfil inicial;
 - `consentimentos_lgpd`: aceite, versão do termo, data e IP;
 - `django_session`: sessões de usuários autenticados;
 - tabelas internas do Django: permissões, grupos, migrations e administração.
@@ -385,7 +391,7 @@ Esta é uma primeira entrega. Permanecem para etapas futuras:
 - recuperação de senha;
 - confirmação de e-mail;
 - bloqueio após tentativas excessivas de login;
-- definição completa dos perfis Doador, Receptor, Hemocentro, Observador e Administrador;
+- regras e permissões completas dos perfis Doador, Receptor, Hemocentro, Observador e Administrador;
 - edição e páginas específicas de cada perfil;
 - cadastro e aprovação completa de hemocentros;
 - triagem;
@@ -403,7 +409,7 @@ Antes de iniciar uma dessas funcionalidades, crie uma branch e documente quaisqu
 
 - repositório local conectado a `https://github.com/alinefxz/Elo.git`;
 - branch principal: `main`;
-- migration `accounts.0001_initial` aplicada;
+- migrations do app `accounts` aplicadas;
 - `python manage.py check` executado sem erros;
 - banco local: `elo_db`;
 - usuário local do banco: `elo_user`.

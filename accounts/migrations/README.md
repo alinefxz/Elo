@@ -1,39 +1,68 @@
 # Como as migrations funcionam
 
-Esta pasta guarda o histórico da estrutura do banco de dados.
+Esta pasta guarda o historico da estrutura do banco de dados. Pense nela como
+uma lista numerada de alteracoes que o Django executa na ordem.
 
-- `0001_initial.py` foi gerada pelo Django e criou as tabelas iniciais.
-- Novas alterações em `models.py` devem gerar um novo arquivo numerado.
-- Uma migration aplicada não deve ser reescrita ou apagada.
+## Historico atual
 
-Fluxo correto após alterar models:
+- `0001_initial.py`: criou as tabelas iniciais, incluindo os campos completos
+  do usuario e a tabela de consentimentos;
+- `0002_remove_usuario_cidade_remove_usuario_cnpj_and_more.py`: registrou uma
+  simplificacao temporaria do model;
+- `0003_usuario_cidade_usuario_cnpj_usuario_cpf_and_more.py`: restaurou os
+  campos completos quando ficou definido que a funcionalidade deveria ser
+  mantida, mas explicada de maneira mais simples.
+
+As migrations `0002` e `0003` devem continuar no projeto. Embora uma retire e a
+outra recoloque campos, elas representam o que realmente aconteceu no banco.
+Apagar ou reescrever uma migration ja aplicada pode deixar o codigo e o banco
+em estados diferentes.
+
+## Comandos usados
+
+Depois de alterar `models.py`, o fluxo correto e:
 
 ```powershell
 python manage.py makemigrations
 python manage.py migrate
 ```
 
-`makemigrations` compara os models atuais com o último estado conhecido e cria
-as operações necessárias. `migrate` traduz essas operações em SQL e as executa
-no PostgreSQL.
+`makemigrations` compara o model atual com o ultimo estado conhecido e cria um
+novo arquivo numerado. Ele prepara a alteracao, mas ainda nao mexe nas tabelas.
 
-O Django registra migrations aplicadas na tabela `django_migrations`. Por isso,
-editar manualmente `0001_initial.py` depois de aplicá-la poderia fazer o arquivo
-deixar de representar o que realmente aconteceu no banco.
+`migrate` le os arquivos numerados e executa no PostgreSQL os comandos SQL
+necessarios. O Django registra o que ja foi aplicado na tabela interna
+`django_migrations`, evitando executar a mesma migration duas vezes.
 
-## Relação com o código
+Em outro computador, depois de clonar o repositorio e configurar o `.env`, a
+pessoa precisa executar somente:
 
-Os models são a definição atual das tabelas. As migrations são o caminho usado
-para transformar uma versão antiga do banco na versão atual.
+```powershell
+python manage.py migrate
+```
 
-Exemplos de operações geradas:
+O Django aplicara automaticamente todas as migrations que ainda estiverem
+pendentes.
+
+## Relacao com o codigo
+
+- `models.py` descreve como as tabelas devem estar na versao atual;
+- as migrations descrevem o caminho usado para chegar a essa versao;
+- o PostgreSQL guarda as tabelas e os dados reais;
+- o ORM do Django transforma chamadas Python em consultas SQL.
+
+Exemplo: `Usuario.objects.filter(email=email)` vira uma consulta `SELECT` na
+tabela `usuarios`. `usuario.save()` pode virar `INSERT` ou `UPDATE`, dependendo
+de o objeto ser novo ou ja existir.
+
+Operacoes comuns em uma migration:
 
 - `CreateModel`: cria uma tabela;
 - `AddField`: adiciona uma coluna;
 - `RemoveField`: remove uma coluna;
-- `AlterField`: muda uma coluna existente;
-- `AddConstraint`: cria uma regra, como unicidade.
+- `AlterField`: altera uma coluna;
+- `AddConstraint`: cria uma regra no banco, como uma combinacao unica.
 
-O arquivo `0001_initial.py` foi mantido sem comentários adicionais porque é um
-arquivo automático e já aplicado. Esta documentação explica sua função sem
-alterar o histórico.
+Os arquivos numerados sao gerados pelo Django e normalmente nao devem receber
+comentarios manuais. Este README explica a logica da pasta sem modificar o
+historico executavel.

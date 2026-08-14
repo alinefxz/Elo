@@ -20,7 +20,9 @@ class UsuarioAdminCreationForm(UserCreationForm):
 
     class Meta:
         model = Usuario
-        fields = ("email", "nome")
+        # Estes sao os dados minimos pedidos na tela de criacao do admin.
+        # Os outros dados podem ser completados depois na tela de edicao.
+        fields = ("email", "nome", "perfil")
 
 
 class UsuarioAdminChangeForm(UserChangeForm):
@@ -45,14 +47,15 @@ class UsuarioAdmin(UserAdmin):
     list_display = (
         "email",
         "nome",
+        "perfil",
         "is_active",
         "email_verificado",
         "is_staff",
     )
 
     # Filtros laterais e campos pesquisaveis no painel.
-    list_filter = ("is_active", "email_verificado", "is_staff")
-    search_fields = ("email", "nome")
+    list_filter = ("perfil", "is_active", "email_verificado", "is_staff")
+    search_fields = ("email", "nome", "cpf", "cnpj")
     ordering = ("nome",)
 
     # Datas automaticas devem ser visualizadas, nao digitadas manualmente.
@@ -63,7 +66,20 @@ class UsuarioAdmin(UserAdmin):
         (None, {"fields": ("email", "password")}),
         (
             "Dados da conta",
-            {"fields": ("nome", "email_verificado")},
+            {
+                "fields": (
+                    "nome",
+                    "perfil",
+                    "cpf",
+                    "cnpj",
+                    "telefone",
+                    "data_nascimento",
+                    "sexo",
+                    "cidade",
+                    "estado",
+                    "email_verificado",
+                )
+            },
         ),
         (
             "Permissoes internas do Django",
@@ -89,6 +105,7 @@ class UsuarioAdmin(UserAdmin):
                 "fields": (
                     "email",
                     "nome",
+                    "perfil",
                     "password1",
                     "password2",
                     "is_active",

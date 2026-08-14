@@ -28,6 +28,14 @@ class AutenticacaoTests(TestCase):
         return {
             "nome": "Maria Silva",
             "email": "maria@example.com",
+            "perfil": Usuario.Perfil.DOADOR,
+            "cpf": "123.456.789-01",
+            "cnpj": "",
+            "telefone": "(11) 99999-9999",
+            "data_nascimento": "1995-06-10",
+            "sexo": Usuario.Sexo.FEMININO,
+            "cidade": "Sao Paulo",
+            "estado": "sp",
             "password1": "SenhaElo123",
             "password2": "SenhaElo123",
             "aceite_lgpd": "on",
@@ -45,6 +53,14 @@ class AutenticacaoTests(TestCase):
         self.assertRedirects(resposta, reverse("accounts:dashboard"))
 
         usuario = Usuario.objects.get(email="maria@example.com")
+
+        # O formulario retira a pontuacao do CPF e padroniza a UF.
+        self.assertEqual(usuario.cpf, "12345678901")
+        self.assertEqual(usuario.estado, "SP")
+        self.assertEqual(usuario.perfil, Usuario.Perfil.DOADOR)
+
+        # check_password aplica o algoritmo de hash e compara o resultado.
+        # A segunda verificacao confirma que o texto original nao foi salvo.
         self.assertTrue(usuario.check_password("SenhaElo123"))
         self.assertNotEqual(usuario.password, "SenhaElo123")
         self.assertTrue(
@@ -61,6 +77,7 @@ class AutenticacaoTests(TestCase):
             email="joao@example.com",
             nome="Joao Souza",
             password="SenhaElo123",
+            perfil=Usuario.Perfil.OBSERVADOR,
         )
 
         resposta = self.client.post(
@@ -74,6 +91,29 @@ class AutenticacaoTests(TestCase):
         )
 
         self.assertRedirects(resposta, reverse("accounts:dashboard"))
+
+    def test_hemocentro_exige_cnpj(self):
+        """Confirma a regra simples de documento para Hemocentro."""
+
+        dados = self.dados_de_cadastro()
+        dados.update(
+            {
+                "email": "hemocentro@example.com",
+                "perfil": Usuario.Perfil.HEMOCENTRO,
+                "cpf": "",
+                "cnpj": "",
+            }
+        )
+
+        resposta = self.client.post(reverse("accounts:cadastro"), dados)
+
+        # Um formulario invalido volta com status 200 para mostrar os erros e
+        # nao cria nenhuma conta no banco.
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Informe o CNPJ do hemocentro.")
+        self.assertFalse(
+            Usuario.objects.filter(email="hemocentro@example.com").exists()
+        )
 
     def test_dashboard_exige_login(self):
         """Confirma que visitante nao acessa a pagina protegida."""

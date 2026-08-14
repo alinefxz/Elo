@@ -3,17 +3,16 @@ RESUMO DO ARQUIVO
 =================
 Este arquivo descreve os dados que o Django guarda no PostgreSQL.
 
-Ele possui dois modelos concretos:
+- Usuario: guarda a conta, os dados basicos e o tipo de perfil escolhido.
+- ConsentimentoLGPD: guarda quando a pessoa aceitou cada termo.
 
-1. ``Usuario``: conta comum usada para cadastro e login por e-mail.
-2. ``ConsentimentoLGPD``: comprovante de que o usuario aceitou os termos.
+O usuario herda de AbstractUser para aproveitar senha segura, login, sessao,
+grupos e permissoes do Django. Mesmo herdando de uma classe chamada
+AbstractUser, a classe Usuario abaixo e concreta e cria a tabela ``usuarios``.
 
-``Usuario`` herda recursos prontos de ``AbstractUser`` (senha segura, sessoes,
-permissoes e acesso ao admin), mas a classe deste arquivo NAO e abstrata. Ela
-gera a tabela real ``usuarios`` no banco.
-
-Esta etapa nao define Doador, Receptor, Hemocentro ou outros perfis. Esses
-modelos e regras poderao ser relacionados ao usuario comum em outra etapa.
+O campo perfil ja identifica Doador, Receptor, Hemocentro, Observador ou
+Administrador. Nesta etapa ele e uma classificacao inicial: ainda nao muda as
+permissoes nem abre uma pagina diferente para cada tipo de usuario.
 """
 
 from django.conf import settings
@@ -24,59 +23,49 @@ from django.db import models
 
 class UsuarioManager(BaseUserManager):
     """
-    Responsavel por criar contas corretamente.
+    Centraliza a criacao das contas.
 
-    Um manager e a interface usada em chamadas como
-    ``Usuario.objects.create_user(...)``. Como o projeto retirou o ``username``
-    padrao e usa e-mail no login, o manager tambem precisa trabalhar com e-mail.
+    O Django normalmente cria usuarios por username. O Elo usa e-mail, entao
+    este manager ensina ``Usuario.objects`` a receber, padronizar e salvar o
+    e-mail corretamente tanto para contas comuns quanto para administradores.
     """
 
-    # Permite que o Django registre este manager nos arquivos de migration.
+    # Permite que o Django conheca este manager durante as migrations.
     use_in_migrations = True
 
     def create_user(self, email, password=None, **extra_fields):
-        """
-        Cria uma conta comum.
+        """Cria uma conta comum e grava a senha de forma segura."""
 
-        ``extra_fields`` recebe campos adicionais, como ``nome`` ou
-        ``is_active``, sem obrigar o metodo a declarar cada campo separadamente.
-        """
-
-        # Uma conta sem e-mail nao poderia ser identificada no login.
         if not email:
             raise ValueError("O e-mail e obrigatorio.")
 
-        # normalize_email ajusta o dominio; lower evita diferenca entre
-        # Pessoa@Email.com e pessoa@email.com no uso pratico do sistema.
+        # Padroniza o e-mail para evitar diferencas por letras maiusculas.
+        # Exemplo: MARIA@EXAMPLE.COM e maria@example.com viram o mesmo padrao.
         email = self.normalize_email(email).lower()
 
-        # self.model representa a classe Usuario associada a este manager.
-        # O objeto ainda existe apenas na memoria neste momento.
+        # self.model representa Usuario. extra_fields carrega os outros dados,
+        # como nome, perfil e documento, sem repetir todos os parametros aqui.
         usuario = self.model(email=email, **extra_fields)
 
-        # Nunca se deve fazer usuario.password = password.
-        # set_password gera um hash com salt usando o sistema seguro do Django.
+        # Gera o hash da senha. A senha original nunca vai para o banco.
         usuario.set_password(password)
 
-        # save executa o INSERT no banco configurado em settings.py.
+        # Executa o INSERT no banco configurado em settings.py. self._db deixa
+        # o metodo compativel caso o projeto use mais de um banco no futuro.
         usuario.save(using=self._db)
         return usuario
 
     def create_superuser(self, email, password=None, **extra_fields):
-        """
-        Cria a conta tecnica que pode acessar ``/admin/``.
+        """Cria a conta tecnica que pode acessar o painel /admin/."""
 
-        Isso nao representa um perfil de negocio do Elo. ``is_staff`` e
-        ``is_superuser`` sao permissoes internas do painel administrativo.
-        """
-
-        # setdefault preenche apenas quando o valor nao foi informado.
+        # setdefault preenche o valor somente quando ele nao foi informado.
+        # is_staff permite entrar no admin. is_superuser libera todas as
+        # permissoes internas do Django. perfil registra a classificacao do Elo.
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_active", True)
+        extra_fields.setdefault("perfil", self.model.Perfil.ADMINISTRADOR)
 
-        # As verificacoes impedem a criacao acidental de um superusuario sem
-        # as permissoes que o proprio comando createsuperuser exige.
         if extra_fields.get("is_staff") is not True:
             raise ValueError("O superusuario precisa ter is_staff=True.")
         if extra_fields.get("is_superuser") is not True:
@@ -87,113 +76,153 @@ class UsuarioManager(BaseUserManager):
 
 class Usuario(AbstractUser):
     """
-    Conta comum do Elo, autenticada por e-mail.
+    Conta concreta do Elo, com login por e-mail.
 
-    ``AbstractUser`` fornece campos e metodos de autenticacao, mas permite que
-    o projeto adapte a conta. Aqui retiramos username/first_name/last_name e
-    usamos ``nome`` e ``email``. Como ``Meta.abstract`` nao foi definido, esta
-    classe e concreta e cria uma tabela no PostgreSQL.
+    AbstractUser fornece recursos prontos e testados: hash de senha, ultimo
+    login, grupos, permissoes e compatibilidade com o admin. A palavra
+    "Abstract" pertence a classe de origem; ``Usuario`` e concreto e cria a
+    tabela real ``usuarios`` porque nao foi marcado como abstrato.
     """
 
-    # Esses campos pertenciam ao usuario padrao do Django. O Elo usa um unico
-    # nome completo e o e-mail como identificador, portanto nao precisa deles.
+    class Perfil(models.TextChoices):
+        """Tipos que podem ser escolhidos no cadastro."""
+
+        DOADOR = "DOADOR", "Doador"
+        RECEPTOR = "RECEPTOR", "Receptor"
+        HEMOCENTRO = "HEMOCENTRO", "Hemocentro"
+        OBSERVADOR = "OBSERVADOR", "Observador"
+        ADMINISTRADOR = "ADMINISTRADOR", "Administrador"
+
+    class Sexo(models.TextChoices):
+        """Opcoes fechadas para manter os dados padronizados."""
+
+        FEMININO = "F", "Feminino"
+        MASCULINO = "M", "Masculino"
+        OUTRO = "O", "Outro"
+        NAO_INFORMADO = "N", "Prefiro nao informar"
+
+    # O Elo usa um nome completo e e-mail. Por isso, estes tres campos do
+    # usuario original do Django sao retirados. Escrever None diz ao ORM que
+    # eles nao devem virar colunas da tabela usuarios.
     username = None
     first_name = None
     last_name = None
 
-    # Chave primaria: identifica cada linha da tabela de forma unica.
+    # Chave primaria: numero unico de cada usuario.
     id_usuario = models.BigAutoField(primary_key=True)
 
-    # Dados comuns a qualquer pessoa que tenha uma conta no sistema.
+    # Dados principais da conta.
     nome = models.CharField(max_length=150)
     email = models.EmailField(unique=True)
 
-    # AbstractUser ja trabalha com um atributo chamado password. A redefinicao
-    # abaixo preserva esse nome no Python, mas usa ``senha_hash`` no PostgreSQL.
-    # O valor gravado e o hash produzido por set_password, nunca a senha pura.
+    # No Python o campo continua chamado password, como o Django espera.
+    # No PostgreSQL a coluna se chama senha_hash, como definido no documento.
     password = models.CharField(max_length=128, db_column="senha_hash")
 
-    # is_active e consultado automaticamente pelo backend de autenticacao.
-    # Uma conta inativa continua no banco, mas nao consegue entrar no sistema.
+    # CPF e CNPJ podem ficar vazios, pois o formulario escolhe qual deles exigir:
+    # Hemocentro usa CNPJ; os outros perfis publicos usam CPF.
+    # null=True grava NULL quando vazio. Isso permite varias contas sem CNPJ,
+    # enquanto unique=True ainda impede repetir um documento preenchido.
+    cpf = models.CharField(max_length=11, unique=True, null=True, blank=True)
+    cnpj = models.CharField(max_length=14, unique=True, null=True, blank=True)
+
+    # Dados adicionais do cadastro. blank=True aceita o campo vazio durante a
+    # validacao do model. O formulario publico pode ser mais exigente: nele a
+    # data de nascimento e obrigatoria.
+    telefone = models.CharField(max_length=20, blank=True, default="")
+    data_nascimento = models.DateField(null=True, blank=True)
+    sexo = models.CharField(
+        max_length=1,
+        choices=Sexo.choices,
+        blank=True,
+        default="",
+    )
+    cidade = models.CharField(max_length=100, blank=True, default="")
+    estado = models.CharField(max_length=2, blank=True, default="")
+
+    # Guarda a classificacao inicial. choices limita os valores aceitos e cria
+    # get_perfil_display(), usado no dashboard para mostrar um nome amigavel.
+    # O valor padrao OBSERVADOR tambem protege criacoes internas que nao enviem
+    # explicitamente um perfil.
+    perfil = models.CharField(
+        max_length=20,
+        choices=Perfil.choices,
+        default=Perfil.OBSERVADOR,
+    )
+
+    # Conta inativa permanece no banco, mas nao consegue fazer login.
     is_active = models.BooleanField(default=True, db_column="ativo")
 
-    # Campo preparado para uma futura confirmacao por e-mail. Nesta entrega ele
-    # comeca como False, pois o envio e a confirmacao ainda nao foram criados.
+    # O envio do e-mail de verificacao ainda sera implementado.
     email_verificado = models.BooleanField(default=False)
 
-    # auto_now_add grava a data somente no INSERT. auto_now atualiza a data a
-    # cada save posterior. USE_TZ=True faz o Django tratar datas com fuso.
+    # date_joined e preenchido uma vez na criacao. atualizado_em muda sempre
+    # que save() atualiza o usuario.
     date_joined = models.DateTimeField(
         auto_now_add=True,
         db_column="data_cadastro",
     )
     atualizado_em = models.DateTimeField(auto_now=True)
 
-    # Substitui o manager herdado pelo manager que entende login por e-mail.
+    # Usa o manager personalizado definido acima.
     objects = UsuarioManager()
 
-    # USERNAME_FIELD nao precisa ser um username literal. Ele informa ao Django
-    # qual campo unico sera usado pelo authenticate() e pelo formulario de login.
+    # Define o e-mail como identificador de login.
     USERNAME_FIELD = "email"
 
-    # createsuperuser sempre pede USERNAME_FIELD e senha. REQUIRED_FIELDS inclui
-    # os outros dados que tambem devem ser solicitados pelo comando.
+    # O comando createsuperuser tambem perguntara o nome.
     REQUIRED_FIELDS = ["nome"]
 
     class Meta:
-        """Opcoes de banco e nomes exibidos pelo Django."""
-
         # Sem db_table, o nome automatico seria accounts_usuario.
         db_table = "usuarios"
         verbose_name = "usuario"
         verbose_name_plural = "usuarios"
-
-        # Afeta consultas sem order_by explicito, principalmente no admin.
         ordering = ["nome"]
 
     def clean(self):
-        """Normaliza o e-mail quando o model passa por validacao completa."""
+        """Padroniza o e-mail quando o model e validado."""
 
-        # Mantem as validacoes que AbstractUser ja conhece.
+        # Mantem primeiro as validacoes herdadas de AbstractUser.
         super().clean()
         if self.email:
             self.email = self.__class__.objects.normalize_email(self.email).lower()
 
     def get_full_name(self):
-        """Retorna o nome completo no formato esperado pelo Django."""
+        """Devolve o nome completo no formato esperado pelo Django."""
 
         return self.nome
 
     def get_short_name(self):
-        """Retorna o primeiro nome; usa o e-mail como alternativa."""
+        """Devolve o primeiro nome para saudacoes."""
 
         return self.nome.split()[0] if self.nome else self.email
 
     def __str__(self):
-        """Representacao legivel no admin, logs e terminal do Django."""
+        """Texto usado para representar o usuario no admin e no terminal."""
 
         return f"{self.nome} ({self.email})"
 
 
 class ConsentimentoLGPD(models.Model):
     """
-    Guarda a prova do aceite dos termos por uma conta.
+    Guarda a prova de cada aceite de termo.
 
-    O consentimento fica em tabela separada para possuir data, versao e IP
-    proprios. Isso tambem permite registrar novas versoes no futuro sem apagar
-    o historico anterior.
+    O consentimento fica separado de Usuario porque precisa guardar sua propria
+    versao, data e IP. Quando o texto do termo mudar, uma nova versao podera ser
+    aceita sem apagar o registro da versao anterior.
     """
 
     class TipoTermo(models.TextChoices):
-        """Tipos disponiveis nesta entrega basica."""
-
         GERAL = "GERAL", "Termos gerais e politica de privacidade"
+        TRIAGEM = "TRIAGEM", "Termo de triagem"
+        NOTIFICACOES = "NOTIFICACOES", "Termo de notificacoes"
 
     id_consentimento = models.BigAutoField(primary_key=True)
 
-    # ForeignKey cria a coluna id_usuario e relaciona o aceite a uma conta.
-    # settings.AUTH_USER_MODEL evita importar Usuario diretamente e e a forma
-    # recomendada quando o projeto usa um modelo de autenticacao personalizado.
+    # ForeignKey liga muitos consentimentos a um usuario. related_name permite
+    # consultar no sentido contrario com usuario.consentimentos_lgpd.all().
+    # CASCADE remove esses registros se a conta for removida.
     usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -206,19 +235,16 @@ class ConsentimentoLGPD(models.Model):
         choices=TipoTermo.choices,
         default=TipoTermo.GERAL,
     )
-
-    # A versao identifica exatamente qual texto foi aceito.
     versao_termo = models.CharField(max_length=20, default="1.0")
     aceito = models.BooleanField(default=False)
 
-    # A data e preenchida automaticamente apenas na criacao do registro.
+    # auto_now_add preenche a data uma unica vez, no momento da criacao.
     data_aceite = models.DateTimeField(auto_now_add=True)
 
-    # IP pode ser IPv4 ou IPv6. null/blank permitem uso em ambientes onde o IP
-    # nao esteja disponivel, como alguns testes ou tarefas administrativas.
+    # O IP pode ficar vazio em testes ou tarefas internas.
     ip = models.GenericIPAddressField(null=True, blank=True)
 
-    # Enquanto o consentimento estiver valido, revogado_em permanece NULL.
+    # Fica vazio enquanto o consentimento continuar valido.
     revogado_em = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -227,8 +253,9 @@ class ConsentimentoLGPD(models.Model):
         verbose_name_plural = "consentimentos LGPD"
         ordering = ["-data_aceite"]
 
-        # Impede duplicar o mesmo termo e a mesma versao para o mesmo usuario.
-        # Uma nova versao continua permitida e preserva o historico.
+        # Esta regra tambem existe no PostgreSQL. Assim, mesmo que outro codigo
+        # esqueca de validar, o banco nao aceita a mesma versao do mesmo termo
+        # duas vezes para o mesmo usuario. Uma versao nova continua permitida.
         constraints = [
             models.UniqueConstraint(
                 fields=["usuario", "tipo_termo", "versao_termo"],
