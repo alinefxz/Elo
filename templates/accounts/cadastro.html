@@ -1,14 +1,27 @@
 {% extends "base.html" %}
 
+{% comment %}
+RESUMO DO ARQUIVO
+=================
+Tela HTML do cadastro comum. Ela herda base.html e recebe ``form`` da view.
+
+``form.as_p`` renderiza campos, labels, textos de ajuda e erros dentro de
+paragrafos. A validacao real continua em accounts/forms.py.
+{% endcomment %}
+
 {% block title %}Criar conta | Elo{% endblock %}
 
 {% block content %}
 <h1>Criar conta</h1>
 
-<!-- csrf_token protege o formulario contra envios externos. -->
+<!-- method=post envia dados sensiveis no corpo da requisicao, nao na URL. -->
 <form method="post">
+    <!-- Token obrigatorio porque CsrfViewMiddleware esta ativo. -->
     {% csrf_token %}
+
+    <!-- O Django renderiza nome, e-mail, duas senhas, aceite e erros. -->
     {{ form.as_p }}
+
     <button type="submit">Criar conta</button>
 </form>
 

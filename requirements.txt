@@ -1,7 +1,24 @@
+# RESUMO
+# Cada linha fixa uma dependencia e sua versao. O comando
+# ``python -m pip install -r requirements.txt`` recria o mesmo ambiente.
+
+# Dependencia interna usada pelo Django para recursos assincronos.
 asgiref==3.12.1
+
+# Framework principal: rotas, ORM, formularios, autenticacao e admin.
 Django==6.1
+
+# Driver que permite ao Python conversar com PostgreSQL.
 psycopg==3.3.4
+
+# Componentes compilados do psycopg para facilitar a instalacao no Windows.
 psycopg-binary==3.3.4
+
+# Le as variaveis privadas do arquivo .env.
 python-dotenv==1.2.2
+
+# Utilitario usado pelo Django para formatar e separar comandos SQL.
 sqlparse==0.6.0
+
+# Base de fusos horarios usada no Windows.
 tzdata==2026.3

@@ -1,5 +1,12 @@
+# Ambiente virtual: contem pacotes instalados localmente e pode ser recriado.
 .venv/
+
+# Segredos locais, incluindo chave Django e senha do PostgreSQL.
 .env
+
+# Cache de bytecode gerado automaticamente pelo Python.
 __pycache__/
 *.pyc
+
+# Banco SQLite padrao; este projeto usa PostgreSQL.
 db.sqlite3

@@ -22,7 +22,7 @@ Esta entrega contém o ambiente inicial do sistema e um MVP de autenticação. J
 
 As senhas não são armazenadas como texto comum. O Django gera e salva um hash seguro na coluna `senha_hash`.
 
-Esta etapa implementa somente a conta comum que servirá como base para todos os usuários. As regras, campos adicionais, permissões, páginas e funcionalidades específicas de Doador, Receptor, Hemocentro, Observador e Administrador deverão ser desenvolvidas na próxima etapa por outra pessoa da equipe.
+Esta etapa implementa somente a conta comum que servirá como base para todos os usuários. O model atual não possui campo de perfil. As regras, campos adicionais, permissões, páginas e funcionalidades específicas de Doador, Receptor, Hemocentro, Observador e Administrador deverão ser desenvolvidas na próxima etapa por outra pessoa da equipe.
 
 ## Tecnologias utilizadas
 
@@ -312,7 +312,7 @@ Essa permissão é apropriada apenas para desenvolvimento local, não para um se
 - o logout usa `POST` e proteção CSRF;
 - as sessões são administradas pelo próprio Django.
 
-O objetivo desta entrega termina no funcionamento da conta comum. A existência de nomes ou campos preparatórios relacionados a perfis não significa que as especificações desses perfis estejam prontas. A próxima pessoa deverá decidir e implementar, para cada tipo de usuário:
+O objetivo desta entrega termina no funcionamento da conta comum. Não existe classificação de perfil no model ou no formulário atual. A próxima pessoa deverá decidir e implementar, para cada tipo de usuário:
 
 - campos adicionais necessários;
 - permissões e restrições de acesso;
@@ -323,7 +323,7 @@ O objetivo desta entrega termina no funcionamento da conta comum. A existência 
 
 ## Tabelas principais
 
-- `usuarios`: dados da conta e perfil;
+- `usuarios`: dados da conta comum;
 - `consentimentos_lgpd`: aceite, versão do termo, data e IP;
 - `django_session`: sessões de usuários autenticados;
 - tabelas internas do Django: permissões, grupos, migrations e administração.

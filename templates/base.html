@@ -1,17 +1,33 @@
+{% comment %}
+RESUMO DO ARQUIVO
+=================
+Template-base reutilizado por cadastro, login e dashboard.
+
+Ele define a estrutura HTML, a navegacao, as mensagens temporarias e dois blocos
+que as paginas filhas substituem: title e content. Nao ha CSS nesta entrega.
+{% endcomment %}
 <!doctype html>
 <html lang="pt-br">
 <head>
     <meta charset="utf-8">
+
+    <!-- Faz o HTML respeitar a largura do dispositivo. -->
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Paginas filhas podem substituir o titulo dentro deste bloco. -->
     <title>{% block title %}Elo{% endblock %}</title>
 </head>
 <body>
     <nav>
+        <!-- A tag url usa o nome da rota, evitando enderecos fixos no HTML. -->
         <a href="{% url 'accounts:dashboard' %}">Elo</a>
 
+        <!-- user vem do context processor de autenticacao em settings.py. -->
         {% if user.is_authenticated %}
             <span>{{ user.get_short_name }}</span>
-            <!-- Logout usa POST para proteger a sessao. -->
+
+            <!-- Logout usa POST para impedir encerramento acidental por links.
+                 csrf_token prova que o formulario veio do proprio sistema. -->
             <form method="post" action="{% url 'accounts:logout' %}">
                 {% csrf_token %}
                 <button type="submit">Sair</button>
@@ -23,10 +39,13 @@
     </nav>
 
     <main>
+        <!-- messages recebe avisos criados com django.contrib.messages.
+             Cada mensagem e exibida uma vez e removida da sessao. -->
         {% for message in messages %}
             <p>{{ message }}</p>
         {% endfor %}
 
+        <!-- Cada pagina filha coloca aqui seu conteudo principal. -->
         {% block content %}{% endblock %}
     </main>
 </body>

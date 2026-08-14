@@ -1,16 +1,20 @@
 """
-ASGI config for config project.
+RESUMO DO ARQUIVO
+=================
+Ponto de entrada ASGI para publicacao em servidores assincronos.
 
-It exposes the ASGI callable as a module-level variable named ``application``.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/6.1/howto/deployment/asgi/
+ASGI permite recursos como WebSockets e conexoes assincronas. O desenvolvimento
+atual nao usa esses recursos diretamente, mas o Django gera este arquivo para
+deixar o projeto preparado para um servidor compativel.
 """
 
 import os
 
 from django.core.asgi import get_asgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 
+# Informa ao Django onde estao as configuracoes antes de criar a aplicacao.
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+
+# Servidores ASGI importam esta variavel para encaminhar requisicoes ao Django.
 application = get_asgi_application()

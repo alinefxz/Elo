@@ -1,5 +1,12 @@
 {% extends "base.html" %}
 
+{% comment %}
+RESUMO DO ARQUIVO
+=================
+Tela de login por e-mail e senha. LoginView fornece o objeto ``form`` e processa
+a autenticacao usando o model configurado em AUTH_USER_MODEL.
+{% endcomment %}
+
 {% block title %}Entrar | Elo{% endblock %}
 
 {% block content %}
@@ -7,9 +14,13 @@
 
 <form method="post">
     {% csrf_token %}
+
+    <!-- Exibe e-mail, senha e eventuais erros de autenticacao. -->
     {{ form.as_p }}
 
     {% if next %}
+        <!-- Quando login_required enviou a pessoa para o login, next guarda a
+             pagina original para que ela possa retornar depois de entrar. -->
         <input type="hidden" name="next" value="{{ next }}">
     {% endif %}
 
