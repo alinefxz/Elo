@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% comment %}
+RESUMO DO ARQUIVO
+=================
+Tela publica do ator Visitante. Ela permite pesquisar postos de coleta,
+consultar estoque geral e ver pedidos ativos sem exigir cadastro ou login.
+{% endcomment %}
+
+{% block title %}Acesso visitante | Elo{% endblock %}
+
+{% block content %}
+<h1>Acesso visitante</h1>
+<p>Pesquise postos de coleta, consulte o estoque geral e acompanhe pedidos ativos.</p>
+
+<section>
+    <h2>Postos de coleta</h2>
+
+    <form method="get">
+        <label for="q">Pesquisar por posto, cidade, UF ou endereco</label>
+        <input
+            type="search"
+            id="q"
+            name="q"
+            value="{{ consulta }}"
+            placeholder="Ex.: Campinas, SP ou Hemocentro"
+        >
+        <button type="submit">Pesquisar</button>
+    </form>
+
+    {% if postos %}
+        <ul>
+            {% for posto in postos %}
+                <li>
+                    <strong>{{ posto.nome }}</strong><br>
+                    {{ posto.endereco }} - {{ posto.cidade }}/{{ posto.estado }}<br>
+                    {{ posto.horario }}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>Nenhum posto encontrado para "{{ consulta }}".</p>
+    {% endif %}
+</section>
+
+<section>
+    <h2>Estoque geral</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Tipo sanguineo</th>
+                <th>Nivel</th>
+                <th>Ocupacao</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in estoque_geral %}
+                <tr>
+                    <td>{{ item.tipo }}</td>
+                    <td>{{ item.nivel }}</td>
+                    <td>{{ item.percentual }}%</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<section>
+    <h2>Pedidos ativos</h2>
+
+    <ul>
+        {% for pedido in pedidos_ativos %}
+            <li>
+                <strong>{{ pedido.titulo }}</strong><br>
+                {{ pedido.tipo_sanguineo }} - {{ pedido.cidade }} - Urgencia {{ pedido.urgencia }}
+            </li>
+        {% endfor %}
+    </ul>
+</section>
+
+<p>
+    <a href="{% url 'accounts:cadastro' %}">Criar conta</a>
+    <a href="{% url 'accounts:login' %}">Entrar</a>
+</p>
+{% endblock %}

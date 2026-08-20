@@ -9,14 +9,15 @@ Repositório: <https://github.com/alinefxz/Elo.git>
 Esta entrega contém o ambiente inicial do sistema e um MVP de autenticação. Já foram implementados:
 
 - projeto Django conectado ao PostgreSQL;
+- acesso publico do Visitante para busca de postos, estoque geral e pedidos;
 - cadastro de usuários;
-- escolha inicial entre Doador, Receptor, Hemocentro e Observador;
+- escolha entre Doador, Receptor/Solicitante, Hemocentro e Observador;
 - dados iniciais de identificação e localização do usuário;
 - login por e-mail e senha;
 - logout seguro por requisição POST;
 - usuário-base personalizado do Django;
 - registro do consentimento LGPD no cadastro;
-- painel simples protegido por login;
+- painel protegido com conteudo particularizado por perfil;
 - painel administrativo do Django;
 - migrations versionadas do app `accounts`;
 - testes básicos de cadastro, senha e login;
@@ -24,12 +25,12 @@ Esta entrega contém o ambiente inicial do sistema e um MVP de autenticação. J
 
 As senhas não são armazenadas como texto comum. O Django gera e salva um hash seguro na coluna `senha_hash`.
 
-Esta etapa implementa uma conta-base completa, com o perfil inicial escolhido no cadastro. O sistema já guarda CPF ou CNPJ, telefone, nascimento, sexo, cidade e estado. A próxima etapa poderá usar o campo `perfil` para criar regras, permissões, páginas e funcionalidades próprias de Doador, Receptor, Hemocentro, Observador e Administrador.
+Esta etapa implementa uma conta-base completa, com o perfil escolhido no cadastro. O sistema já guarda CPF ou CNPJ, telefone, nascimento, sexo, cidade e estado. O campo `perfil` já particulariza o painel de Doador, Receptor/Solicitante, Hemocentro, Observador e Administrador. O Visitante nao possui conta: ele usa a pagina inicial publica para consultar postos, estoque geral e pedidos ativos.
 
 ## Tecnologias utilizadas
 
 - Python 3.14.3;
-- Django 6.1;
+- Django 5.2.17;
 - PostgreSQL;
 - psycopg 3.3.4;
 - python-dotenv 1.2.2;
@@ -67,13 +68,13 @@ Elo/
 
 Com o servidor executando:
 
-- página inicial: <http://127.0.0.1:8000/>;
+- página inicial publica do Visitante: <http://127.0.0.1:8000/>;
 - cadastro: <http://127.0.0.1:8000/cadastro/>;
 - login: <http://127.0.0.1:8000/login/>;
 - painel do usuário: <http://127.0.0.1:8000/dashboard/>;
 - administração: <http://127.0.0.1:8000/admin/>.
 
-A página inicial redireciona automaticamente para o login. O dashboard exige autenticação.
+A página inicial fica publica. O dashboard exige autenticação.
 
 ## Como instalar em outro computador
 

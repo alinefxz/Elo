@@ -42,7 +42,7 @@ class CadastroUsuarioForm(UserCreationForm):
         label="CPF",
         required=False,
         max_length=14,
-        help_text="Obrigatorio para Doador, Receptor e Observador.",
+        help_text="Obrigatorio para Doador e Receptor/Solicitante.",
         widget=forms.TextInput(attrs={"placeholder": "000.000.000-00"}),
     )
 
@@ -60,18 +60,24 @@ class CadastroUsuarioForm(UserCreationForm):
     # createsuperuser ou por uma pessoa autorizada no painel interno.
     perfil = forms.ChoiceField(
         label="Tipo de perfil",
+        help_text=(
+            "Visitantes nao precisam de conta para pesquisar postos e consultar "
+            "estoques gerais."
+        ),
         choices=[
             (Usuario.Perfil.DOADOR, "Doador"),
-            (Usuario.Perfil.RECEPTOR, "Receptor"),
+            (Usuario.Perfil.RECEPTOR, "Receptor / Solicitante"),
             (Usuario.Perfil.HEMOCENTRO, "Hemocentro"),
             (Usuario.Perfil.OBSERVADOR, "Observador"),
         ],
+        widget=forms.RadioSelect,
     )
 
     # O navegador mostra um seletor de data por causa de type=date.
     data_nascimento = forms.DateField(
         label="Data de nascimento",
-        required=True,
+        required=False,
+        help_text="Obrigatoria para Doador e Receptor/Solicitante.",
         widget=forms.DateInput(attrs={"type": "date"}),
     )
 
@@ -195,12 +201,22 @@ class CadastroUsuarioForm(UserCreationForm):
         cpf = dados.get("cpf")
         cnpj = dados.get("cnpj")
 
-        # Esta e uma regra inicial e simples. As regras detalhadas de cada
-        # perfil ainda serao criadas nas proximas etapas.
+        # Visitante nao aparece aqui porque e qualquer pessoa sem cadastro.
+        # Observador tem cadastro simples: acompanha o cenario sem publicar
+        # pedidos, confirmar doacoes ou gerenciar estoques.
+        perfis_pessoa = (Usuario.Perfil.DOADOR, Usuario.Perfil.RECEPTOR)
+        data_nascimento = dados.get("data_nascimento")
+
         if perfil == Usuario.Perfil.HEMOCENTRO and not cnpj:
             self.add_error("cnpj", "Informe o CNPJ do hemocentro.")
-        elif perfil and perfil != Usuario.Perfil.HEMOCENTRO and not cpf:
+        elif perfil in perfis_pessoa and not cpf:
             self.add_error("cpf", "Informe o CPF para este tipo de perfil.")
+
+        if perfil in perfis_pessoa and not data_nascimento:
+            self.add_error(
+                "data_nascimento",
+                "Informe a data de nascimento para este tipo de perfil.",
+            )
 
         return dados
 

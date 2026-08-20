@@ -10,9 +10,9 @@ O usuario herda de AbstractUser para aproveitar senha segura, login, sessao,
 grupos e permissoes do Django. Mesmo herdando de uma classe chamada
 AbstractUser, a classe Usuario abaixo e concreta e cria a tabela ``usuarios``.
 
-O campo perfil ja identifica Doador, Receptor, Hemocentro, Observador ou
-Administrador. Nesta etapa ele e uma classificacao inicial: ainda nao muda as
-permissoes nem abre uma pagina diferente para cada tipo de usuario.
+O campo perfil identifica Doador, Receptor/Solicitante, Hemocentro,
+Observador ou Administrador. As views usam esse valor para montar a experiencia
+inicial de cada tipo de usuario no dashboard.
 """
 
 from django.conf import settings
@@ -119,8 +119,9 @@ class Usuario(AbstractUser):
     # No PostgreSQL a coluna se chama senha_hash, como definido no documento.
     password = models.CharField(max_length=128, db_column="senha_hash")
 
-    # CPF e CNPJ podem ficar vazios, pois o formulario escolhe qual deles exigir:
-    # Hemocentro usa CNPJ; os outros perfis publicos usam CPF.
+    # CPF e CNPJ podem ficar vazios, pois o formulario escolhe quando exigir:
+    # Doador e Receptor/Solicitante usam CPF; Hemocentro usa CNPJ; Observador
+    # tem um cadastro simples e pode ficar sem documento nesta etapa.
     # null=True grava NULL quando vazio. Isso permite varias contas sem CNPJ,
     # enquanto unique=True ainda impede repetir um documento preenchido.
     cpf = models.CharField(max_length=11, unique=True, null=True, blank=True)

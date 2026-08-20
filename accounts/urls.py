@@ -10,8 +10,6 @@ enderecos manualmente nos templates.
 
 from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import path
-from django.views.generic import RedirectView
-
 from . import views
 from .forms import LoginUsuarioForm
 
@@ -21,16 +19,8 @@ from .forms import LoginUsuarioForm
 app_name = "accounts"
 
 urlpatterns = [
-    # A raiz / nao possui pagina propria. RedirectView envia para a rota login.
-    # permanent=False produz redirecionamento HTTP 302, adequado neste momento.
-    path(
-        "",
-        RedirectView.as_view(
-            pattern_name="accounts:login",
-            permanent=False,
-        ),
-        name="inicio",
-    ),
+    # A raiz / representa o acesso do Visitante, sem cadastro ou login.
+    path("", views.inicio, name="inicio"),
 
     # View escrita no projeto para criar usuario e consentimento.
     path("cadastro/", views.cadastro, name="cadastro"),
