@@ -1,7 +1,7 @@
 """
 RESUMO DO ARQUIVO
 =================
-Configura como Usuario e ConsentimentoLGPD aparecem no painel /admin/.
+Configura como Usuario, ConsentimentoLGPD e auditorias aparecem no /admin/.
 
 O admin e uma ferramenta interna para pessoas autorizadas. Ele nao substitui
 as telas normais do sistema. Os formularios abaixo garantem que uma senha
@@ -12,7 +12,8 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.forms import UserChangeForm, UserCreationForm
 
-from .models import ConsentimentoLGPD, Usuario
+from .auditoria import campos_sensiveis_alterados, registrar_auditoria
+from .models import AuditoriaAcaoCritica, ConsentimentoLGPD, Usuario
 
 
 class UsuarioAdminCreationForm(UserCreationForm):
@@ -115,6 +116,78 @@ class UsuarioAdmin(UserAdmin):
         ),
     )
 
+    def save_model(self, request, obj, form, change):
+        """Audita mudancas administrativas em perfil e permissoes."""
+
+        campos_auditados = [
+            "perfil",
+            "is_active",
+            "is_staff",
+            "is_superuser",
+            "email_verificado",
+        ]
+        alteracoes = campos_sensiveis_alterados(obj, campos_auditados) if change else {}
+
+        super().save_model(request, obj, form, change)
+
+        if alteracoes:
+            registrar_auditoria(
+                acao=AuditoriaAcaoCritica.Acao.ALTERACAO_PERMISSAO,
+                usuario=request.user,
+                alvo=obj,
+                descricao="Alteracao administrativa de perfil ou permissao.",
+                request=request,
+                metadados={"alteracoes": alteracoes},
+            )
+
+    def save_related(self, request, form, formsets, change):
+        """Audita mudancas em grupos e permissoes diretas do usuario."""
+
+        obj = form.instance
+        grupos_antes = set()
+        permissoes_antes = set()
+
+        if change and obj.pk:
+            usuario_atual = Usuario.objects.get(pk=obj.pk)
+            grupos_antes = set(
+                usuario_atual.groups.values_list("name", flat=True)
+            )
+            permissoes_antes = set(
+                usuario_atual.user_permissions.values_list("codename", flat=True)
+            )
+
+        super().save_related(request, form, formsets, change)
+
+        if not change:
+            return
+
+        grupos_depois = set(obj.groups.values_list("name", flat=True))
+        permissoes_depois = set(
+            obj.user_permissions.values_list("codename", flat=True)
+        )
+
+        alteracoes = {}
+        if grupos_antes != grupos_depois:
+            alteracoes["groups"] = {
+                "antes": sorted(grupos_antes),
+                "depois": sorted(grupos_depois),
+            }
+        if permissoes_antes != permissoes_depois:
+            alteracoes["user_permissions"] = {
+                "antes": sorted(permissoes_antes),
+                "depois": sorted(permissoes_depois),
+            }
+
+        if alteracoes:
+            registrar_auditoria(
+                acao=AuditoriaAcaoCritica.Acao.ALTERACAO_PERMISSAO,
+                usuario=request.user,
+                alvo=obj,
+                descricao="Alteracao administrativa de grupos ou permissoes.",
+                request=request,
+                metadados={"alteracoes": alteracoes},
+            )
+
 
 @admin.register(ConsentimentoLGPD)
 class ConsentimentoLGPDAdmin(admin.ModelAdmin):
@@ -132,3 +205,51 @@ class ConsentimentoLGPDAdmin(admin.ModelAdmin):
 
     # A data representa um evento real e nao deve ser alterada pelo formulario.
     readonly_fields = ("data_aceite",)
+
+
+@admin.register(AuditoriaAcaoCritica)
+class AuditoriaAcaoCriticaAdmin(admin.ModelAdmin):
+    """Consulta somente leitura das acoes criticas registradas."""
+
+    list_display = (
+        "criado_em",
+        "acao",
+        "resultado",
+        "usuario",
+        "alvo_tipo",
+        "alvo_id",
+        "ip",
+    )
+    list_filter = ("acao", "resultado", "criado_em")
+    search_fields = (
+        "usuario__email",
+        "usuario__nome",
+        "descricao",
+        "alvo_tipo",
+        "alvo_id",
+        "ip",
+    )
+    readonly_fields = (
+        "id_auditoria",
+        "usuario",
+        "acao",
+        "resultado",
+        "alvo_tipo",
+        "alvo_id",
+        "descricao",
+        "ip",
+        "user_agent",
+        "metadados",
+        "criado_em",
+    )
+    date_hierarchy = "criado_em"
+    ordering = ("-criado_em",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

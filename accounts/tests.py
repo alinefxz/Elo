@@ -17,8 +17,12 @@ Execute com: ``python manage.py test``.
 
 from django.test import TestCase
 from django.urls import reverse
+from django.contrib import admin
+from django.test import RequestFactory
 
-from .models import ConsentimentoLGPD, Usuario
+from .admin import UsuarioAdmin
+from .auditoria import registrar_auditoria
+from .models import AuditoriaAcaoCritica, ConsentimentoLGPD, Usuario
 
 
 class AutenticacaoTests(TestCase):
@@ -113,6 +117,52 @@ class AutenticacaoTests(TestCase):
 
         self.assertRedirects(resposta, reverse("accounts:dashboard"))
 
+    def test_login_falho_gera_auditoria(self):
+        """Confirma que uma tentativa invalida gera registro de auditoria."""
+
+        resposta = self.client.post(
+            reverse("accounts:login"),
+            {
+                "username": "naoexiste@example.com",
+                "password": "SenhaErrada123",
+            },
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        auditoria = AuditoriaAcaoCritica.objects.get(
+            acao=AuditoriaAcaoCritica.Acao.LOGIN_FALHO
+        )
+        self.assertEqual(auditoria.resultado, AuditoriaAcaoCritica.Resultado.FALHA)
+        self.assertEqual(auditoria.metadados["email"], "naoexiste@example.com")
+        self.assertNotIn("SenhaErrada123", str(auditoria.metadados))
+
+    def test_login_suspeito_gera_auditoria_apos_muitas_falhas(self):
+        """Confirma que muitas falhas recentes marcam login suspeito."""
+
+        for _ in range(5):
+            self.client.post(
+                reverse("accounts:login"),
+                {
+                    "username": "suspeito@example.com",
+                    "password": "SenhaErrada123",
+                },
+            )
+
+        self.assertEqual(
+            AuditoriaAcaoCritica.objects.filter(
+                acao=AuditoriaAcaoCritica.Acao.LOGIN_FALHO
+            ).count(),
+            5,
+        )
+        auditoria = AuditoriaAcaoCritica.objects.get(
+            acao=AuditoriaAcaoCritica.Acao.LOGIN_SUSPEITO
+        )
+        self.assertEqual(
+            auditoria.resultado,
+            AuditoriaAcaoCritica.Resultado.BLOQUEADO,
+        )
+        self.assertEqual(auditoria.metadados["falhas_recentes"], 5)
+
     def test_hemocentro_exige_cnpj(self):
         """Confirma a regra simples de documento para Hemocentro."""
 
@@ -199,3 +249,58 @@ class AutenticacaoTests(TestCase):
         self.assertContains(resposta, "Painel do hemocentro")
         self.assertContains(resposta, "Atualizar quantidade de bolsas")
         self.assertContains(resposta, "Confirmar comparecimento")
+
+    def test_registrar_auditoria_remove_metadados_sensiveis(self):
+        """Confirma que senha e token nao ficam gravados na auditoria."""
+
+        auditoria = registrar_auditoria(
+            acao=AuditoriaAcaoCritica.Acao.ACESSO_DADOS_SENSIVEIS,
+            resultado=AuditoriaAcaoCritica.Resultado.SUCESSO,
+            descricao="Teste de saneamento.",
+            metadados={
+                "email": "maria@example.com",
+                "password": "SenhaElo123",
+                "token": "abc123",
+            },
+        )
+
+        self.assertEqual(auditoria.metadados["email"], "maria@example.com")
+        self.assertEqual(auditoria.metadados["password"], "[removido]")
+        self.assertEqual(auditoria.metadados["token"], "[removido]")
+
+    def test_admin_alteracao_de_perfil_gera_auditoria(self):
+        """Confirma auditoria quando admin altera perfil ou permissao."""
+
+        administrador = Usuario.objects.create_superuser(
+            email="admin@example.com",
+            nome="Admin Elo",
+            password="SenhaElo123",
+        )
+        usuario = Usuario.objects.create_user(
+            email="usuario@example.com",
+            nome="Usuario Elo",
+            password="SenhaElo123",
+            perfil=Usuario.Perfil.OBSERVADOR,
+        )
+
+        request = RequestFactory().post("/admin/accounts/usuario/")
+        request.user = administrador
+
+        usuario.perfil = Usuario.Perfil.HEMOCENTRO
+        usuario_admin = UsuarioAdmin(Usuario, admin.site)
+        usuario_admin.save_model(request, usuario, form=None, change=True)
+
+        auditoria = AuditoriaAcaoCritica.objects.get(
+            acao=AuditoriaAcaoCritica.Acao.ALTERACAO_PERMISSAO
+        )
+        self.assertEqual(auditoria.usuario, administrador)
+        self.assertEqual(auditoria.alvo_tipo, "accounts.Usuario")
+        self.assertEqual(auditoria.alvo_id, str(usuario.pk))
+        self.assertEqual(
+            auditoria.metadados["alteracoes"]["perfil"]["antes"],
+            Usuario.Perfil.OBSERVADOR,
+        )
+        self.assertEqual(
+            auditoria.metadados["alteracoes"]["perfil"]["depois"],
+            Usuario.Perfil.HEMOCENTRO,
+        )

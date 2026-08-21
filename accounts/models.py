@@ -5,6 +5,7 @@ Este arquivo descreve os dados que o Django guarda no PostgreSQL.
 
 - Usuario: guarda a conta, os dados basicos e o tipo de perfil escolhido.
 - ConsentimentoLGPD: guarda quando a pessoa aceitou cada termo.
+- AuditoriaAcaoCritica: registra eventos sensiveis para rastreabilidade.
 
 O usuario herda de AbstractUser para aproveitar senha segura, login, sessao,
 grupos e permissoes do Django. Mesmo herdando de uma classe chamada
@@ -266,3 +267,74 @@ class ConsentimentoLGPD(models.Model):
 
     def __str__(self):
         return f"{self.usuario.email} - {self.get_tipo_termo_display()}"
+
+
+class AuditoriaAcaoCritica(models.Model):
+    """
+    Registro imutavel de eventos sensiveis do Elo.
+
+    A auditoria guarda o contexto da acao sem copiar senhas, tokens ou dados
+    sensiveis completos. Cada tela ou rotina critica deve chamar a funcao
+    central de auditoria em accounts/auditoria.py.
+    """
+
+    class Acao(models.TextChoices):
+        LOGIN_FALHO = "LOGIN_FALHO", "Login falho"
+        LOGIN_SUSPEITO = "LOGIN_SUSPEITO", "Login suspeito"
+        ALTERACAO_PERMISSAO = "ALTERACAO_PERMISSAO", "Alteracao de permissao"
+        APROVACAO_HEMOCENTRO = "APROVACAO_HEMOCENTRO", "Aprovacao de hemocentro"
+        ATUALIZACAO_ESTOQUE = "ATUALIZACAO_ESTOQUE", "Atualizacao de estoque"
+        MODERACAO = "MODERACAO", "Moderacao"
+        ACESSO_DADOS_SENSIVEIS = (
+            "ACESSO_DADOS_SENSIVEIS",
+            "Acesso a dados sensiveis",
+        )
+        CONFIRMACAO_DOACAO = "CONFIRMACAO_DOACAO", "Confirmacao de doacao"
+
+    class Resultado(models.TextChoices):
+        SUCESSO = "SUCESSO", "Sucesso"
+        FALHA = "FALHA", "Falha"
+        BLOQUEADO = "BLOQUEADO", "Bloqueado"
+
+    id_auditoria = models.BigAutoField(primary_key=True)
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="auditorias_acoes_criticas",
+        db_column="id_usuario",
+    )
+    acao = models.CharField(max_length=40, choices=Acao.choices)
+    resultado = models.CharField(
+        max_length=20,
+        choices=Resultado.choices,
+        default=Resultado.SUCESSO,
+    )
+
+    alvo_tipo = models.CharField(max_length=80, blank=True, default="")
+    alvo_id = models.CharField(max_length=80, blank=True, default="")
+    descricao = models.CharField(max_length=255, blank=True, default="")
+
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True, default="")
+    metadados = models.JSONField(blank=True, default=dict)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "auditorias_acoes_criticas"
+        verbose_name = "auditoria de acao critica"
+        verbose_name_plural = "auditorias de acoes criticas"
+        ordering = ["-criado_em"]
+        indexes = [
+            models.Index(fields=["acao", "criado_em"], name="auditoria_acao_data_idx"),
+            models.Index(
+                fields=["usuario", "criado_em"],
+                name="auditoria_usuario_data_idx",
+            ),
+            models.Index(fields=["ip", "criado_em"], name="auditoria_ip_data_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.get_acao_display()} - {self.get_resultado_display()}"

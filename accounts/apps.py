@@ -19,3 +19,8 @@ class AccountsConfig(AppConfig):
 
     # Nome amigavel exibido no painel administrativo.
     verbose_name = "Contas e autenticacao"
+
+    def ready(self):
+        """Carrega os sinais de auditoria quando o app inicia."""
+
+        from . import signals  # noqa: F401
