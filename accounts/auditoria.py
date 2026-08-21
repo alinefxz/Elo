@@ -21,7 +21,7 @@ CAMPOS_SENSIVEIS = {
     "authorization",
 }
 
-
+"""serve para identiifcar de onde a ação veio"""
 def obter_ip(request):
     """Extrai o IP de uma requisicao HTTP, considerando proxies."""
 
