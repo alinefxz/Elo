@@ -8,12 +8,22 @@ as telas normais do sistema. Os formularios abaixo garantem que uma senha
 criada no painel tambem seja transformada em hash.
 """
 
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.forms import UserChangeForm, UserCreationForm
 
 from .auditoria import campos_sensiveis_alterados, registrar_auditoria
-from .models import AuditoriaAcaoCritica, ConsentimentoLGPD, Usuario
+from .models import (
+    AuditoriaAcaoCritica,
+    ConsentimentoLGPD,
+    Usuario,
+    ValidacaoHemocentro,
+)
+from .validacao_hemocentro import (
+    aprovar_hemocentro,
+    recusar_hemocentro,
+    solicitar_correcao_hemocentro,
+)
 
 
 class UsuarioAdminCreationForm(UserCreationForm):
@@ -49,18 +59,35 @@ class UsuarioAdmin(UserAdmin):
         "email",
         "nome",
         "perfil",
+        "status_validacao",
         "is_active",
         "email_verificado",
         "is_staff",
     )
 
     # Filtros laterais e campos pesquisaveis no painel.
-    list_filter = ("perfil", "is_active", "email_verificado", "is_staff")
+    list_filter = (
+        "perfil",
+        "status_validacao",
+        "is_active",
+        "email_verificado",
+        "is_staff",
+    )
     search_fields = ("email", "nome", "cpf", "cnpj")
     ordering = ("nome",)
+    actions = (
+        "aprovar_hemocentros_selecionados",
+        "recusar_hemocentros_selecionados",
+        "solicitar_correcao_hemocentros_selecionados",
+    )
 
     # Datas automaticas devem ser visualizadas, nao digitadas manualmente.
-    readonly_fields = ("last_login", "date_joined", "atualizado_em")
+    readonly_fields = (
+        "status_validacao",
+        "last_login",
+        "date_joined",
+        "atualizado_em",
+    )
 
     # fieldsets organiza a tela de EDICAO de uma conta existente.
     fieldsets = (
@@ -78,6 +105,7 @@ class UsuarioAdmin(UserAdmin):
                     "sexo",
                     "cidade",
                     "estado",
+                    "status_validacao",
                     "email_verificado",
                 )
             },
@@ -140,6 +168,68 @@ class UsuarioAdmin(UserAdmin):
                 metadados={"alteracoes": alteracoes},
             )
 
+    def _executar_acao_validacao(self, request, queryset, funcao, parecer):
+        """Aplica uma decisao de validacao aos Hemocentros selecionados."""
+
+        hemocentros = queryset.filter(perfil=Usuario.Perfil.HEMOCENTRO)
+        ignorados = queryset.exclude(perfil=Usuario.Perfil.HEMOCENTRO).count()
+        total = 0
+
+        for hemocentro in hemocentros:
+            funcao(
+                hemocentro=hemocentro,
+                admin=request.user,
+                parecer=parecer,
+                request=request,
+            )
+            total += 1
+
+        if total:
+            self.message_user(
+                request,
+                f"{total} Hemocentro(s) atualizado(s) com sucesso.",
+                level=messages.SUCCESS,
+            )
+        if ignorados:
+            self.message_user(
+                request,
+                f"{ignorados} usuario(s) ignorado(s) por nao serem Hemocentros.",
+                level=messages.WARNING,
+            )
+
+    @admin.action(description="Aprovar Hemocentros selecionados")
+    def aprovar_hemocentros_selecionados(self, request, queryset):
+        """Acao em lote que aprova Hemocentros e registra historico."""
+
+        self._executar_acao_validacao(
+            request,
+            queryset,
+            aprovar_hemocentro,
+            "Hemocentro aprovado pelo painel administrativo.",
+        )
+
+    @admin.action(description="Recusar Hemocentros selecionados")
+    def recusar_hemocentros_selecionados(self, request, queryset):
+        """Acao em lote que recusa Hemocentros e registra historico."""
+
+        self._executar_acao_validacao(
+            request,
+            queryset,
+            recusar_hemocentro,
+            "Hemocentro recusado pelo painel administrativo.",
+        )
+
+    @admin.action(description="Solicitar correcao dos Hemocentros selecionados")
+    def solicitar_correcao_hemocentros_selecionados(self, request, queryset):
+        """Acao em lote que solicita correcao cadastral e registra historico."""
+
+        self._executar_acao_validacao(
+            request,
+            queryset,
+            solicitar_correcao_hemocentro,
+            "Correcao cadastral solicitada pelo painel administrativo.",
+        )
+
     def save_related(self, request, form, formsets, change):
         """Audita mudancas em grupos e permissoes diretas do usuario."""
 
@@ -187,6 +277,56 @@ class UsuarioAdmin(UserAdmin):
                 request=request,
                 metadados={"alteracoes": alteracoes},
             )
+
+
+@admin.register(ValidacaoHemocentro)
+class ValidacaoHemocentroAdmin(admin.ModelAdmin):
+    """Consulta somente leitura do historico institucional de Hemocentros."""
+
+    list_display = (
+        "data_analise",
+        "hemocentro",
+        "status",
+        "admin",
+        "parecer_resumido",
+    )
+    list_filter = ("status", "data_analise")
+    search_fields = (
+        "hemocentro__email",
+        "hemocentro__nome",
+        "hemocentro__cnpj",
+        "admin__email",
+        "admin__nome",
+        "parecer",
+    )
+    readonly_fields = (
+        "id_validacao",
+        "hemocentro",
+        "admin",
+        "status",
+        "parecer",
+        "data_analise",
+    )
+    date_hierarchy = "data_analise"
+    ordering = ("-data_analise",)
+
+    def parecer_resumido(self, obj):
+        """Mostra um trecho curto do parecer na listagem."""
+
+        if len(obj.parecer) <= 80:
+            return obj.parecer
+        return f"{obj.parecer[:77]}..."
+
+    parecer_resumido.short_description = "Parecer"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(ConsentimentoLGPD)

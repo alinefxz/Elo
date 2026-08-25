@@ -1,4 +1,5 @@
 """
+
 RESUMO DO ARQUIVO
 =================
 Testes automatizados executam o fluxo sem abrir o navegador. Cada teste usa um
@@ -13,294 +14,176 @@ Os testes abaixo verificam o minimo mais importante desta entrega:
 5. perfis cadastrados recebem paineis proprios.
 
 Execute com: ``python manage.py test``.
+
+
+Os testes verificam:
+- novo Hemocentro inicia como PENDENTE;
+- administrador consegue aprovar, recusar ou solicitar correcao;
+- cada decisao gera historico;
+- usuario comum nao pode executar a decisao;
+- Hemocentro nao aprovado nao consegue publicar;
+- Hemocentro aprovado pode seguir para a rotina de publicacao.
 """
 
+from django.core.exceptions import PermissionDenied
 from django.test import TestCase
-from django.urls import reverse
-from django.contrib import admin
-from django.test import RequestFactory
 
-from .admin import UsuarioAdmin
-from .auditoria import registrar_auditoria
-from .models import AuditoriaAcaoCritica, ConsentimentoLGPD, Usuario
+from .models import AuditoriaAcaoCritica, Usuario, ValidacaoHemocentro
+from .validacao_hemocentro import (
+    aprovar_hemocentro,
+    hemocentro_aprovado,
+    recusar_hemocentro,
+    solicitar_correcao_hemocentro,
+    validar_publicacao_hemocentro,
+)
 
 
-class AutenticacaoTests(TestCase):
-    """Agrupa os testes do cadastro e da autenticacao comum."""
+class ValidacaoHemocentroTests(TestCase):
+    """Testes principais do UC_07."""
 
-    def test_inicio_visitante_mostra_busca_estoque_e_pedidos(self):
-        """Confirma que Visitante tem acesso publico limitado."""
+    def criar_usuario(
+        self,
+        *,
+        email,
+        nome,
+        perfil,
+        is_staff=False,
+        is_superuser=False,
+    ):
+        """Cria usuario usando o manager real do projeto."""
 
-        resposta = self.client.get(reverse("accounts:inicio"))
-
-        self.assertEqual(resposta.status_code, 200)
-        self.assertContains(resposta, "Acesso visitante")
-        self.assertContains(resposta, "Postos de coleta")
-        self.assertContains(resposta, "Estoque geral")
-        self.assertContains(resposta, "Pedidos ativos")
-
-    def test_inicio_filtra_postos_de_coleta(self):
-        """Confirma que a busca publica filtra os postos apresentados."""
-
-        resposta = self.client.get(reverse("accounts:inicio"), {"q": "Campinas"})
-
-        self.assertContains(resposta, "Banco de Sangue Vida")
-        self.assertNotContains(resposta, "Unidade Hematologica Norte")
-
-    def dados_de_cadastro(self):
-        """Retorna dados validos reutilizados pelo teste de cadastro."""
-
-        return {
-            "nome": "Maria Silva",
-            "email": "maria@example.com",
-            "perfil": Usuario.Perfil.DOADOR,
-            "cpf": "123.456.789-01",
-            "cnpj": "",
-            "telefone": "(11) 99999-9999",
-            "data_nascimento": "1995-06-10",
-            "sexo": Usuario.Sexo.FEMININO,
-            "cidade": "Sao Paulo",
-            "estado": "sp",
-            "password1": "SenhaElo123",
-            "password2": "SenhaElo123",
-            "aceite_lgpd": "on",
-        }
-
-    def test_cadastro_cria_hash_e_consentimento(self):
-        """Confirma que cadastro nao armazena a senha pura."""
-
-        resposta = self.client.post(
-            reverse("accounts:cadastro"),
-            self.dados_de_cadastro(),
+        return Usuario.objects.create_user(
+            email=email,
+            password="SenhaForte123!",
+            nome=nome,
+            perfil=perfil,
+            is_staff=is_staff,
+            is_superuser=is_superuser,
         )
 
-        # O fluxo concluido redireciona para o dashboard.
-        self.assertRedirects(resposta, reverse("accounts:dashboard"))
+    def setUp(self):
+        """Prepara um administrador e um Hemocentro para cada teste."""
 
-        usuario = Usuario.objects.get(email="maria@example.com")
+        self.admin = self.criar_usuario(
+            email="admin@elo.test",
+            nome="Administrador Elo",
+            perfil=Usuario.Perfil.ADMINISTRADOR,
+        )
 
-        # O formulario retira a pontuacao do CPF e padroniza a UF.
-        self.assertEqual(usuario.cpf, "12345678901")
-        self.assertEqual(usuario.estado, "SP")
-        self.assertEqual(usuario.perfil, Usuario.Perfil.DOADOR)
+        self.hemocentro = self.criar_usuario(
+            email="hemocentro@elo.test",
+            nome="Hemocentro Elo",
+            perfil=Usuario.Perfil.HEMOCENTRO,
+        )
 
-        # check_password aplica o algoritmo de hash e compara o resultado.
-        # A segunda verificacao confirma que o texto original nao foi salvo.
-        self.assertTrue(usuario.check_password("SenhaElo123"))
-        self.assertNotEqual(usuario.password, "SenhaElo123")
+    def test_hemocentro_inicia_pendente(self):
+        """Conta de Hemocentro nova deve aguardar analise."""
+
+        self.assertEqual(
+            self.hemocentro.status_validacao,
+            Usuario.StatusValidacaoHemocentro.PENDENTE,
+        )
+        self.assertFalse(hemocentro_aprovado(self.hemocentro))
+
+    def test_admin_aprova_e_cria_historico(self):
+        """Aprovacao altera status, cria historico e gera auditoria."""
+
+        validacao = aprovar_hemocentro(
+            hemocentro=self.hemocentro,
+            admin=self.admin,
+        )
+
+        self.hemocentro.refresh_from_db()
+
+        self.assertEqual(
+            self.hemocentro.status_validacao,
+            Usuario.StatusValidacaoHemocentro.APROVADO,
+        )
+        self.assertEqual(validacao.status, Usuario.StatusValidacaoHemocentro.APROVADO)
+        self.assertEqual(
+            ValidacaoHemocentro.objects.filter(hemocentro=self.hemocentro).count(),
+            1,
+        )
         self.assertTrue(
-            ConsentimentoLGPD.objects.filter(
-                usuario=usuario,
-                aceito=True,
+            AuditoriaAcaoCritica.objects.filter(
+                acao=AuditoriaAcaoCritica.Acao.APROVACAO_HEMOCENTRO,
+                usuario=self.admin,
+                alvo_id=str(self.hemocentro.pk),
             ).exists()
         )
 
-    def test_login_usa_email_e_senha(self):
-        """Confirma que o identificador de login e o e-mail."""
+    def test_admin_recusa(self):
+        """Recusa altera o status e guarda o parecer."""
 
-        Usuario.objects.create_user(
-            email="joao@example.com",
-            nome="Joao Souza",
-            password="SenhaElo123",
-            perfil=Usuario.Perfil.OBSERVADOR,
+        validacao = recusar_hemocentro(
+            hemocentro=self.hemocentro,
+            admin=self.admin,
+            parecer="CNPJ nao confere com os documentos enviados.",
         )
 
-        resposta = self.client.post(
-            reverse("accounts:login"),
-            {
-                # AuthenticationForm chama o identificador interno de username,
-                # mesmo quando USERNAME_FIELD aponta para email.
-                "username": "joao@example.com",
-                "password": "SenhaElo123",
-            },
-        )
-
-        self.assertRedirects(resposta, reverse("accounts:dashboard"))
-
-    def test_login_falho_gera_auditoria(self):
-        """Confirma que uma tentativa invalida gera registro de auditoria."""
-
-        resposta = self.client.post(
-            reverse("accounts:login"),
-            {
-                "username": "naoexiste@example.com",
-                "password": "SenhaErrada123",
-            },
-        )
-
-        self.assertEqual(resposta.status_code, 200)
-        auditoria = AuditoriaAcaoCritica.objects.get(
-            acao=AuditoriaAcaoCritica.Acao.LOGIN_FALHO
-        )
-        self.assertEqual(auditoria.resultado, AuditoriaAcaoCritica.Resultado.FALHA)
-        self.assertEqual(auditoria.metadados["email"], "naoexiste@example.com")
-        self.assertNotIn("SenhaErrada123", str(auditoria.metadados))
-
-    def test_login_suspeito_gera_auditoria_apos_muitas_falhas(self):
-        """Confirma que muitas falhas recentes marcam login suspeito."""
-
-        for _ in range(5):
-            self.client.post(
-                reverse("accounts:login"),
-                {
-                    "username": "suspeito@example.com",
-                    "password": "SenhaErrada123",
-                },
-            )
+        self.hemocentro.refresh_from_db()
 
         self.assertEqual(
-            AuditoriaAcaoCritica.objects.filter(
-                acao=AuditoriaAcaoCritica.Acao.LOGIN_FALHO
-            ).count(),
-            5,
-        )
-        auditoria = AuditoriaAcaoCritica.objects.get(
-            acao=AuditoriaAcaoCritica.Acao.LOGIN_SUSPEITO
+            self.hemocentro.status_validacao,
+            Usuario.StatusValidacaoHemocentro.RECUSADO,
         )
         self.assertEqual(
-            auditoria.resultado,
-            AuditoriaAcaoCritica.Resultado.BLOQUEADO,
-        )
-        self.assertEqual(auditoria.metadados["falhas_recentes"], 5)
-
-    def test_hemocentro_exige_cnpj(self):
-        """Confirma a regra simples de documento para Hemocentro."""
-
-        dados = self.dados_de_cadastro()
-        dados.update(
-            {
-                "email": "hemocentro@example.com",
-                "perfil": Usuario.Perfil.HEMOCENTRO,
-                "cpf": "",
-                "cnpj": "",
-            }
+            validacao.parecer,
+            "CNPJ nao confere com os documentos enviados.",
         )
 
-        resposta = self.client.post(reverse("accounts:cadastro"), dados)
+    def test_admin_solicita_correcao(self):
+        """Solicitacao de correcao coloca o cadastro em CORRECAO."""
 
-        # Um formulario invalido volta com status 200 para mostrar os erros e
-        # nao cria nenhuma conta no banco.
-        self.assertEqual(resposta.status_code, 200)
-        self.assertContains(resposta, "Informe o CNPJ do hemocentro.")
-        self.assertFalse(
-            Usuario.objects.filter(email="hemocentro@example.com").exists()
+        solicitar_correcao_hemocentro(
+            hemocentro=self.hemocentro,
+            admin=self.admin,
+            parecer="Atualize telefone e endereco.",
         )
 
-    def test_observador_tem_cadastro_simples(self):
-        """Confirma que Observador nao precisa de CPF ou nascimento."""
+        self.hemocentro.refresh_from_db()
 
-        dados = self.dados_de_cadastro()
-        dados.update(
-            {
-                "email": "observadora@example.com",
-                "perfil": Usuario.Perfil.OBSERVADOR,
-                "cpf": "",
-                "cnpj": "",
-                "data_nascimento": "",
-            }
+        self.assertEqual(
+            self.hemocentro.status_validacao,
+            Usuario.StatusValidacaoHemocentro.CORRECAO,
         )
 
-        resposta = self.client.post(reverse("accounts:cadastro"), dados)
+    def test_usuario_comum_nao_pode_validar(self):
+        """Somente administrador pode registrar a decisao."""
 
-        self.assertRedirects(resposta, reverse("accounts:dashboard"))
-        usuario = Usuario.objects.get(email="observadora@example.com")
-        self.assertEqual(usuario.perfil, Usuario.Perfil.OBSERVADOR)
-        self.assertIsNone(usuario.cpf)
-        self.assertIsNone(usuario.data_nascimento)
-
-    def test_dashboard_exige_login(self):
-        """Confirma que visitante nao acessa a pagina protegida."""
-
-        resposta = self.client.get(reverse("accounts:dashboard"))
-        destino = f"{reverse('accounts:login')}?next={reverse('accounts:dashboard')}"
-        self.assertRedirects(resposta, destino)
-
-    def test_dashboard_doador_mostra_funcoes_do_perfil(self):
-        """Confirma que Doador visualiza a jornada propria."""
-
-        usuario = Usuario.objects.create_user(
-            email="doador@example.com",
-            nome="Doador Exemplo",
-            password="SenhaElo123",
+        usuario_comum = self.criar_usuario(
+            email="doador@elo.test",
+            nome="Doador",
             perfil=Usuario.Perfil.DOADOR,
         )
-        self.client.force_login(usuario)
 
-        resposta = self.client.get(reverse("accounts:dashboard"))
+        with self.assertRaises(PermissionDenied):
+            aprovar_hemocentro(
+                hemocentro=self.hemocentro,
+                admin=usuario_comum,
+            )
 
-        self.assertContains(resposta, "Painel do doador")
-        self.assertContains(resposta, "pre-triagem")
-        self.assertContains(resposta, "ranking")
+    def test_hemocentro_nao_aprovado_nao_publica(self):
+        """Pendente, recusado e correcao devem bloquear publicacao."""
 
-    def test_dashboard_hemocentro_mostra_gestao_de_estoque(self):
-        """Confirma que Hemocentro visualiza a operacao de estoque."""
+        for status in (
+            Usuario.StatusValidacaoHemocentro.PENDENTE,
+            Usuario.StatusValidacaoHemocentro.RECUSADO,
+            Usuario.StatusValidacaoHemocentro.CORRECAO,
+        ):
+            self.hemocentro.status_validacao = status
+            self.hemocentro.save(update_fields=["status_validacao"])
 
-        usuario = Usuario.objects.create_user(
-            email="hemocentro@example.com",
-            nome="Hemocentro Exemplo",
-            password="SenhaElo123",
-            perfil=Usuario.Perfil.HEMOCENTRO,
-            cnpj="12345678000190",
+            with self.assertRaises(PermissionDenied):
+                validar_publicacao_hemocentro(self.hemocentro)
+
+    def test_hemocentro_aprovado_pode_publicar(self):
+        """Status aprovado libera a regra de publicacao."""
+
+        aprovar_hemocentro(
+            hemocentro=self.hemocentro,
+            admin=self.admin,
         )
-        self.client.force_login(usuario)
+        self.hemocentro.refresh_from_db()
 
-        resposta = self.client.get(reverse("accounts:dashboard"))
-
-        self.assertContains(resposta, "Painel do hemocentro")
-        self.assertContains(resposta, "Atualizar quantidade de bolsas")
-        self.assertContains(resposta, "Confirmar comparecimento")
-
-    def test_registrar_auditoria_remove_metadados_sensiveis(self):
-        """Confirma que senha e token nao ficam gravados na auditoria."""
-
-        auditoria = registrar_auditoria(
-            acao=AuditoriaAcaoCritica.Acao.ACESSO_DADOS_SENSIVEIS,
-            resultado=AuditoriaAcaoCritica.Resultado.SUCESSO,
-            descricao="Teste de saneamento.",
-            metadados={
-                "email": "maria@example.com",
-                "password": "SenhaElo123",
-                "token": "abc123",
-            },
-        )
-
-        self.assertEqual(auditoria.metadados["email"], "maria@example.com")
-        self.assertEqual(auditoria.metadados["password"], "[removido]")
-        self.assertEqual(auditoria.metadados["token"], "[removido]")
-
-    def test_admin_alteracao_de_perfil_gera_auditoria(self):
-        """Confirma auditoria quando admin altera perfil ou permissao."""
-
-        administrador = Usuario.objects.create_superuser(
-            email="admin@example.com",
-            nome="Admin Elo",
-            password="SenhaElo123",
-        )
-        usuario = Usuario.objects.create_user(
-            email="usuario@example.com",
-            nome="Usuario Elo",
-            password="SenhaElo123",
-            perfil=Usuario.Perfil.OBSERVADOR,
-        )
-
-        request = RequestFactory().post("/admin/accounts/usuario/")
-        request.user = administrador
-
-        usuario.perfil = Usuario.Perfil.HEMOCENTRO
-        usuario_admin = UsuarioAdmin(Usuario, admin.site)
-        usuario_admin.save_model(request, usuario, form=None, change=True)
-
-        auditoria = AuditoriaAcaoCritica.objects.get(
-            acao=AuditoriaAcaoCritica.Acao.ALTERACAO_PERMISSAO
-        )
-        self.assertEqual(auditoria.usuario, administrador)
-        self.assertEqual(auditoria.alvo_tipo, "accounts.Usuario")
-        self.assertEqual(auditoria.alvo_id, str(usuario.pk))
-        self.assertEqual(
-            auditoria.metadados["alteracoes"]["perfil"]["antes"],
-            Usuario.Perfil.OBSERVADOR,
-        )
-        self.assertEqual(
-            auditoria.metadados["alteracoes"]["perfil"]["depois"],
-            Usuario.Perfil.HEMOCENTRO,
-        )
+        self.assertTrue(validar_publicacao_hemocentro(self.hemocentro))

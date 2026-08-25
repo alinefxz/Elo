@@ -3,13 +3,16 @@ RESUMO DO ARQUIVO
 =================
 Este arquivo descreve os dados que o Django guarda no PostgreSQL.
 
-- Usuario: guarda a conta, os dados basicos e o tipo de perfil escolhido.
+- Usuario: guarda a conta, os dados basicos, o tipo de perfil escolhido e o
+  status atual de validacao quando a conta e de Hemocentro.
+- ValidacaoHemocentro: guarda o historico de analises feitas por administradores.
 - ConsentimentoLGPD: guarda quando a pessoa aceitou cada termo.
 - AuditoriaAcaoCritica: registra eventos sensiveis para rastreabilidade.
 
 O usuario herda de AbstractUser para aproveitar senha segura, login, sessao,
 grupos e permissoes do Django. Mesmo herdando de uma classe chamada
-AbstractUser, a classe Usuario abaixo e concreta e cria a tabela ``usuarios``.
+AbstractUser, a classe Usuario abaixo e concreta e cria a tabela ``usuarios``
+porque nao foi marcado como abstrato.
 
 O campo perfil identifica Doador, Receptor/Solicitante, Hemocentro,
 Observador ou Administrador. As views usam esse valor para montar a experiencia
@@ -19,6 +22,7 @@ inicial de cada tipo de usuario no dashboard.
 from django.conf import settings
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -102,6 +106,14 @@ class Usuario(AbstractUser):
         OUTRO = "O", "Outro"
         NAO_INFORMADO = "N", "Prefiro nao informar"
 
+    class StatusValidacaoHemocentro(models.TextChoices):
+        """Situacao institucional do Hemocentro dentro do Elo."""
+
+        PENDENTE = "PENDENTE", "Pendente"
+        APROVADO = "APROVADO", "Aprovado"
+        RECUSADO = "RECUSADO", "Recusado"
+        CORRECAO = "CORRECAO", "Correcao necessaria"
+
     # O Elo usa um nome completo e e-mail. Por isso, estes tres campos do
     # usuario original do Django sao retirados. Escrever None diz ao ORM que
     # eles nao devem virar colunas da tabela usuarios.
@@ -152,6 +164,14 @@ class Usuario(AbstractUser):
         default=Perfil.OBSERVADOR,
     )
 
+    # Para contas de Hemocentro, este campo guarda a situacao atual analisada
+    # pelo administrador. O historico completo fica em ValidacaoHemocentro.
+    status_validacao = models.CharField(
+        max_length=20,
+        choices=StatusValidacaoHemocentro.choices,
+        default=StatusValidacaoHemocentro.PENDENTE,
+    )
+
     # Conta inativa permanece no banco, mas nao consegue fazer login.
     is_active = models.BooleanField(default=True, db_column="ativo")
 
@@ -200,10 +220,110 @@ class Usuario(AbstractUser):
 
         return self.nome.split()[0] if self.nome else self.email
 
+    @property
+    def is_hemocentro(self):
+        """Informa se a conta representa um Hemocentro cadastrado."""
+
+        return self.perfil == self.Perfil.HEMOCENTRO
+
+    @property
+    def hemocentro_aprovado(self):
+        """Atalho usado pelas regras de publicacao de estoque e campanha."""
+
+        return (
+            self.is_hemocentro
+            and self.status_validacao == self.StatusValidacaoHemocentro.APROVADO
+        )
+
     def __str__(self):
         """Texto usado para representar o usuario no admin e no terminal."""
 
         return f"{self.nome} ({self.email})"
+
+
+class ValidacaoHemocentro(models.Model):
+    """
+    Historico das analises institucionais de Hemocentros.
+
+    A tabela registra cada decisao administrativa sem substituir as anteriores.
+    O status atual continua em Usuario.status_validacao para consultas rapidas.
+    """
+
+    id_validacao = models.BigAutoField(primary_key=True)
+
+    hemocentro = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="validacoes_hemocentro",
+        db_column="id_hemocentro",
+    )
+    admin = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="validacoes_hemocentro_realizadas",
+        db_column="id_admin",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Usuario.StatusValidacaoHemocentro.choices,
+    )
+    parecer = models.TextField(blank=True, default="")
+    data_analise = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "validacoes_hemocentro"
+        verbose_name = "validacao de hemocentro"
+        verbose_name_plural = "validacoes de hemocentros"
+        ordering = ["-data_analise"]
+        indexes = [
+            models.Index(
+                fields=["hemocentro", "-data_analise"],
+                name="validacao_hemo_data_idx",
+            ),
+            models.Index(
+                fields=["status", "data_analise"],
+                name="validacao_hemo_status_idx",
+            ),
+        ]
+
+    def clean(self):
+        """Impede historico para conta que nao seja Hemocentro."""
+
+        super().clean()
+
+        hemocentro_nao_eh_valido = (
+            self.hemocentro_id
+            and self.hemocentro.perfil != Usuario.Perfil.HEMOCENTRO
+        )
+        if hemocentro_nao_eh_valido:
+            raise ValidationError(
+                {
+                    "hemocentro": (
+                        "Somente usuarios com perfil Hemocentro podem ser validados."
+                    )
+                }
+            )
+
+        admin_eh_valido = (
+            self.admin_id
+            and (
+                self.admin.is_staff
+                or self.admin.is_superuser
+                or self.admin.perfil == Usuario.Perfil.ADMINISTRADOR
+            )
+        )
+        if self.admin_id and not admin_eh_valido:
+            raise ValidationError(
+                {"admin": "A validacao deve ser registrada por um administrador."}
+            )
+
+    def __str__(self):
+        return (
+            f"{self.hemocentro.nome} - {self.get_status_display()} "
+            f"em {self.data_analise:%d/%m/%Y %H:%M}"
+        )
 
 
 class ConsentimentoLGPD(models.Model):

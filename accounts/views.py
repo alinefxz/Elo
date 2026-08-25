@@ -15,11 +15,20 @@ salva. O dashboard usa login_required para bloquear visitantes.
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.shortcuts import redirect, render
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from .forms import CadastroUsuarioForm
-from .models import ConsentimentoLGPD, Usuario
+from .models import ConsentimentoLGPD, Usuario, ValidacaoHemocentro
+from .validacao_hemocentro import (
+    aprovar_hemocentro as aprovar_hemocentro_servico,
+    recusar_hemocentro as recusar_hemocentro_servico,
+    solicitar_correcao_hemocentro as solicitar_correcao_hemocentro_servico,
+    usuario_e_administrador,
+)
 
 
 POSTOS_COLETA = [
@@ -198,6 +207,23 @@ def filtrar_postos(consulta):
     ]
 
 
+def exigir_administrador(usuario):
+    """Bloqueia acoes institucionais para quem nao e administrador."""
+
+    if not usuario_e_administrador(usuario):
+        raise PermissionDenied("Somente administradores podem executar esta acao.")
+
+
+def obter_hemocentro_ou_404(id_hemocentro):
+    """Busca somente contas cadastradas com perfil Hemocentro."""
+
+    return get_object_or_404(
+        Usuario,
+        pk=id_hemocentro,
+        perfil=Usuario.Perfil.HEMOCENTRO,
+    )
+
+
 def inicio(request):
     """Mostra o acesso publico usado pelo ator Visitante."""
 
@@ -266,11 +292,154 @@ def dashboard(request):
         request.user.perfil,
         PAINEIS_POR_PERFIL[Usuario.Perfil.OBSERVADOR],
     )
+
+    # Busca a ultima analise administrativa do Hemocentro.
+    validacao_atual = None
+
+    if request.user.perfil == Usuario.Perfil.HEMOCENTRO:
+        validacao_atual = (
+            ValidacaoHemocentro.objects
+            .filter(hemocentro=request.user)
+            .order_by("-data_analise")
+            .first()
+        )
+
     contexto = {
         "painel": painel,
         "postos": POSTOS_COLETA,
         "estoque_geral": ESTOQUE_GERAL,
         "pedidos_ativos": PEDIDOS_ATIVOS,
         "campanhas_ativas": CAMPANHAS_ATIVAS,
+        "validacao_atual": validacao_atual,
     }
+
     return render(request, "accounts/dashboard.html", contexto)
+
+@login_required
+def painel_aprovacao_hemocentros(request):
+    """Mostra a tela administrativa de aprovacao de Hemocentros."""
+
+    exigir_administrador(request.user)
+
+    hemocentros = (
+        Usuario.objects
+        .filter(
+            perfil=Usuario.Perfil.HEMOCENTRO,
+            status_validacao=Usuario.StatusValidacaoHemocentro.PENDENTE,
+        )
+        .order_by("date_joined")
+    )
+
+    contexto = {
+        "hemocentros": hemocentros,
+    }
+
+    return render(
+        request,
+        "accounts/painel_aprovacao_hemocentros.html",
+        contexto,
+    )
+
+@login_required
+def hemocentros_pendentes(request):
+    """Retorna os Hemocentros que ainda aguardam decisao administrativa."""
+
+    exigir_administrador(request.user)
+
+    hemocentros = Usuario.objects.filter(
+        perfil=Usuario.Perfil.HEMOCENTRO,
+        status_validacao=Usuario.StatusValidacaoHemocentro.PENDENTE,
+    ).order_by("date_joined")
+
+    dados = [
+        {
+            "id_hemocentro": hemocentro.pk,
+            "nome": hemocentro.nome,
+            "email": hemocentro.email,
+            "cnpj": hemocentro.cnpj,
+            "cidade": hemocentro.cidade,
+            "estado": hemocentro.estado,
+            "status_validacao": hemocentro.status_validacao,
+            "data_cadastro": hemocentro.date_joined.isoformat(),
+        }
+        for hemocentro in hemocentros
+    ]
+    return JsonResponse({"hemocentros": dados})
+
+
+@login_required
+@require_POST
+def aprovar_hemocentro(request, id_hemocentro):
+    """Acao administrativa do UC_07 para aprovar um Hemocentro."""
+
+    exigir_administrador(request.user)
+    hemocentro = obter_hemocentro_ou_404(id_hemocentro)
+
+    aprovar_hemocentro_servico(
+        hemocentro=hemocentro,
+        admin=request.user,
+        parecer=request.POST.get("parecer", ""),
+        request=request,
+    )
+
+    messages.success(request, "Hemocentro aprovado com sucesso.")
+    return redirect("accounts:dashboard")
+
+
+@login_required
+@require_POST
+def recusar_hemocentro(request, id_hemocentro):
+    """Acao administrativa do UC_07 para recusar um Hemocentro."""
+
+    exigir_administrador(request.user)
+    hemocentro = obter_hemocentro_ou_404(id_hemocentro)
+
+    recusar_hemocentro_servico(
+        hemocentro=hemocentro,
+        admin=request.user,
+        parecer=request.POST.get("parecer", ""),
+        request=request,
+    )
+
+    messages.success(request, "Hemocentro recusado com sucesso.")
+    return redirect("accounts:dashboard")
+
+
+@login_required
+@require_POST
+def solicitar_correcao_hemocentro(request, id_hemocentro):
+    """Acao administrativa do UC_07 para solicitar correcao cadastral."""
+
+    exigir_administrador(request.user)
+    hemocentro = obter_hemocentro_ou_404(id_hemocentro)
+
+    solicitar_correcao_hemocentro_servico(
+        hemocentro=hemocentro,
+        admin=request.user,
+        parecer=request.POST.get("parecer", ""),
+        request=request,
+    )
+
+    messages.success(request, "Solicitacao de correcao registrada com sucesso.")
+    return redirect("accounts:dashboard")
+
+@login_required
+def painel_aprovacao_hemocentros(request):
+    """Mostra a interface administrativa de aprovacao de Hemocentros."""
+
+    exigir_administrador(request.user)
+
+    hemocentros = Usuario.objects.filter(
+        perfil=Usuario.Perfil.HEMOCENTRO,
+        status_validacao=Usuario.StatusValidacaoHemocentro.PENDENTE,
+    ).order_by("date_joined")
+
+    contexto = {
+        "hemocentros": hemocentros,
+    }
+
+    return render(
+        request,
+        "accounts/painel_aprovacao_hemocentros.html",
+        contexto,
+    )

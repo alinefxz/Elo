@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aprovação de Hemocentros - Elo</title>
+</head>
+
+<body>
+
+    <header>
+        <h1>Elo</h1>
+        <p>Painel Administrativo</p>
+    </header>
+
+    <main>
+
+        <h2>Aprovação de Hemocentros</h2>
+
+        <p>
+            Analise os cadastros institucionais antes de liberar
+            a publicação de estoques e campanhas.
+        </p>
+
+        <p>
+            Hemocentros pendentes:
+            <strong>{{ hemocentros|length }}</strong>
+        </p>
+
+        {% if hemocentros %}
+
+            {% for hemocentro in hemocentros %}
+
+                <section>
+
+                    <hr>
+
+                    <h3>{{ hemocentro.nome }}</h3>
+
+                    <p>
+                        <strong>Status:</strong>
+                        {{ hemocentro.get_status_validacao_display }}
+                    </p>
+
+                    <p>
+                        <strong>E-mail:</strong>
+                        {{ hemocentro.email }}
+                    </p>
+
+                    <p>
+                        <strong>CNPJ:</strong>
+                        {{ hemocentro.cnpj|default:"Não informado" }}
+                    </p>
+
+                    <p>
+                        <strong>Telefone:</strong>
+                        {{ hemocentro.telefone|default:"Não informado" }}
+                    </p>
+
+                    <p>
+                        <strong>Cidade:</strong>
+                        {{ hemocentro.cidade|default:"Não informado" }}
+                    </p>
+
+                    <p>
+                        <strong>Estado:</strong>
+                        {{ hemocentro.estado|default:"Não informado" }}
+                    </p>
+
+                    <p>
+                        <strong>Data do cadastro:</strong>
+                        {{ hemocentro.date_joined|date:"d/m/Y H:i" }}
+                    </p>
+
+
+                    <h4>Aprovar Hemocentro</h4>
+
+                    <form
+                        method="post"
+                        action="{% url 'accounts:aprovar_hemocentro' hemocentro.pk %}"
+                    >
+                        {% csrf_token %}
+
+                        <label for="parecer-aprovar-{{ hemocentro.pk }}">
+                            Parecer:
+                        </label>
+
+                        <br>
+
+                        <textarea
+                            id="parecer-aprovar-{{ hemocentro.pk }}"
+                            name="parecer"
+                            rows="4"
+                            cols="60"
+                            placeholder="Digite o parecer da aprovação..."
+                        ></textarea>
+
+                        <br><br>
+
+                        <button type="submit">
+                            Aprovar Hemocentro
+                        </button>
+                    </form>
+
+
+                    <h4>Recusar Hemocentro</h4>
+
+                    <form
+                        method="post"
+                        action="{% url 'accounts:recusar_hemocentro' hemocentro.pk %}"
+                    >
+                        {% csrf_token %}
+
+                        <label for="parecer-recusar-{{ hemocentro.pk }}">
+                            Parecer:
+                        </label>
+
+                        <br>
+
+                        <textarea
+                            id="parecer-recusar-{{ hemocentro.pk }}"
+                            name="parecer"
+                            rows="4"
+                            cols="60"
+                            placeholder="Informe o motivo da recusa..."
+                        ></textarea>
+
+                        <br><br>
+
+                        <button type="submit">
+                            Recusar Hemocentro
+                        </button>
+                    </form>
+
+
+                    <h4>Solicitar Correção</h4>
+
+                    <form
+                        method="post"
+                        action="{% url 'accounts:solicitar_correcao_hemocentro' hemocentro.pk %}"
+                    >
+                        {% csrf_token %}
+
+                        <label for="parecer-correcao-{{ hemocentro.pk }}">
+                            Parecer:
+                        </label>
+
+                        <br>
+
+                        <textarea
+                            id="parecer-correcao-{{ hemocentro.pk }}"
+                            name="parecer"
+                            rows="4"
+                            cols="60"
+                            placeholder="Informe o que precisa ser corrigido..."
+                        ></textarea>
+
+                        <br><br>
+
+                        <button type="submit">
+                            Solicitar Correção
+                        </button>
+                    </form>
+
+                    <br>
+
+                </section>
+
+            {% endfor %}
+
+        {% else %}
+
+            <hr>
+
+            <h3>Nenhum Hemocentro pendente</h3>
+
+            <p>
+                Não existem cadastros aguardando análise.
+            </p>
+
+        {% endif %}
+
+    </main>
+
+</body>
+</html>
