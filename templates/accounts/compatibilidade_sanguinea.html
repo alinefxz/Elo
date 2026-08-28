@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Compatibilidade sanguinea | Elo{% endblock %}
+
+{% block content %}
+<h1>Compatibilidade sanguinea</h1>
+
+<p>
+    Consulte quais tipos sanguineos podem doar e receber sangue entre si,
+    considerando o sistema ABO e o fator Rh.
+</p>
+
+<section>
+    <h2>Consultar por tipo</h2>
+
+    <form method="get">
+        <label for="tipo">Tipo sanguineo</label>
+        <select id="tipo" name="tipo">
+            <option value="">Selecione um tipo</option>
+            {% for tipo in tipos_sanguineos %}
+                <option value="{{ tipo }}" {% if tipo == tipo_selecionado %}selected{% endif %}>
+                    {{ tipo }}
+                </option>
+            {% endfor %}
+        </select>
+        <button type="submit">Consultar</button>
+    </form>
+
+    {% if tipo_invalido %}
+        <p>Tipo sanguineo invalido. Selecione uma das opcoes da tabela.</p>
+    {% endif %}
+
+    {% if compatibilidade_selecionada %}
+        <h3>Resultado para {{ compatibilidade_selecionada.tipo }}</h3>
+        <p><strong>Pode doar para:</strong> {{ compatibilidade_selecionada.doar_para|join:", " }}</p>
+        <p><strong>Pode receber de:</strong> {{ compatibilidade_selecionada.receber_de|join:", " }}</p>
+    {% endif %}
+</section>
+
+<section>
+    <h2>Tabela de compatibilidade</h2>
+
+    <table border="1" cellpadding="12" cellspacing="0" width="100%">
+        <caption>
+            Compatibilidade sanguinea considerando sistema ABO e fator Rh
+        </caption>
+
+        <thead>
+            <tr>
+                <th scope="col" width="10%">Tipo</th>
+                <th scope="col" width="35%">Pode doar para</th>
+                <th scope="col" width="35%">Pode receber de</th>
+                <th scope="col" width="20%">Populacao aproximada</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for item in tabela_compatibilidade %}
+                <tr>
+                    <th scope="row">{{ item.tipo }}</th>
+                    <td>{{ item.doar_para|join:", " }}</td>
+                    <td>{{ item.receber_de|join:", " }}</td>
+                    <td>{{ item.populacao }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<section>
+    <h2>Informacoes importantes</h2>
+    <ul>
+        <li>O tipo O- pode doar hemacias para todos os tipos sanguineos.</li>
+        <li>O tipo AB+ pode receber hemacias de todos os tipos sanguineos.</li>
+        <li>Enquanto a triagem nao estiver implementada, esta tela e apenas informativa.</li>
+        <li>A compatibilidade real deve sempre ser confirmada por profissionais de saude e exames laboratoriais.</li>
+    </ul>
+</section>
+{% endblock %}

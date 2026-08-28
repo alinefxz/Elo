@@ -74,4 +74,9 @@ urlpatterns = [
     views.painel_aprovacao_hemocentros,
     name="painel_aprovacao_hemocentros",
 ),
+    path(
+    "compatibilidade-sanguinea/",
+    views.compatibilidade_sanguinea,
+    name="compatibilidade_sanguinea",
+),
 ]
