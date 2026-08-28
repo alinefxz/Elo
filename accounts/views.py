@@ -1,15 +1,15 @@
 """
-RESUMO DO ARQUIVO
-=================
-As views recebem requisicoes do navegador, executam a regra da pagina e
-devolvem uma resposta.
+Views do aplicativo accounts.
+
+As views recebem requisicoes do navegador, executam a regra da pagina
+e devolvem uma resposta.
 
 Fluxo do cadastro:
-GET -> mostra formulario vazio.
+GET  -> mostra formulario vazio.
 POST -> valida -> grava usuario + consentimento -> cria sessao -> dashboard.
 
-O cadastro usa uma transacao para impedir que apenas metade da operacao seja
-salva. O dashboard usa login_required para bloquear visitantes.
+O cadastro usa uma transacao para impedir que apenas metade da operacao
+seja salva. O dashboard usa login_required para bloquear visitantes.
 """
 
 from django.contrib import messages
@@ -61,6 +61,7 @@ POSTOS_COLETA = [
     },
 ]
 
+
 ESTOQUE_GERAL = [
     {"tipo": "O-", "nivel": "Critico", "percentual": 18},
     {"tipo": "O+", "nivel": "Baixo", "percentual": 32},
@@ -71,6 +72,7 @@ ESTOQUE_GERAL = [
     {"tipo": "AB+", "nivel": "Estavel", "percentual": 70},
     {"tipo": "AB-", "nivel": "Baixo", "percentual": 25},
 ]
+
 
 PEDIDOS_ATIVOS = [
     {
@@ -93,6 +95,7 @@ PEDIDOS_ATIVOS = [
     },
 ]
 
+
 CAMPANHAS_ATIVAS = [
     {
         "titulo": "Mutirao de inverno",
@@ -105,6 +108,7 @@ CAMPANHAS_ATIVAS = [
         "data": "29/08/2026",
     },
 ]
+
 
 PAINEIS_POR_PERFIL = {
     Usuario.Perfil.DOADOR: {
@@ -181,13 +185,11 @@ PAINEIS_POR_PERFIL = {
 def obter_ip(request):
     """Extrai o IP usado no registro do consentimento LGPD."""
 
-    # Proxies podem informar uma lista de IPs no cabecalho X-Forwarded-For.
-    # O primeiro normalmente representa o cliente original.
     encaminhado = request.META.get("HTTP_X_FORWARDED_FOR")
+
     if encaminhado:
         return encaminhado.split(",")[0].strip()
 
-    # Em desenvolvimento local, REMOTE_ADDR normalmente sera 127.0.0.1.
     return request.META.get("REMOTE_ADDR")
 
 
@@ -195,6 +197,7 @@ def filtrar_postos(consulta):
     """Filtra a lista publica por nome, cidade, estado ou endereco."""
 
     termo = (consulta or "").strip().lower()
+
     if not termo:
         return POSTOS_COLETA
 
@@ -217,7 +220,9 @@ def exigir_administrador(usuario):
     """Bloqueia acoes institucionais para quem nao e administrador."""
 
     if not usuario_e_administrador(usuario):
-        raise PermissionDenied("Somente administradores podem executar esta acao.")
+        raise PermissionDenied(
+            "Somente administradores podem executar esta acao."
+        )
 
 
 def obter_hemocentro_ou_404(id_hemocentro):
@@ -234,28 +239,33 @@ def inicio(request):
     """Mostra o acesso publico usado pelo ator Visitante."""
 
     consulta = request.GET.get("q", "")
+
     contexto = {
         "consulta": consulta,
         "postos": filtrar_postos(consulta),
         "estoque_geral": ESTOQUE_GERAL,
         "pedidos_ativos": PEDIDOS_ATIVOS,
     }
-    return render(request, "accounts/inicio.html", contexto)
+
+    return render(
+        request,
+        "accounts/inicio.html",
+        contexto,
+    )
 
 
 def cadastro(request):
     """
     Exibe e processa o cadastro de usuarios.
 
-    Para Hemocentro:
+    Hemocentro:
     - cria a conta;
-    - define o status inicial como PENDENTE;
-    - registra o consentimento LGPD;
-    - autentica o usuario;
-    - informa que o cadastro aguarda aprovacao administrativa.
+    - fica com status PENDENTE;
+    - registra consentimento LGPD;
+    - entra no sistema;
+    - recebe a mensagem de aguardando aprovacao.
     """
 
-    # Usuario que ja esta logado nao precisa acessar o cadastro novamente.
     if request.user.is_authenticated:
         return redirect("accounts:dashboard")
 
@@ -263,98 +273,91 @@ def cadastro(request):
         form = CadastroUsuarioForm(request.POST)
 
         if form.is_valid():
-            try:
-                with transaction.atomic():
+            with transaction.atomic():
 
-                    # O UserCreationForm trata a senha com set_password().
-                    usuario = form.save()
+                usuario = form.save()
 
-                    # Hemocentro sempre inicia como PENDENTE.
-                    if usuario.perfil == Usuario.Perfil.HEMOCENTRO:
-                        usuario.status_validacao = (
-                            Usuario.StatusValidacaoHemocentro.PENDENTE
-                        )
-                        usuario.save(
-                            update_fields=["status_validacao"]
-                        )
-
-                    # Registra o aceite da LGPD.
-                    ConsentimentoLGPD.objects.create(
-                        usuario=usuario,
-                        tipo_termo=ConsentimentoLGPD.TipoTermo.GERAL,
-                        versao_termo="1.0",
-                        aceito=True,
-                        ip=obter_ip(request),
-                    )
-
-                # Cria a sessao do usuario.
-                login(request, usuario)
-
-                # Mensagem diferente para Hemocentro.
+                # Todo Hemocentro novo deve comecar como PENDENTE.
                 if usuario.perfil == Usuario.Perfil.HEMOCENTRO:
-                    messages.success(
-                        request,
-                        (
-                            "Cadastro realizado com sucesso! "
-                            "Seu cadastro de Hemocentro está aguardando "
-                            "a aprovação de um administrador."
-                        ),
-                    )
-                else:
-                    messages.success(
-                        request,
-                        "Cadastro realizado com sucesso.",
+                    usuario.status_validacao = (
+                        Usuario.StatusValidacaoHemocentro.PENDENTE
                     )
 
-                return redirect("accounts:dashboard")
+                    usuario.save(
+                        update_fields=["status_validacao"]
+                    )
 
-            except Exception:
-                # O erro real continua aparecendo no terminal do Django.
-                # Para o usuario, evitamos uma tela branca ou erro 500.
-                messages.error(
-                    request,
-                    (
-                        "Nao foi possivel concluir o cadastro. "
-                        "Verifique os dados informados ou consulte o "
-                        "terminal do Django para ver o erro."
-                    ),
+                # Registro do aceite da LGPD.
+                ConsentimentoLGPD.objects.create(
+                    usuario=usuario,
+                    tipo_termo=ConsentimentoLGPD.TipoTermo.GERAL,
+                    versao_termo="1.0",
+                    aceito=True,
+                    ip=obter_ip(request),
                 )
 
-        else:
-            messages.error(
-                request,
-                (
-                    "O cadastro nao foi concluido. "
-                    "Corrija os erros destacados abaixo."
-                ),
-            )
+            # Cria a sessao do usuario.
+            login(request, usuario)
+
+            # Mensagem especifica para Hemocentro.
+            if usuario.perfil == Usuario.Perfil.HEMOCENTRO:
+                messages.success(
+                    request,
+                    (
+                        "Cadastro realizado com sucesso! "
+                        "Seu cadastro de Hemocentro esta aguardando "
+                        "a aprovacao de um administrador."
+                    ),
+                )
+            else:
+                messages.success(
+                    request,
+                    "Cadastro realizado com sucesso.",
+                )
+
+            return redirect("accounts:dashboard")
+
+        # Se o formulario tiver erro, permanece na pagina
+        # e o template podera exibir os erros de cada campo.
+        messages.error(
+            request,
+            (
+                "O cadastro nao foi concluido. "
+                "Corrija os erros destacados no formulario."
+            ),
+        )
 
     else:
         form = CadastroUsuarioForm()
 
-<<<<<<< HEAD
     return render(
         request,
         "accounts/cadastro.html",
-        {
-            "form": form,
-=======
-    # render combina o template com o dicionario de contexto.
-    # O HTML acessa o objeto usando a variavel {{ form }}.
-    return render(request, "accounts/cadastro.html", {"form": form})
+        {"form": form},
+    )
+
 
 def compatibilidade_sanguinea(request):
+    """Exibe a tabela e a consulta de compatibilidade sanguinea."""
+
     tipo_selecionado = request.GET.get("tipo", "")
     compatibilidade_selecionada = None
     tipo_invalido = False
 
     if tipo_selecionado:
+        tipo_selecionado = tipo_selecionado.strip().upper()
+
         try:
             compatibilidade_selecionada = {
-                "tipo": tipo_selecionado.strip().upper(),
-                "doar_para": tipos_que_recebem_de(tipo_selecionado),
-                "receber_de": doadores_compativeis_para(tipo_selecionado),
+                "tipo": tipo_selecionado,
+                "doar_para": tipos_que_recebem_de(
+                    tipo_selecionado
+                ),
+                "receber_de": doadores_compativeis_para(
+                    tipo_selecionado
+                ),
             }
+
         except ValueError:
             tipo_invalido = True
 
@@ -363,19 +366,18 @@ def compatibilidade_sanguinea(request):
         "accounts/compatibilidade_sanguinea.html",
         {
             "tipos_sanguineos": TIPOS_SANGUINEOS,
-            "tipo_selecionado": tipo_selecionado.strip().upper(),
+            "tipo_selecionado": tipo_selecionado,
             "compatibilidade_selecionada": compatibilidade_selecionada,
             "tipo_invalido": tipo_invalido,
             "tabela_compatibilidade": tabela_de_compatibilidade(),
->>>>>>> 4cbb5d1957a417e8ffac9d40707a438326bf3c92
         },
     )
+
 
 @login_required
 def dashboard(request):
     """Mostra o painel protegido particularizado pelo perfil do usuario."""
 
-    # Se nao houver sessao valida, login_required redireciona para LOGIN_URL.
     painel = PAINEIS_POR_PERFIL.get(
         request.user.perfil,
         PAINEIS_POR_PERFIL[Usuario.Perfil.OBSERVADOR],
@@ -387,7 +389,9 @@ def dashboard(request):
     if request.user.perfil == Usuario.Perfil.HEMOCENTRO:
         validacao_atual = (
             ValidacaoHemocentro.objects
-            .filter(hemocentro=request.user)
+            .filter(
+                hemocentro=request.user
+            )
             .order_by("-data_analise")
             .first()
         )
@@ -401,7 +405,12 @@ def dashboard(request):
         "validacao_atual": validacao_atual,
     }
 
-    return render(request, "accounts/dashboard.html", contexto)
+    return render(
+        request,
+        "accounts/dashboard.html",
+        contexto,
+    )
+
 
 @login_required
 def painel_aprovacao_hemocentros(request):
@@ -413,7 +422,9 @@ def painel_aprovacao_hemocentros(request):
         Usuario.objects
         .filter(
             perfil=Usuario.Perfil.HEMOCENTRO,
-            status_validacao=Usuario.StatusValidacaoHemocentro.PENDENTE,
+            status_validacao=(
+                Usuario.StatusValidacaoHemocentro.PENDENTE
+            ),
         )
         .order_by("date_joined")
     )
@@ -428,16 +439,23 @@ def painel_aprovacao_hemocentros(request):
         contexto,
     )
 
+
 @login_required
 def hemocentros_pendentes(request):
     """Retorna os Hemocentros que ainda aguardam decisao administrativa."""
 
     exigir_administrador(request.user)
 
-    hemocentros = Usuario.objects.filter(
-        perfil=Usuario.Perfil.HEMOCENTRO,
-        status_validacao=Usuario.StatusValidacaoHemocentro.PENDENTE,
-    ).order_by("date_joined")
+    hemocentros = (
+        Usuario.objects
+        .filter(
+            perfil=Usuario.Perfil.HEMOCENTRO,
+            status_validacao=(
+                Usuario.StatusValidacaoHemocentro.PENDENTE
+            ),
+        )
+        .order_by("date_joined")
+    )
 
     dados = [
         {
@@ -452,16 +470,24 @@ def hemocentros_pendentes(request):
         }
         for hemocentro in hemocentros
     ]
-    return JsonResponse({"hemocentros": dados})
+
+    return JsonResponse(
+        {
+            "hemocentros": dados
+        }
+    )
 
 
 @login_required
 @require_POST
 def aprovar_hemocentro(request, id_hemocentro):
-    """Acao administrativa do UC_07 para aprovar um Hemocentro."""
+    """Acao administrativa para aprovar um Hemocentro."""
 
     exigir_administrador(request.user)
-    hemocentro = obter_hemocentro_ou_404(id_hemocentro)
+
+    hemocentro = obter_hemocentro_ou_404(
+        id_hemocentro
+    )
 
     aprovar_hemocentro_servico(
         hemocentro=hemocentro,
@@ -470,17 +496,26 @@ def aprovar_hemocentro(request, id_hemocentro):
         request=request,
     )
 
-    messages.success(request, "Hemocentro aprovado com sucesso.")
-    return redirect("accounts:dashboard")
+    messages.success(
+        request,
+        "Hemocentro aprovado com sucesso.",
+    )
+
+    return redirect(
+        "accounts:painel_aprovacao_hemocentros"
+    )
 
 
 @login_required
 @require_POST
 def recusar_hemocentro(request, id_hemocentro):
-    """Acao administrativa do UC_07 para recusar um Hemocentro."""
+    """Acao administrativa para recusar um Hemocentro."""
 
     exigir_administrador(request.user)
-    hemocentro = obter_hemocentro_ou_404(id_hemocentro)
+
+    hemocentro = obter_hemocentro_ou_404(
+        id_hemocentro
+    )
 
     recusar_hemocentro_servico(
         hemocentro=hemocentro,
@@ -489,17 +524,26 @@ def recusar_hemocentro(request, id_hemocentro):
         request=request,
     )
 
-    messages.success(request, "Hemocentro recusado com sucesso.")
-    return redirect("accounts:dashboard")
+    messages.success(
+        request,
+        "Hemocentro recusado com sucesso.",
+    )
+
+    return redirect(
+        "accounts:painel_aprovacao_hemocentros"
+    )
 
 
 @login_required
 @require_POST
 def solicitar_correcao_hemocentro(request, id_hemocentro):
-    """Acao administrativa do UC_07 para solicitar correcao cadastral."""
+    """Solicita correcao cadastral para um Hemocentro."""
 
     exigir_administrador(request.user)
-    hemocentro = obter_hemocentro_ou_404(id_hemocentro)
+
+    hemocentro = obter_hemocentro_ou_404(
+        id_hemocentro
+    )
 
     solicitar_correcao_hemocentro_servico(
         hemocentro=hemocentro,
@@ -508,26 +552,11 @@ def solicitar_correcao_hemocentro(request, id_hemocentro):
         request=request,
     )
 
-    messages.success(request, "Solicitacao de correcao registrada com sucesso.")
-    return redirect("accounts:dashboard")
-
-@login_required
-def painel_aprovacao_hemocentros(request):
-    """Mostra a interface administrativa de aprovacao de Hemocentros."""
-
-    exigir_administrador(request.user)
-
-    hemocentros = Usuario.objects.filter(
-        perfil=Usuario.Perfil.HEMOCENTRO,
-        status_validacao=Usuario.StatusValidacaoHemocentro.PENDENTE,
-    ).order_by("date_joined")
-
-    contexto = {
-        "hemocentros": hemocentros,
-    }
-
-    return render(
+    messages.success(
         request,
-        "accounts/painel_aprovacao_hemocentros.html",
-        contexto,
+        "Solicitacao de correcao registrada com sucesso.",
+    )
+
+    return redirect(
+        "accounts:painel_aprovacao_hemocentros"
     )
