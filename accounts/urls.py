@@ -47,6 +47,19 @@ urlpatterns = [
     # A protecao desta rota esta no decorador login_required da view.
     path("dashboard/", views.dashboard, name="dashboard"),
 
+    # Inicia a triagem extensa do Doador.
+    path(
+        "triagem/",
+        views.triagem_extensa,
+        name="triagem_extensa",
+    ),
+
+    # Exibe o resultado salvo da triagem.
+    path(
+        "triagem/<int:id_triagem>/resultado/",
+        views.triagem_resultado,
+        name="triagem_resultado",
+    ),
     # UC_07 - Aprovar Hemocentro. As acoes alteram apenas o backend: status
     # atual do Hemocentro, historico de validacao e auditoria administrativa.
     path(

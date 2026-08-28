@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Resultado da triagem | Elo{% endblock %}
+
+{% block content %}
+
+<h1>Resultado da triagem</h1>
+
+<p>
+    <strong>Resultado:</strong>
+    {{ triagem.get_resultado_display }}
+</p>
+
+<p>
+    {{ triagem.mensagem_resultado }}
+</p>
+
+{% if triagem.data_liberacao %}
+    <p>
+        <strong>Data orientativa:</strong>
+        {{ triagem.data_liberacao|date:"d/m/Y" }}
+    </p>
+{% endif %}
+
+{% if triagem.achados %}
+
+    <h2>Orientações identificadas</h2>
+
+    <ul>
+        {% for achado in triagem.achados %}
+            <li>
+                {{ achado.mensagem }}
+
+                {% if achado.data_liberacao %}
+                    Data orientativa:
+                    {{ achado.data_liberacao }}
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+
+{% endif %}
+
+<p>
+    Esta orientação foi calculada com a versão:
+    {{ triagem.regra_version }}
+</p>
+
+<p>
+    <a href="{% url 'accounts:dashboard' %}">
+        Voltar para o painel
+    </a>
+</p>
+
+{% endblock %}

@@ -18,6 +18,8 @@ from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 
 from .models import Usuario
 
+from datetime import date
+
 
 def apenas_digitos(valor):
     """Retira todos os caracteres que nao sejam numeros."""
@@ -296,3 +298,124 @@ class LoginUsuarioForm(AuthenticationForm):
             }
         ),
     )
+
+class TriagemExtensaForm(forms.Form):
+    """
+    Formulário inicial da triagem extensa.
+
+    Esta primeira etapa utiliza as perguntas EXT-01 até EXT-05B
+    da especificação.
+    """
+
+    entende_orientacao = forms.ChoiceField(
+        label=(
+            "Você entende que esta triagem é apenas uma orientação "
+            "e que a decisão final será feita pela equipe do hemocentro?"
+        ),
+        choices=[
+            ("SIM", "Sim, entendo e quero continuar."),
+            ("NAO", "Não entendi ou quero receber a explicação novamente."),
+        ],
+        widget=forms.RadioSelect,
+    )
+
+    idade = forms.ChoiceField(
+        label="Qual é a sua idade hoje?",
+        choices=[
+            ("MENOS_16", "Menos de 16 anos"),
+            ("16_17", "16 ou 17 anos"),
+            ("18_60", "18 a 60 anos"),
+            ("61_69", "61 a 69 anos"),
+            ("70_MAIS", "70 anos ou mais"),
+        ],
+        widget=forms.RadioSelect,
+    )
+
+    peso = forms.ChoiceField(
+        label="Quanto você pesa aproximadamente?",
+        choices=[
+            ("MENOS_50", "Menos de 50 kg"),
+            ("50_55_9", "De 50 a 55,9 kg"),
+            ("56_129_9", "De 56 a 129,9 kg"),
+            ("130_MAIS", "130 kg ou mais"),
+            ("NAO_SEI", "Não sei meu peso atual"),
+        ],
+        widget=forms.RadioSelect,
+    )
+
+    sexo_biologico = forms.ChoiceField(
+        label="Qual opção corresponde ao seu sexo biológico?",
+        choices=[
+            ("FEMININO", "Feminino"),
+            ("MASCULINO", "Masculino"),
+            ("OUTRO", "Outra situação ou não sei qual regra se aplica"),
+            ("NAO_INFORMAR", "Prefiro não informar"),
+        ],
+        widget=forms.RadioSelect,
+    )
+
+    ja_doou = forms.ChoiceField(
+        label="Você já doou sangue alguma vez?",
+        choices=[
+            ("NAO", "Nunca doei"),
+            ("SIM", "Sim, já doei"),
+            ("NAO_LEMBRO", "Não tenho certeza ou não lembro"),
+        ],
+        widget=forms.RadioSelect,
+    )
+
+    data_ultima_doacao = forms.DateField(
+        label="Qual foi a data da sua última doação de sangue total?",
+        required=False,
+        widget=forms.DateInput(
+            attrs={
+                "type": "date",
+            }
+        ),
+    )
+
+    doacoes_12_meses = forms.ChoiceField(
+        label="Quantas doações de sangue total você fez nos últimos 12 meses?",
+        required=False,
+        choices=[
+            ("0", "Nenhuma"),
+            ("1", "1"),
+            ("2", "2"),
+            ("3", "3"),
+            ("4_MAIS", "4 ou mais"),
+            ("NAO_LEMBRO", "Não lembro"),
+        ],
+        widget=forms.RadioSelect,
+    )
+
+    def clean(self):
+        """
+        Exige data e quantidade de doações quando o usuário
+        informa que já doou sangue.
+        """
+
+        dados = super().clean()
+
+        ja_doou = dados.get("ja_doou")
+        data_ultima_doacao = dados.get("data_ultima_doacao")
+        doacoes_12_meses = dados.get("doacoes_12_meses")
+
+        if ja_doou == "SIM" and not data_ultima_doacao:
+            self.add_error(
+                "data_ultima_doacao",
+                "Informe a data da última doação.",
+            )
+
+        if ja_doou == "SIM" and not doacoes_12_meses:
+            self.add_error(
+                "doacoes_12_meses",
+                "Informe a quantidade de doações.",
+            )
+
+        if data_ultima_doacao and data_ultima_doacao > date.today():
+            self.add_error(
+                "data_ultima_doacao",
+                "A data da última doação não pode estar no futuro.",
+            )
+
+        return dados

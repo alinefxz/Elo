@@ -458,3 +458,187 @@ class AuditoriaAcaoCritica(models.Model):
 
     def __str__(self):
         return f"{self.get_acao_display()} - {self.get_resultado_display()}"
+
+
+
+class Triagem(models.Model):
+    """
+    Guarda uma triagem realizada por um usuário.
+
+    O resultado é orientativo e nunca substitui a avaliação
+    presencial feita pelo hemocentro.
+    """
+
+    class Modalidade(models.TextChoices):
+        EXTENSA = "EXTENSA", "Triagem extensa"
+        SIMPLIFICADA = "SIMPLIFICADA", "Triagem simplificada"
+
+    class Resultado(models.TextChoices):
+        SEM_IMPEDIMENTO = (
+            "SEM_IMPEDIMENTO_IDENTIFICADO",
+            "Sem impedimento identificado",
+        )
+        TEMPORARIA = (
+            "INAPTIDAO_TEMPORARIA",
+            "Inaptidão temporária",
+        )
+        DEFINITIVA = (
+            "INAPTIDAO_DEFINITIVA",
+            "Inaptidão definitiva",
+        )
+        AVALIACAO = (
+            "AVALIACAO_PRESENCIAL",
+            "Avaliação presencial",
+        )
+        DOCUMENTACAO = (
+            "DOCUMENTACAO_ESPECIAL",
+            "Documentação especial",
+        )
+
+    # Identificador da triagem.
+    id_triagem = models.BigAutoField(primary_key=True)
+
+    # Usuário que respondeu à triagem.
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="triagens",
+        db_column="id_usuario",
+    )
+
+    # Informa se é extensa ou simplificada.
+    modalidade = models.CharField(
+        max_length=20,
+        choices=Modalidade.choices,
+        default=Modalidade.EXTENSA,
+    )
+
+    # Versão das regras utilizadas no cálculo.
+    regra_version = models.CharField(
+        max_length=40,
+        default="HEMOMINAS_2026_08",
+    )
+
+    # Resultado final calculado pelo sistema.
+    resultado = models.CharField(
+        max_length=30,
+        choices=Resultado.choices,
+    )
+
+    # Explicação apresentada ao usuário.
+    mensagem_resultado = models.TextField()
+
+    # Data orientativa para liberação, quando existir.
+    data_liberacao = models.DateField(
+        null=True,
+        blank=True,
+    )
+
+    # Guarda todos os achados sem apagar respostas anteriores.
+    achados = models.JSONField(
+        default=list,
+        blank=True,
+    )
+
+    # Datas do ciclo da triagem.
+    iniciada_em = models.DateTimeField(auto_now_add=True)
+    finalizada_em = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "triagens"
+        ordering = ["-iniciada_em"]
+        indexes = [
+            models.Index(
+                fields=["usuario", "-iniciada_em"],
+                name="triagem_usuario_data_idx",
+            ),
+            models.Index(
+                fields=["resultado", "-iniciada_em"],
+                name="triagem_resultado_data_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"Triagem {self.id_triagem} - "
+            f"{self.usuario.nome} - "
+            f"{self.get_resultado_display()}"
+        )
+
+
+class RespostaTriagem(models.Model):
+    """
+    Guarda uma resposta individual da triagem.
+
+    As respostas são mantidas separadas para permitir auditoria,
+    revisão das regras e futuras versões do questionário.
+    """
+
+    # Identificador da resposta.
+    id_resposta = models.BigAutoField(primary_key=True)
+
+    # Triagem à qual a resposta pertence.
+    triagem = models.ForeignKey(
+        Triagem,
+        on_delete=models.CASCADE,
+        related_name="respostas",
+        db_column="id_triagem",
+    )
+
+    # Código da pergunta, como EXT-01 ou EXT-05A.
+    id_pergunta = models.CharField(max_length=20)
+
+    # Código interno da resposta.
+    codigo_resposta = models.CharField(max_length=80)
+
+    # Texto apresentado ao usuário.
+    resposta_label = models.CharField(max_length=255)
+
+    # Data associada ao evento, quando existir.
+    data_evento = models.DateField(
+        db_column="event_date",
+        null=True,
+        blank=True,
+    )
+
+    # Informações complementares da resposta.
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    # Versão das regras usada na resposta.
+    rule_version = models.CharField(
+        max_length=40,
+        default="HEMOMINAS_2026_08",
+    )
+
+    # Referência da especificação utilizada.
+    source_ref = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+    )
+
+    # Momento em que a resposta foi salva.
+    respondido_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "respostas_triagem"
+        ordering = ["id_resposta"]
+        indexes = [
+            models.Index(
+                fields=["triagem", "id_pergunta"],
+                name="resposta_triagem_pergunta_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.triagem_id} - "
+            f"{self.id_pergunta} - "
+            f"{self.codigo_resposta}"
+        )

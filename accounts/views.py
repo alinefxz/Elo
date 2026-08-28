@@ -12,6 +12,7 @@ O cadastro usa uma transacao para impedir que apenas metade da operacao
 seja salva. O dashboard usa login_required para bloquear visitantes.
 """
 
+from django.utils import timezone
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
@@ -21,8 +22,14 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from .forms import CadastroUsuarioForm
-from .models import ConsentimentoLGPD, Usuario, ValidacaoHemocentro
+from .forms import CadastroUsuarioForm, TriagemExtensaForm
+from .models import (
+    ConsentimentoLGPD,
+    RespostaTriagem,
+    Triagem,
+    Usuario,
+    ValidacaoHemocentro,
+)
 from .validacao_hemocentro import (
     aprovar_hemocentro as aprovar_hemocentro_servico,
     recusar_hemocentro as recusar_hemocentro_servico,
@@ -34,6 +41,11 @@ from .compatibilidade import (
     doadores_compativeis_para,
     tabela_de_compatibilidade,
     tipos_que_recebem_de,
+)
+from .triagem import (
+    TRIAGEM_RULE_VERSION,
+    calcular_resultado,
+    preparar_respostas,
 )
 
 
@@ -559,4 +571,122 @@ def solicitar_correcao_hemocentro(request, id_hemocentro):
 
     return redirect(
         "accounts:painel_aprovacao_hemocentros"
+    )
+
+@login_required
+def triagem_extensa(request):
+    """
+    Exibe e processa a primeira versão da triagem extensa.
+
+    Nesta etapa, somente usuários com perfil Doador
+    podem iniciar a triagem.
+    """
+
+    # Bloqueia outros perfis nesta primeira versão.
+    if request.user.perfil != Usuario.Perfil.DOADOR:
+        messages.error(
+            request,
+            "A triagem de doação está disponível somente para Doadores.",
+        )
+        return redirect("accounts:dashboard")
+
+    if request.method == "POST":
+        form = TriagemExtensaForm(request.POST)
+
+        if form.is_valid():
+            calculo = calcular_resultado(
+                form.cleaned_data
+            )
+
+            with transaction.atomic():
+                # Registra o consentimento específico da triagem.
+                consentimento, _ = (
+                    ConsentimentoLGPD.objects.get_or_create(
+                        usuario=request.user,
+                        tipo_termo=(
+                            ConsentimentoLGPD.TipoTermo.TRIAGEM
+                        ),
+                        versao_termo=TRIAGEM_RULE_VERSION,
+                        defaults={
+                            "aceito": True,
+                            "ip": obter_ip(request),
+                        },
+                    )
+                )
+
+                # Atualiza o consentimento caso ele já existisse
+                # mas estivesse marcado como não aceito.
+                if not consentimento.aceito:
+                    consentimento.aceito = True
+                    consentimento.revogado_em = None
+                    consentimento.ip = obter_ip(request)
+                    consentimento.save(
+                        update_fields=[
+                            "aceito",
+                            "revogado_em",
+                            "ip",
+                        ]
+                    )
+
+                # Salva o resultado da triagem.
+                triagem = Triagem.objects.create(
+                    usuario=request.user,
+                    modalidade=Triagem.Modalidade.EXTENSA,
+                    regra_version=TRIAGEM_RULE_VERSION,
+                    resultado=calculo["resultado"],
+                    mensagem_resultado=calculo["mensagem"],
+                    data_liberacao=calculo["data_liberacao"],
+                    achados=calculo["achados"],
+                    finalizada_em=timezone.now(),
+                )
+
+                # Salva todas as respostas individuais.
+                respostas = preparar_respostas(form)
+
+                RespostaTriagem.objects.bulk_create(
+                    [
+                        RespostaTriagem(
+                            triagem=triagem,
+                            **resposta,
+                        )
+                        for resposta in respostas
+                    ]
+                )
+
+            return redirect(
+                "accounts:triagem_resultado",
+                id_triagem=triagem.pk,
+            )
+
+    else:
+        form = TriagemExtensaForm()
+
+    return render(
+        request,
+        "accounts/triagem_extensa.html",
+        {
+            "form": form,
+        },
+    )
+
+
+@login_required
+def triagem_resultado(request, id_triagem):
+    """
+    Mostra o resultado somente para o usuário que realizou
+    aquela triagem.
+    """
+
+    triagem = get_object_or_404(
+        Triagem,
+        pk=id_triagem,
+        usuario=request.user,
+    )
+
+    return render(
+        request,
+        "accounts/triagem_resultado.html",
+        {
+            "triagem": triagem,
+        },
     )

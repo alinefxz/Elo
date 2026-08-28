@@ -1,33 +1,143 @@
 {% extends "base.html" %}
 
-{% comment %}
-RESUMO DO ARQUIVO
-=================
-Tela HTML do cadastro comum. Ela herda base.html e recebe ``form`` da view.
-
-``form.as_p`` renderiza campos, labels, textos de ajuda e erros dentro de
-paragrafos. A validacao real continua em accounts/forms.py.
-{% endcomment %}
-
 {% block title %}Criar conta | Elo{% endblock %}
 
 {% block content %}
+
 <h1>Criar conta</h1>
-<p>Escolha Doador, Receptor/Solicitante, Observador ou Hemocentro.</p>
-
-<!-- method=post envia dados sensiveis no corpo da requisicao, nao na URL. -->
-<form method="post">
-    <!-- Token obrigatorio porque CsrfViewMiddleware esta ativo. -->
-    {% csrf_token %}
-
-    <!-- O Django renderiza nome, e-mail, duas senhas, aceite e erros. -->
-    {{ form.as_p }}
-
-    <button type="submit">Criar conta</button>
-</form>
 
 <p>
-    Ja possui cadastro?
+    Escolha Doador, Receptor/Solicitante, Observador ou Hemocentro.
+</p>
+
+<form method="post">
+
+    {% csrf_token %}
+
+    {{ form.non_field_errors }}
+
+    {% for campo in form %}
+
+        {% if campo.name != "aceite_lgpd" %}
+
+            <p>
+                <label for="{{ campo.id_for_label }}">
+                    {{ campo.label }}
+                </label>
+
+                {{ campo }}
+
+                {{ campo.errors }}
+
+                {% if campo.help_text %}
+                    <small>{{ campo.help_text }}</small>
+                {% endif %}
+            </p>
+
+        {% endif %}
+
+    {% endfor %}
+
+    <!-- O usuário clica diretamente nas palavras para ler os documentos -->
+    <p>
+        <input
+            type="checkbox"
+            id="{{ form.aceite_lgpd.id_for_label }}"
+            name="{{ form.aceite_lgpd.html_name }}"
+            required
+            {% if form.aceite_lgpd.value %}checked{% endif %}
+        >
+
+        <label for="{{ form.aceite_lgpd.id_for_label }}">
+            Li e aceito os
+
+            <a
+                href="#"
+                onclick="document.getElementById('modal-termos').showModal(); return false;"
+            >
+                Termos de Uso
+            </a>
+
+            e a
+
+            <a
+                href="#"
+                onclick="document.getElementById('modal-privacidade').showModal(); return false;"
+            >
+                Política de Privacidade
+            </a>.
+        </label>
+
+        {{ form.aceite_lgpd.errors }}
+    </p>
+
+    <button type="submit">
+        Criar conta
+    </button>
+
+</form>
+
+<!-- Janela dos Termos de Uso. Fica escondida até clicar na palavra. -->
+<dialog id="modal-termos">
+
+    <h2>Termos de Uso</h2>
+
+    <p>
+        Ao criar uma conta no Elo, o usuário concorda em utilizar
+        o sistema de maneira correta, legal e respeitosa.
+    </p>
+
+    <p>
+        O usuário é responsável pelas informações fornecidas no cadastro,
+        pela segurança da sua senha e pelas atividades realizadas em sua conta.
+    </p>
+
+    <p>
+        O sistema poderá suspender ou encerrar contas que violem as regras
+        de utilização ou a legislação aplicável.
+    </p>
+
+    <button
+        type="button"
+        onclick="document.getElementById('modal-termos').close();"
+    >
+        Fechar
+    </button>
+
+</dialog>
+
+<!-- Janela da Política de Privacidade. Fica escondida até clicar na palavra. -->
+<dialog id="modal-privacidade">
+
+    <h2>Política de Privacidade</h2>
+
+    <p>
+        Os dados informados no cadastro poderão ser utilizados para criar,
+        administrar e proteger a conta do usuário.
+    </p>
+
+    <p>
+        As informações devem ser tratadas de acordo com a legislação aplicável,
+        incluindo a Lei Geral de Proteção de Dados.
+    </p>
+
+    <p>
+        O usuário poderá solicitar informações sobre o uso dos seus dados
+        pelos canais oficiais do sistema.
+    </p>
+
+    <button
+        type="button"
+        onclick="document.getElementById('modal-privacidade').close();"
+    >
+        Fechar
+    </button>
+
+</dialog>
+
+<p>
+    Já possui cadastro?
     <a href="{% url 'accounts:login' %}">Entrar</a>
 </p>
+
 {% endblock %}

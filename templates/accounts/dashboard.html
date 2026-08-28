@@ -29,6 +29,16 @@ Hemocentro ou Administrador.
             <li>{{ acao }}</li>
         {% endfor %}
     </ul>
+
+    {% if user.perfil == "DOADOR" %}
+
+    <p>
+        <a href="{% url 'accounts:triagem_extensa' %}">
+            Iniciar triagem extensa
+        </a>
+    </p>
+
+{% endif %}
 </section>
 
 

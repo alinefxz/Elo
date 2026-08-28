@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Triagem extensa | Elo{% endblock %}
+
+{% block content %}
+
+<h1>Triagem extensa</h1>
+
+<p>
+    Esta triagem é apenas orientativa e não substitui a entrevista,
+    os exames ou a decisão da equipe do hemocentro.
+</p>
+
+<p>
+    Responda com o máximo de precisão possível.
+    Quando não souber uma resposta, informe que não sabe.
+</p>
+
+<form method="post">
+
+    {% csrf_token %}
+
+    {{ form.non_field_errors }}
+
+    {{ form.as_p }}
+
+    <button type="submit">
+        Calcular orientação
+    </button>
+
+</form>
+
+<p>
+    <a href="{% url 'accounts:dashboard' %}">
+        Voltar para o painel
+    </a>
+</p>
+
+{% endblock %}
