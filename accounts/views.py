@@ -29,6 +29,12 @@ from .validacao_hemocentro import (
     solicitar_correcao_hemocentro as solicitar_correcao_hemocentro_servico,
     usuario_e_administrador,
 )
+from .compatibilidade import (
+    TIPOS_SANGUINEOS,
+    doadores_compativeis_para,
+    tabela_de_compatibilidade,
+    tipos_que_recebem_de,
+)
 
 
 POSTOS_COLETA = [
@@ -282,6 +288,32 @@ def cadastro(request):
     # O HTML acessa o objeto usando a variavel {{ form }}.
     return render(request, "accounts/cadastro.html", {"form": form})
 
+def compatibilidade_sanguinea(request):
+    tipo_selecionado = request.GET.get("tipo", "")
+    compatibilidade_selecionada = None
+    tipo_invalido = False
+
+    if tipo_selecionado:
+        try:
+            compatibilidade_selecionada = {
+                "tipo": tipo_selecionado.strip().upper(),
+                "doar_para": tipos_que_recebem_de(tipo_selecionado),
+                "receber_de": doadores_compativeis_para(tipo_selecionado),
+            }
+        except ValueError:
+            tipo_invalido = True
+
+    return render(
+        request,
+        "accounts/compatibilidade_sanguinea.html",
+        {
+            "tipos_sanguineos": TIPOS_SANGUINEOS,
+            "tipo_selecionado": tipo_selecionado.strip().upper(),
+            "compatibilidade_selecionada": compatibilidade_selecionada,
+            "tipo_invalido": tipo_invalido,
+            "tabela_compatibilidade": tabela_de_compatibilidade(),
+        },
+    )
 
 @login_required
 def dashboard(request):
