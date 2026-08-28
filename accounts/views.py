@@ -238,50 +238,101 @@ def inicio(request):
 
 
 def cadastro(request):
-    """Mostra o formulario e processa a criacao de uma conta do Elo."""
+    """
+    Exibe e processa o cadastro de usuarios.
 
-    # Uma pessoa que ja entrou nao precisa abrir cadastro novamente.
+    Para Hemocentro:
+    - cria a conta;
+    - define o status inicial como PENDENTE;
+    - registra o consentimento LGPD;
+    - autentica o usuario;
+    - informa que o cadastro aguarda aprovacao administrativa.
+    """
+
+    # Usuario que ja esta logado nao precisa acessar o cadastro novamente.
     if request.user.is_authenticated:
         return redirect("accounts:dashboard")
 
-    # GET apenas exibe a pagina. POST significa que o formulario foi enviado.
     if request.method == "POST":
-        # request.POST contem os valores enviados pelos inputs do HTML.
         form = CadastroUsuarioForm(request.POST)
 
-        # is_valid executa validacoes de campo, senha e unicidade.
         if form.is_valid():
-            # atomic abre uma transacao no PostgreSQL. Se a criacao do usuario
-            # ou do consentimento falhar, o banco desfaz as duas operacoes.
-            with transaction.atomic():
-                # UserCreationForm chama set_password antes de salvar.
-                usuario = form.save()
+            try:
+                with transaction.atomic():
 
-                # O aceite nao pertence a usuarios: ele gera uma linha propria
-                # em consentimentos_lgpd ligada pela chave estrangeira.
-                ConsentimentoLGPD.objects.create(
-                    usuario=usuario,
-                    tipo_termo=ConsentimentoLGPD.TipoTermo.GERAL,
-                    versao_termo="1.0",
-                    aceito=True,
-                    ip=obter_ip(request),
+                    # O UserCreationForm trata a senha com set_password().
+                    usuario = form.save()
+
+                    # Hemocentro sempre inicia como PENDENTE.
+                    if usuario.perfil == Usuario.Perfil.HEMOCENTRO:
+                        usuario.status_validacao = (
+                            Usuario.StatusValidacaoHemocentro.PENDENTE
+                        )
+                        usuario.save(
+                            update_fields=["status_validacao"]
+                        )
+
+                    # Registra o aceite da LGPD.
+                    ConsentimentoLGPD.objects.create(
+                        usuario=usuario,
+                        tipo_termo=ConsentimentoLGPD.TipoTermo.GERAL,
+                        versao_termo="1.0",
+                        aceito=True,
+                        ip=obter_ip(request),
+                    )
+
+                # Cria a sessao do usuario.
+                login(request, usuario)
+
+                # Mensagem diferente para Hemocentro.
+                if usuario.perfil == Usuario.Perfil.HEMOCENTRO:
+                    messages.success(
+                        request,
+                        (
+                            "Cadastro realizado com sucesso! "
+                            "Seu cadastro de Hemocentro está aguardando "
+                            "a aprovação de um administrador."
+                        ),
+                    )
+                else:
+                    messages.success(
+                        request,
+                        "Cadastro realizado com sucesso.",
+                    )
+
+                return redirect("accounts:dashboard")
+
+            except Exception:
+                # O erro real continua aparecendo no terminal do Django.
+                # Para o usuario, evitamos uma tela branca ou erro 500.
+                messages.error(
+                    request,
+                    (
+                        "Nao foi possivel concluir o cadastro. "
+                        "Verifique os dados informados ou consulte o "
+                        "terminal do Django para ver o erro."
+                    ),
                 )
 
-            # login grava a identidade do usuario na sessao do Django.
-            # O navegador recebe apenas um cookie de sessao, nunca a senha.
-            login(request, usuario)
+        else:
+            messages.error(
+                request,
+                (
+                    "O cadastro nao foi concluido. "
+                    "Corrija os erros destacados abaixo."
+                ),
+            )
 
-            # A mensagem fica na sessao ate base.html exibi-la uma vez.
-            messages.success(request, "Cadastro realizado com sucesso.")
-            return redirect("accounts:dashboard")
     else:
-        # No GET, nao existem dados enviados: criamos um formulario vazio.
         form = CadastroUsuarioForm()
 
-    # render combina o template com o dicionario de contexto.
-    # O HTML acessa o objeto usando a variavel {{ form }}.
-    return render(request, "accounts/cadastro.html", {"form": form})
-
+    return render(
+        request,
+        "accounts/cadastro.html",
+        {
+            "form": form,
+        },
+    )
 
 @login_required
 def dashboard(request):
