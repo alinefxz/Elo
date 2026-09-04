@@ -16,6 +16,8 @@ from .auditoria import campos_sensiveis_alterados, registrar_auditoria
 from .models import (
     AuditoriaAcaoCritica,
     ConsentimentoLGPD,
+    Estoque,
+    EstoqueMovimentacao,
     Usuario,
     ValidacaoHemocentro,
 )
@@ -24,7 +26,6 @@ from .validacao_hemocentro import (
     recusar_hemocentro,
     solicitar_correcao_hemocentro,
 )
-
 
 class UsuarioAdminCreationForm(UserCreationForm):
     """Formulario usado quando o admin cria uma conta."""
@@ -384,6 +385,82 @@ class AuditoriaAcaoCriticaAdmin(admin.ModelAdmin):
     )
     date_hierarchy = "criado_em"
     ordering = ("-criado_em",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+@admin.register(Estoque)
+class EstoqueAdmin(admin.ModelAdmin):
+    """
+    Consulta administrativa do estoque de cada Hemocentro.
+
+    status_calculado e data_atualizacao ficam somente leitura porque sao
+    derivados automaticamente pela camada de servico (accounts/estoque.py)
+    sempre que a quantidade de bolsas muda.
+    """
+
+    list_display = (
+        "hemocentro",
+        "tipo_sanguineo",
+        "quantidade_bolsas",
+        "nivel_minimo",
+        "nivel_critico",
+        "status_calculado",
+        "data_atualizacao",
+    )
+    list_filter = ("status_calculado", "tipo_sanguineo")
+    search_fields = ("hemocentro__email", "hemocentro__nome")
+    ordering = ("hemocentro__nome", "tipo_sanguineo")
+    readonly_fields = ("status_calculado", "data_atualizacao")
+
+
+@admin.register(EstoqueMovimentacao)
+class EstoqueMovimentacaoAdmin(admin.ModelAdmin):
+    """
+    Historico somente leitura das movimentacoes de estoque (UC_30).
+
+    Assim como ValidacaoHemocentroAdmin, este historico nunca deve ser
+    criado, editado ou apagado pelo admin: toda movimentacao precisa
+    passar por registrar_movimentacao_estoque para manter a quantidade
+    de bolsas e a auditoria consistentes.
+    """
+
+    list_display = (
+        "data_hora",
+        "estoque",
+        "tipo_movimento",
+        "quantidade_anterior",
+        "quantidade_movimentada",
+        "quantidade_nova",
+        "usuario_resp",
+    )
+    list_filter = ("tipo_movimento", "data_hora")
+    search_fields = (
+        "estoque__hemocentro__email",
+        "estoque__hemocentro__nome",
+        "usuario_resp__email",
+        "usuario_resp__nome",
+        "motivo",
+    )
+    readonly_fields = (
+        "id_mov",
+        "estoque",
+        "usuario_resp",
+        "tipo_movimento",
+        "quantidade_anterior",
+        "quantidade_movimentada",
+        "quantidade_nova",
+        "motivo",
+        "data_hora",
+    )
+    date_hierarchy = "data_hora"
+    ordering = ("-data_hora",)
 
     def has_add_permission(self, request):
         return False

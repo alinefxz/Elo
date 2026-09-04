@@ -24,7 +24,9 @@ from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import models
-
+# Reaproveita a mesma lista de tipos sanguineos usada em compatibilidade.py,
+# para nao correr o risco de duas listas divergentes no projeto.
+from .compatibilidade import TIPOS_SANGUINEOS
 
 class UsuarioManager(BaseUserManager):
     """
@@ -403,6 +405,7 @@ class AuditoriaAcaoCritica(models.Model):
         LOGIN_SUSPEITO = "LOGIN_SUSPEITO", "Login suspeito"
         ALTERACAO_PERMISSAO = "ALTERACAO_PERMISSAO", "Alteracao de permissao"
         APROVACAO_HEMOCENTRO = "APROVACAO_HEMOCENTRO", "Aprovacao de hemocentro"
+        CADASTRO_ESTOQUE = "CADASTRO_ESTOQUE", "Cadastro de estoque"
         ATUALIZACAO_ESTOQUE = "ATUALIZACAO_ESTOQUE", "Atualizacao de estoque"
         MODERACAO = "MODERACAO", "Moderacao"
         ACESSO_DADOS_SENSIVEIS = (
@@ -641,4 +644,225 @@ class RespostaTriagem(models.Model):
             f"{self.triagem_id} - "
             f"{self.id_pergunta} - "
             f"{self.codigo_resposta}"
+        )
+
+
+class Estoque(models.Model):
+    """
+    UC_29 - Cadastrar Estoque.
+
+    Guarda a estrutura de estoque de um Hemocentro para um unico tipo
+    sanguineo: quantidade atual de bolsas, os niveis de alerta definidos
+    pelo proprio hemocentro e o status calculado a partir desses valores.
+
+    So existe um registro de Estoque por combinacao de hemocentro e tipo
+    sanguineo (garantido pela UniqueConstraint abaixo). Para mudar a
+    quantidade de bolsas depois de criado, use as funcoes de
+    ``accounts/estoque.py`` em vez de editar o campo diretamente: elas
+    recalculam o status, criam o historico em EstoqueMovimentacao e
+    registram a auditoria.
+    """
+
+    class StatusCalculado(models.TextChoices):
+        """
+        Situacao do estoque, sempre derivada da quantidade e dos niveis.
+
+        Nunca deve ser digitada manualmente por quem usa o sistema: a
+        camada de servico recalcula este campo toda vez que a quantidade
+        de bolsas muda.
+        """
+
+        CRITICO = "CRITICO", "Crítico"
+        BAIXO = "BAIXO", "Baixo"
+        ESTAVEL = "ESTAVEL", "Estável"
+
+    id_estoque = models.BigAutoField(primary_key=True)
+
+    # Somente contas com perfil Hemocentro podem ter um Estoque. A
+    # validacao completa (inclusive "esta aprovado?") fica em clean() e na
+    # camada de servico; limit_choices_to so ajuda a limpar o admin.
+    hemocentro = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="estoques",
+        db_column="id_hemocentro",
+        limit_choices_to={"perfil": "HEMOCENTRO"},
+    )
+
+    # As opcoes vem de TIPOS_SANGUINEOS (compatibilidade.py), entao um
+    # tipo invalido como "C+" nunca passa nem pela validacao do form nem
+    # pela validacao do model.
+    tipo_sanguineo = models.CharField(
+        max_length=3,
+        choices=[(tipo, tipo) for tipo in TIPOS_SANGUINEOS],
+    )
+
+    # Quantidade atual de bolsas. PositiveIntegerField ja impede valores
+    # negativos no nivel do banco (CHECK constraint) e do Python.
+    quantidade_bolsas = models.PositiveIntegerField(default=0)
+
+    # A partir de qual quantidade o hemocentro considera o tipo "baixo".
+    nivel_minimo = models.PositiveIntegerField()
+
+    # A partir de qual quantidade o hemocentro considera o tipo "critico".
+    # Precisa ser menor ou igual ao nivel_minimo (validado em clean()).
+    nivel_critico = models.PositiveIntegerField()
+
+    status_calculado = models.CharField(
+        max_length=10,
+        choices=StatusCalculado.choices,
+        default=StatusCalculado.ESTAVEL,
+    )
+
+    # auto_now grava a data automaticamente a cada save(), inclusive nas
+    # atualizacoes feitas pelas movimentacoes de estoque.
+    data_atualizacao = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "estoques"
+        verbose_name = "estoque"
+        verbose_name_plural = "estoques"
+        ordering = ["hemocentro__nome", "tipo_sanguineo"]
+        constraints = [
+            # Impede dois registros de estoque para o mesmo tipo sanguineo
+            # no mesmo hemocentro, mesmo se dois cadastros chegarem quase
+            # ao mesmo tempo (a regra tambem existe no PostgreSQL).
+            models.UniqueConstraint(
+                fields=["hemocentro", "tipo_sanguineo"],
+                name="estoque_unico_por_hemocentro_tipo",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["hemocentro", "tipo_sanguineo"],
+                name="estoque_hemo_tipo_idx",
+            ),
+            models.Index(
+                fields=["status_calculado"],
+                name="estoque_status_idx",
+            ),
+        ]
+
+    def clean(self):
+        """Valida regras que dependem de mais de um campo."""
+
+        super().clean()
+
+        if (
+            self.hemocentro_id
+            and self.hemocentro.perfil != Usuario.Perfil.HEMOCENTRO
+        ):
+            raise ValidationError(
+                {
+                    "hemocentro": (
+                        "Somente contas com perfil Hemocentro podem ter estoque."
+                    )
+                }
+            )
+
+        if (
+            self.nivel_minimo is not None
+            and self.nivel_critico is not None
+            and self.nivel_critico > self.nivel_minimo
+        ):
+            raise ValidationError(
+                {
+                    "nivel_critico": (
+                        "O nivel critico deve ser menor ou igual ao nivel minimo."
+                    )
+                }
+            )
+
+    def __str__(self):
+        return (
+            f"{self.hemocentro.nome} - {self.tipo_sanguineo} "
+            f"({self.get_status_calculado_display()})"
+        )
+
+
+class EstoqueMovimentacao(models.Model):
+    """
+    UC_30 - Atualizar Estoque.
+
+    Historico imutavel de cada entrada, saida ou ajuste feito em um
+    Estoque. Uma linha nunca e alterada ou apagada depois de criada: para
+    corrigir um valor, registra-se uma nova movimentacao (do tipo AJUSTE).
+    Isso preserva o rastro completo exigido pela regra "toda alteracao
+    deve gerar historico com responsavel".
+    """
+
+    class TipoMovimento(models.TextChoices):
+        # Entrada de bolsas (doacao recebida, transferencia recebida etc).
+        ENTRADA = "ENTRADA", "Entrada"
+        # Saida de bolsas (transfusao, transferencia enviada, descarte).
+        SAIDA = "SAIDA", "Saída"
+        # Correcao direta da quantidade (ex.: apos uma contagem fisica).
+        AJUSTE = "AJUSTE", "Ajuste"
+
+    id_mov = models.BigAutoField(primary_key=True)
+
+    estoque = models.ForeignKey(
+        Estoque,
+        on_delete=models.CASCADE,
+        related_name="movimentacoes",
+        db_column="id_estoque",
+    )
+
+    # SET_NULL preserva a movimentacao mesmo se a conta do responsavel for
+    # removida futuramente; o historico de quantidades continua correto.
+    usuario_resp = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="movimentacoes_estoque_realizadas",
+        db_column="id_usuario_resp",
+    )
+
+    tipo_movimento = models.CharField(
+        max_length=10,
+        choices=TipoMovimento.choices,
+    )
+
+    # Quantidade de bolsas antes da movimentacao (copia da foto do
+    # Estoque no momento em que a movimentacao foi registrada).
+    quantidade_anterior = models.PositiveIntegerField()
+
+    # Para ENTRADA/SAIDA: quantidade informada pelo usuario (sempre >= 1).
+    # Para AJUSTE: diferenca entre quantidade_nova e quantidade_anterior,
+    # podendo ser negativa quando o ajuste reduz o estoque.
+    quantidade_movimentada = models.IntegerField()
+
+    # Quantidade de bolsas depois da movimentacao. Sempre
+    # quantidade_anterior +/- quantidade_movimentada, calculado pela
+    # camada de servico, nunca digitado pelo usuario.
+    quantidade_nova = models.PositiveIntegerField()
+
+    motivo = models.CharField(max_length=255, blank=True, default="")
+
+    # auto_now_add preenche uma unica vez, no momento da criacao. Como a
+    # linha e imutavel, esta data representa o momento real do evento.
+    data_hora = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "movimentacoes_estoque"
+        verbose_name = "movimentacao de estoque"
+        verbose_name_plural = "movimentacoes de estoque"
+        ordering = ["-data_hora"]
+        indexes = [
+            models.Index(
+                fields=["estoque", "-data_hora"],
+                name="mov_estoque_data_idx",
+            ),
+            models.Index(
+                fields=["usuario_resp", "-data_hora"],
+                name="mov_usuario_data_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.estoque.tipo_sanguineo} - "
+            f"{self.get_tipo_movimento_display()} - "
+            f"{self.quantidade_anterior} -> {self.quantidade_nova}"
         )

@@ -16,22 +16,33 @@ from django.utils import timezone
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from .forms import CadastroUsuarioForm, TriagemExtensaForm
+from .forms import (
+    CadastrarEstoqueForm,
+    CadastroUsuarioForm,
+    MovimentarEstoqueForm,
+    TriagemExtensaForm,
+)
 from .models import (
     ConsentimentoLGPD,
+    Estoque,
     RespostaTriagem,
     Triagem,
     Usuario,
     ValidacaoHemocentro,
 )
+from .estoque import (
+    cadastrar_estoque as cadastrar_estoque_servico,
+    registrar_movimentacao_estoque as registrar_movimentacao_estoque_servico,
+)
 from .validacao_hemocentro import (
     aprovar_hemocentro as aprovar_hemocentro_servico,
+    exigir_hemocentro_aprovado,
     recusar_hemocentro as recusar_hemocentro_servico,
     solicitar_correcao_hemocentro as solicitar_correcao_hemocentro_servico,
     usuario_e_administrador,
@@ -573,6 +584,7 @@ def solicitar_correcao_hemocentro(request, id_hemocentro):
         "accounts:painel_aprovacao_hemocentros"
     )
 
+
 @login_required
 def triagem_extensa(request):
     """
@@ -690,3 +702,121 @@ def triagem_resultado(request, id_triagem):
             "triagem": triagem,
         },
     )
+
+
+# UC_29 / UC_30 - Estoque do Hemocentro. As duas views de escrita reusam
+# @exigir_hemocentro_aprovado (definida em validacao_hemocentro.py), que
+# bloqueia quem nao for Hemocentro com status_validacao == APROVADO.
+
+
+@login_required
+@exigir_hemocentro_aprovado
+def estoque_hemocentro(request):
+    """
+    Painel do Hemocentro/Estoque.
+
+    Mostra os estoques ja cadastrados (cada um com seu proprio formulario
+    de movimentacao) e o formulario de cadastro para os tipos sanguineos
+    que este hemocentro ainda nao cadastrou.
+    """
+
+    estoques = (
+        Estoque.objects
+        .filter(hemocentro=request.user)
+        .order_by("tipo_sanguineo")
+        .prefetch_related("movimentacoes")
+    )
+
+    tipos_ja_cadastrados = {estoque.tipo_sanguineo for estoque in estoques}
+    tipos_disponiveis = [
+        tipo for tipo in TIPOS_SANGUINEOS if tipo not in tipos_ja_cadastrados
+    ]
+
+    contexto = {
+        "estoques": estoques,
+        "tipos_disponiveis": tipos_disponiveis,
+        "form_cadastro": CadastrarEstoqueForm(),
+        "form_movimentacao": MovimentarEstoqueForm(),
+    }
+
+    return render(
+        request,
+        "accounts/estoque_hemocentro.html",
+        contexto,
+    )
+
+
+@login_required
+@exigir_hemocentro_aprovado
+@require_POST
+def cadastrar_estoque_view(request):
+    """UC_29 - Processa o cadastro de estoque de um tipo sanguineo."""
+
+    form = CadastrarEstoqueForm(request.POST)
+
+    if form.is_valid():
+        try:
+            cadastrar_estoque_servico(
+                hemocentro=request.user,
+                tipo_sanguineo=form.cleaned_data["tipo_sanguineo"],
+                quantidade_bolsas=form.cleaned_data["quantidade_bolsas"],
+                nivel_minimo=form.cleaned_data["nivel_minimo"],
+                nivel_critico=form.cleaned_data["nivel_critico"],
+                request=request,
+            )
+        except ValidationError as erro:
+            messages.error(request, " ".join(erro.messages))
+        else:
+            messages.success(
+                request,
+                "Estoque cadastrado com sucesso.",
+            )
+    else:
+        messages.error(
+            request,
+            "Nao foi possivel cadastrar o estoque. Corrija os erros indicados.",
+        )
+
+    return redirect("accounts:estoque_hemocentro")
+
+
+@login_required
+@exigir_hemocentro_aprovado
+@require_POST
+def atualizar_estoque_view(request, id_estoque):
+    """UC_30 - Processa uma entrada, saida ou ajuste de bolsas."""
+
+    # get_object_or_404 com hemocentro=request.user impede que um
+    # Hemocentro movimente o estoque de outro, mesmo sabendo o id.
+    estoque = get_object_or_404(
+        Estoque,
+        pk=id_estoque,
+        hemocentro=request.user,
+    )
+
+    form = MovimentarEstoqueForm(request.POST)
+
+    if form.is_valid():
+        try:
+            registrar_movimentacao_estoque_servico(
+                estoque=estoque,
+                usuario_resp=request.user,
+                tipo_movimento=form.cleaned_data["tipo_movimento"],
+                quantidade=form.cleaned_data["quantidade"],
+                motivo=form.cleaned_data["motivo"],
+                request=request,
+            )
+        except ValidationError as erro:
+            messages.error(request, " ".join(erro.messages))
+        else:
+            messages.success(
+                request,
+                "Estoque atualizado com sucesso.",
+            )
+    else:
+        messages.error(
+            request,
+            "Nao foi possivel atualizar o estoque. Corrija os erros indicados.",
+        )
+
+    return redirect("accounts:estoque_hemocentro")

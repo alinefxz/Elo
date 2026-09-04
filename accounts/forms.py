@@ -16,7 +16,8 @@ import re
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 
-from .models import Usuario
+from .compatibilidade import TIPOS_SANGUINEOS
+from .models import EstoqueMovimentacao, Usuario
 
 from datetime import date
 
@@ -299,6 +300,7 @@ class LoginUsuarioForm(AuthenticationForm):
         ),
     )
 
+
 class TriagemExtensaForm(forms.Form):
     """
     Formulário inicial da triagem extensa.
@@ -419,3 +421,123 @@ class TriagemExtensaForm(forms.Form):
             )
 
         return dados
+
+
+class CadastrarEstoqueForm(forms.Form):
+    """
+    UC_29 - Formulario usado pelo Hemocentro para cadastrar a estrutura
+    de estoque de um tipo sanguineo.
+
+    A validacao de "ja existe estoque para este tipo" e de "hemocentro
+    aprovado" fica na camada de servico (accounts/estoque.py), porque
+    depende do usuario logado, que o form nao conhece sozinho.
+    """
+
+    tipo_sanguineo = forms.ChoiceField(
+        label="Tipo sanguíneo",
+        choices=[(tipo, tipo) for tipo in TIPOS_SANGUINEOS],
+    )
+
+    quantidade_bolsas = forms.IntegerField(
+        label="Quantidade atual de bolsas",
+        min_value=0,
+        initial=0,
+        help_text="Quantidade de bolsas já disponíveis, se houver.",
+    )
+
+    nivel_minimo = forms.IntegerField(
+        label="Nível mínimo",
+        min_value=0,
+        help_text="A partir de quantas bolsas o tipo passa a ser considerado baixo.",
+    )
+
+    nivel_critico = forms.IntegerField(
+        label="Nível crítico",
+        min_value=0,
+        help_text="A partir de quantas bolsas o tipo passa a ser considerado crítico.",
+    )
+
+    def clean(self):
+        """Garante que o nível crítico nunca seja maior que o mínimo."""
+
+        dados = super().clean()
+
+        nivel_minimo = dados.get("nivel_minimo")
+        nivel_critico = dados.get("nivel_critico")
+
+        if (
+            nivel_minimo is not None
+            and nivel_critico is not None
+            and nivel_critico > nivel_minimo
+        ):
+            self.add_error(
+                "nivel_critico",
+                "O nível crítico deve ser menor ou igual ao nível mínimo.",
+            )
+
+        return dados
+
+
+class MovimentarEstoqueForm(forms.Form):
+    """
+    UC_30 - Formulario usado pelo Hemocentro para registrar entrada,
+    saída ou ajuste de bolsas em um estoque já cadastrado.
+
+    O campo "quantidade" muda de sentido conforme o tipo de movimento:
+    - Entrada/Saída: quantas bolsas somar ou subtrair;
+    - Ajuste: qual é a nova quantidade total de bolsas.
+    O texto de ajuda é atualizado no navegador via JavaScript simples no
+    template, mas a validação real acontece aqui e na camada de serviço.
+    """
+
+    tipo_movimento = forms.ChoiceField(
+        label="Tipo de movimentação",
+        choices=EstoqueMovimentacao.TipoMovimento.choices,
+        widget=forms.RadioSelect,
+    )
+
+    quantidade = forms.IntegerField(
+        label="Quantidade",
+        min_value=0,
+        help_text=(
+            "Para entrada/saída: quantidade a movimentar. "
+            "Para ajuste: nova quantidade total de bolsas."
+        ),
+    )
+
+    motivo = forms.CharField(
+        label="Motivo",
+        required=False,
+        max_length=255,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Opcional. Ex.: doação recebida, transfusão realizada, contagem física.",
+    )
+
+    def clean(self):
+        """
+        Entrada e saída exigem quantidade maior que zero; ajuste aceita
+        zero (esvaziar o estoque também é um ajuste válido).
+        """
+
+        dados = super().clean()
+
+        tipo_movimento = dados.get("tipo_movimento")
+        quantidade = dados.get("quantidade")
+
+        movimentos_que_exigem_quantidade_positiva = (
+            EstoqueMovimentacao.TipoMovimento.ENTRADA,
+            EstoqueMovimentacao.TipoMovimento.SAIDA,
+        )
+
+        if (
+            tipo_movimento in movimentos_que_exigem_quantidade_positiva
+            and quantidade is not None
+            and quantidade <= 0
+        ):
+            self.add_error(
+                "quantidade",
+                "Informe uma quantidade maior que zero.",
+            )
+
+        return dados
+    
