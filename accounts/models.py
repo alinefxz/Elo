@@ -473,6 +473,13 @@ class Triagem(models.Model):
         EXTENSA = "EXTENSA", "Triagem extensa"
         SIMPLIFICADA = "SIMPLIFICADA", "Triagem simplificada"
 
+    class Status(models.TextChoices):
+        """Representa em qual etapa do questionário a triagem está."""
+
+        EM_ANDAMENTO = "EM_ANDAMENTO", "Em andamento"
+        CONCLUIDA = "CONCLUIDA", "Concluída"
+        CANCELADA = "CANCELADA", "Cancelada"
+
     class Resultado(models.TextChoices):
         SEM_IMPEDIMENTO = (
             "SEM_IMPEDIMENTO_IDENTIFICADO",
@@ -513,6 +520,26 @@ class Triagem(models.Model):
         default=Modalidade.EXTENSA,
     )
 
+    # Permite salvar e retomar o questionário antes do resultado final.
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.EM_ANDAMENTO,
+    )
+
+    # Guarda a posição e a ordem efetiva, inclusive ramificações.
+    pergunta_atual = models.PositiveIntegerField(default=0)
+    fluxo_perguntas = models.JSONField(default=list, blank=True)
+
+    # A versão rápida sempre registra qual triagem extensa foi reutilizada.
+    triagem_base = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="verificacoes_simplificadas",
+    )
+
     # Versão das regras utilizadas no cálculo.
     regra_version = models.CharField(
         max_length=40,
@@ -523,10 +550,15 @@ class Triagem(models.Model):
     resultado = models.CharField(
         max_length=30,
         choices=Resultado.choices,
+        blank=True,
+        default="",
     )
 
     # Explicação apresentada ao usuário.
-    mensagem_resultado = models.TextField()
+    mensagem_resultado = models.TextField(
+        blank=True,
+        default="",
+    )
 
     # Data orientativa para liberação, quando existir.
     data_liberacao = models.DateField(
@@ -547,6 +579,9 @@ class Triagem(models.Model):
         blank=True,
     )
 
+    # Atualiza automaticamente sempre que o andamento for salvo.
+    atualizada_em = models.DateTimeField(auto_now=True)
+
     class Meta:
         db_table = "triagens"
         ordering = ["-iniciada_em"]
@@ -560,6 +595,8 @@ class Triagem(models.Model):
                 name="triagem_resultado_data_idx",
             ),
         ]
+        verbose_name = "Triagem"
+        verbose_name_plural = "Triagens"
 
     def __str__(self):
         return (
@@ -610,6 +647,12 @@ class RespostaTriagem(models.Model):
         blank=True,
     )
 
+    # Reúne códigos, data e complemento sem perder os campos legados acima.
+    valor = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
     # Versão das regras usada na resposta.
     rule_version = models.CharField(
         max_length=40,
@@ -629,12 +672,21 @@ class RespostaTriagem(models.Model):
     class Meta:
         db_table = "respostas_triagem"
         ordering = ["id_resposta"]
+        constraints = [
+            # Voltar e corrigir deve substituir, não duplicar, a resposta.
+            models.UniqueConstraint(
+                fields=["triagem", "id_pergunta"],
+                name="resposta_unica_por_pergunta",
+            ),
+        ]
         indexes = [
             models.Index(
                 fields=["triagem", "id_pergunta"],
                 name="resposta_triagem_pergunta_idx",
             ),
         ]
+        verbose_name = "Resposta triagem"
+        verbose_name_plural = "Respostas triagem"
 
     def __str__(self):
         return (
