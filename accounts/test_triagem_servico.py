@@ -7,6 +7,7 @@ from .models import ConsentimentoLGPD, RespostaTriagem, Triagem, Usuario
 from .triagem_catalogo import obter_pergunta
 from .triagem_servico import (
     TriagemConcluida,
+    TriagemExtensaNecessaria,
     TriagemSimplificadaIndisponivel,
     concluir_triagem,
     iniciar_triagem,
@@ -269,3 +270,135 @@ class TriagemServicoTests(TestCase):
             "Sim, entendo e quero continuar.",
         )
         self.assertEqual(resposta.valor["detalhes"], "Entendi.")
+
+    def test_nao_entendeu_permanece_na_primeira_pergunta(self):
+        """Falha se EXT-01=NAO avançar sem repetir a explicação."""
+
+        triagem = iniciar_triagem(
+            self.usuario,
+            Triagem.Modalidade.EXTENSA,
+            ip=None,
+        )
+
+        salvar_resposta(
+            triagem,
+            "EXT-01",
+            {"codigos": ["NAO"], "datas": {}, "detalhes": ""},
+        )
+
+        self.assertEqual(triagem.pergunta_atual, 0)
+
+    def test_revisar_confirmacao_extensa_volta_ao_inicio(self):
+        """Falha se EXT-51=REVISAR não permitir conferir as respostas."""
+
+        triagem = iniciar_triagem(
+            self.usuario,
+            Triagem.Modalidade.EXTENSA,
+            ip=None,
+        )
+        triagem.pergunta_atual = triagem.fluxo_perguntas.index("EXT-51")
+        triagem.save(update_fields=["pergunta_atual"])
+
+        salvar_resposta(
+            triagem,
+            "EXT-51",
+            {"codigos": ["REVISAR"], "datas": {}, "detalhes": ""},
+        )
+
+        self.assertEqual(triagem.pergunta_atual, 0)
+
+    def test_resumo_incorreto_cancela_rapida_e_exige_extensa(self):
+        """Falha se dados antigos incorretos continuarem na versão rápida."""
+
+        Triagem.objects.create(
+            usuario=self.usuario,
+            modalidade=Triagem.Modalidade.EXTENSA,
+            status=Triagem.Status.CONCLUIDA,
+            resultado=Triagem.Resultado.SEM_IMPEDIMENTO,
+        )
+        simplificada = iniciar_triagem(
+            self.usuario,
+            Triagem.Modalidade.SIMPLIFICADA,
+            ip=None,
+        )
+
+        with self.assertRaises(TriagemExtensaNecessaria):
+            salvar_resposta(
+                simplificada,
+                "SIM-01",
+                {
+                    "codigos": ["INCORRETO"],
+                    "datas": {},
+                    "detalhes": "",
+                },
+            )
+
+        simplificada.refresh_from_db()
+        self.assertEqual(simplificada.status, Triagem.Status.CANCELADA)
+
+    def test_correcao_remove_resposta_de_subpergunta_oculta(self):
+        """Falha se uma resposta escondida continuar alterando o resultado."""
+
+        triagem = iniciar_triagem(
+            self.usuario,
+            Triagem.Modalidade.EXTENSA,
+            ip=None,
+        )
+        salvar_resposta(
+            triagem,
+            "EXT-05",
+            {"codigos": ["SIM"], "datas": {}, "detalhes": ""},
+        )
+        salvar_resposta(
+            triagem,
+            "EXT-05A",
+            {
+                "codigos": ["DATA"],
+                "datas": {"DATA": "2026-08-01"},
+                "detalhes": "",
+            },
+        )
+
+        # Ao corrigir EXT-05, EXT-05A e EXT-05B deixam de pertencer ao fluxo.
+        salvar_resposta(
+            triagem,
+            "EXT-05",
+            {"codigos": ["NAO"], "datas": {}, "detalhes": ""},
+        )
+
+        self.assertNotIn("EXT-05A", triagem.fluxo_perguntas)
+        self.assertFalse(
+            triagem.respostas.filter(id_pergunta="EXT-05A").exists()
+        )
+
+    def test_rapida_respeita_condicoes_das_perguntas_detalhadas(self):
+        """Falha se a rápida mostrar data de doação antes de confirmar doação."""
+
+        Triagem.objects.create(
+            usuario=self.usuario,
+            modalidade=Triagem.Modalidade.EXTENSA,
+            status=Triagem.Status.CONCLUIDA,
+            resultado=Triagem.Resultado.SEM_IMPEDIMENTO,
+        )
+        simplificada = iniciar_triagem(
+            self.usuario,
+            Triagem.Modalidade.SIMPLIFICADA,
+            ip=None,
+        )
+
+        salvar_resposta(
+            simplificada,
+            "SIM-02",
+            {"codigos": ["DOOU"], "datas": {}, "detalhes": ""},
+        )
+
+        self.assertIn("EXT-05", simplificada.fluxo_perguntas)
+        self.assertNotIn("EXT-05A", simplificada.fluxo_perguntas)
+
+        salvar_resposta(
+            simplificada,
+            "EXT-05",
+            {"codigos": ["SIM"], "datas": {}, "detalhes": ""},
+        )
+        self.assertIn("EXT-05A", simplificada.fluxo_perguntas)
+        self.assertIn("EXT-05B", simplificada.fluxo_perguntas)

@@ -28,6 +28,10 @@ class TriagemIncompleta(Exception):
     """Indica que existem perguntas obrigatórias ainda sem resposta."""
 
 
+class TriagemExtensaNecessaria(Exception):
+    """Indica que a versão rápida deixou de ser segura para o usuário."""
+
+
 class PerguntaInvalida(Exception):
     """Impede códigos de pergunta ou alternativa fora do catálogo."""
 
@@ -132,6 +136,10 @@ def calcular_fluxo(triagem):
         id_pergunta
         for id_pergunta in ORDEM_EXTENSA
         if id_pergunta in ids_abertos
+        and _condicao_atendida(
+            PERGUNTAS_EXTENSAS[id_pergunta],
+            respostas,
+        )
     ]
     indice_confirmacao = ORDEM_SIMPLIFICADA.index("SIM-17")
     return [
@@ -255,59 +263,111 @@ def _primeira_data(valor):
         raise PerguntaInvalida("A data da resposta é inválida.") from None
 
 
-@transaction.atomic
+def _resposta_exige_extensa(id_pergunta, codigos):
+    """Centraliza as respostas que invalidam o resumo da versão rápida."""
+
+    escolhas = set(codigos)
+    return (
+        (
+            id_pergunta == "SIM-01"
+            and bool(escolhas & {"INCORRETO", "NAO_FIZ", "NAO_SEI"})
+        )
+        or (
+            id_pergunta == "SIM-17"
+            and bool(escolhas & {"SIM", "NAO_SEI"})
+        )
+        or (id_pergunta == "SIM-18" and "EXTENSA" in escolhas)
+    )
+
+
 def salvar_resposta(triagem, id_pergunta, valor):
     """Salva ou corrige uma resposta e avança o fluxo com segurança."""
 
     triagem_recebida = triagem
-    registro = Triagem.objects.select_for_update().get(pk=triagem.pk)
-    if registro.status != Triagem.Status.EM_ANDAMENTO:
-        raise TriagemConcluida(
-            "Uma triagem concluída não pode ser alterada."
-        )
-    if id_pergunta not in registro.fluxo_perguntas:
-        raise PerguntaInvalida("A pergunta não pertence a esta triagem.")
+    exige_extensa = False
 
-    pergunta = obter_pergunta(id_pergunta)
-    _validar_valor(pergunta, valor)
-    codigos = valor["codigos"]
+    # O bloco atômico termina antes da exceção de redirecionamento. Assim, a
+    # tentativa rápida fica cancelada no histórico sem deixar dados pela metade.
+    with transaction.atomic():
+        registro = Triagem.objects.select_for_update().get(pk=triagem.pk)
+        if registro.status != Triagem.Status.EM_ANDAMENTO:
+            raise TriagemConcluida(
+                "Uma triagem concluída não pode ser alterada."
+            )
+        if id_pergunta not in registro.fluxo_perguntas:
+            raise PerguntaInvalida("A pergunta não pertence a esta triagem.")
 
-    RespostaTriagem.objects.update_or_create(
-        triagem=registro,
-        id_pergunta=id_pergunta,
-        defaults={
-            "codigo_resposta": codigos[0],
-            "resposta_label": _rotulo_resposta(pergunta, codigos),
-            "data_evento": _primeira_data(valor),
-            "metadata": {
-                chave: conteudo
-                for chave, conteudo in valor.items()
-                if chave not in {"codigos", "datas"}
+        pergunta = obter_pergunta(id_pergunta)
+        _validar_valor(pergunta, valor)
+        codigos = valor["codigos"]
+
+        RespostaTriagem.objects.update_or_create(
+            triagem=registro,
+            id_pergunta=id_pergunta,
+            defaults={
+                "codigo_resposta": codigos[0],
+                "resposta_label": _rotulo_resposta(pergunta, codigos),
+                "data_evento": _primeira_data(valor),
+                "metadata": {
+                    chave: conteudo
+                    for chave, conteudo in valor.items()
+                    if chave not in {"codigos", "datas"}
+                },
+                "valor": valor,
+                "rule_version": pergunta["regra_version"],
+                "source_ref": pergunta["fonte"],
             },
-            "valor": valor,
-            "rule_version": pergunta["regra_version"],
-            "source_ref": pergunta["fonte"],
-        },
-    )
+        )
 
-    fluxo = calcular_fluxo(registro)
-    registro.fluxo_perguntas = fluxo
-    registro.pergunta_atual = min(
-        fluxo.index(id_pergunta) + 1,
-        len(fluxo),
-    )
-    registro.save(
-        update_fields=[
-            "fluxo_perguntas",
-            "pergunta_atual",
-            "atualizada_em",
-        ]
-    )
+        exige_extensa = (
+            registro.modalidade == Triagem.Modalidade.SIMPLIFICADA
+            and _resposta_exige_extensa(id_pergunta, codigos)
+        )
+        if exige_extensa:
+            registro.status = Triagem.Status.CANCELADA
+            registro.save(update_fields=["status", "atualizada_em"])
+        else:
+            fluxo = calcular_fluxo(registro)
+            registro.fluxo_perguntas = fluxo
 
-    # Mantém o objeto do chamador sincronizado para uso imediato na mesma view.
-    triagem_recebida.fluxo_perguntas = registro.fluxo_perguntas
-    triagem_recebida.pergunta_atual = registro.pergunta_atual
-    triagem_recebida.atualizada_em = registro.atualizada_em
+            # Se uma correção fechar uma ramificação, suas respostas antigas
+            # deixam de ser válidas e não podem participar do cálculo final.
+            registro.respostas.exclude(id_pergunta__in=fluxo).delete()
+
+            # Estas respostas pedem revisão, portanto não avançam o cursor.
+            if (
+                id_pergunta == "EXT-01"
+                and "NAO" in codigos
+            ) or (
+                id_pergunta == "EXT-51"
+                and "REVISAR" in codigos
+            ):
+                registro.pergunta_atual = 0
+            else:
+                registro.pergunta_atual = min(
+                    fluxo.index(id_pergunta) + 1,
+                    len(fluxo),
+                )
+
+            registro.save(
+                update_fields=[
+                    "fluxo_perguntas",
+                    "pergunta_atual",
+                    "atualizada_em",
+                ]
+            )
+
+        # Mantém o objeto recebido sincronizado para a view usar imediatamente.
+        triagem_recebida.fluxo_perguntas = registro.fluxo_perguntas
+        triagem_recebida.pergunta_atual = registro.pergunta_atual
+        triagem_recebida.status = registro.status
+        triagem_recebida.atualizada_em = registro.atualizada_em
+
+    if exige_extensa:
+        raise TriagemExtensaNecessaria(
+            "O resumo mudou; continue em uma nova triagem extensa."
+        )
+
     return triagem_recebida
 
 
