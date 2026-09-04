@@ -14,10 +14,14 @@ from django.contrib.auth.forms import UserChangeForm, UserCreationForm
 
 from .auditoria import campos_sensiveis_alterados, registrar_auditoria
 from .models import (
-    AuditoriaAcaoCritica,
-    ConsentimentoLGPD,
     Usuario,
     ValidacaoHemocentro,
+    ConsentimentoLGPD,
+    AuditoriaAcaoCritica,
+    Triagem,
+    RespostaTriagem,
+    Estoque,
+    EstoqueMovimentacao,
 )
 from .validacao_hemocentro import (
     aprovar_hemocentro,

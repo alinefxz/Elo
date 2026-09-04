@@ -10,23 +10,22 @@ enderecos manualmente nos templates.
 
 from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import path
+
 from . import views
 from .forms import LoginUsuarioForm
 
 
-# O namespace evita conflito com rotas de outros apps que tambem possam se
-# chamar login, cadastro ou dashboard.
 app_name = "accounts"
 
+
 urlpatterns = [
-    # A raiz / representa o acesso do Visitante, sem cadastro ou login.
+    # Acesso publico.
     path("", views.inicio, name="inicio"),
 
-    # View escrita no projeto para criar usuario e consentimento.
+    # Cadastro.
     path("cadastro/", views.cadastro, name="cadastro"),
 
-    # LoginView e fornecida pelo Django. Informamos apenas o template, o
-    # formulario por e-mail e o comportamento para quem ja esta autenticado.
+    # Login.
     path(
         "login/",
         LoginView.as_view(
@@ -37,76 +36,110 @@ urlpatterns = [
         name="login",
     ),
 
-    # LogoutView encerra a sessao. O template chama esta rota usando POST.
+    # Logout.
     path(
         "logout/",
         LogoutView.as_view(),
         name="logout",
     ),
 
-    # A protecao desta rota esta no decorador login_required da view.
-    path("dashboard/", views.dashboard, name="dashboard"),
+    # Dashboard.
+    path(
+        "dashboard/",
+        views.dashboard,
+        name="dashboard",
+    ),
 
-    # A apresentação é pública; iniciar, responder e consultar histórico exige
-    # login. O POST separado evita criar uma triagem só por abrir uma página.
-    path("triagem/", views.triagem_apresentacao, name="triagem_apresentacao"),
+    # ==========================================================
+    # TRIAGEM
+    # ==========================================================
+
+    # Pagina publica que explica a triagem e apresenta as modalidades.
+    path(
+        "triagem/",
+        views.triagem_apresentacao,
+        name="triagem_apresentacao",
+    ),
+
+    # Inicia ou retoma a modalidade escolhida.
     path(
         "triagem/iniciar/<str:modalidade>/",
         views.triagem_iniciar,
         name="triagem_iniciar",
     ),
+
+    # Pergunta atual da triagem.
     path(
         "triagem/<int:id_triagem>/pergunta/",
         views.triagem_pergunta,
         name="triagem_pergunta",
     ),
+
+    # Resultado.
     path(
         "triagem/<int:id_triagem>/resultado/",
         views.triagem_resultado,
         name="triagem_resultado",
     ),
+
+    # Historico do usuario.
     path(
         "triagens/historico/",
         views.triagem_historico,
         name="triagem_historico",
     ),
-    # UC_07 - Aprovar Hemocentro. As acoes alteram apenas o backend: status
-    # atual do Hemocentro, historico de validacao e auditoria administrativa.
+
+    # ==========================================================
+    # VALIDACAO DE HEMOCENTROS
+    # ==========================================================
+
     path(
         "hemocentros/validacao/pendentes/",
         views.hemocentros_pendentes,
         name="hemocentros_pendentes",
     ),
+
     path(
         "hemocentros/<int:id_hemocentro>/aprovar/",
         views.aprovar_hemocentro,
         name="aprovar_hemocentro",
     ),
+
     path(
         "hemocentros/<int:id_hemocentro>/recusar/",
         views.recusar_hemocentro,
         name="recusar_hemocentro",
     ),
+
     path(
         "hemocentros/<int:id_hemocentro>/solicitar-correcao/",
         views.solicitar_correcao_hemocentro,
         name="solicitar_correcao_hemocentro",
     ),
+
     path(
-    "hemocentros/validacao/",
-    views.painel_aprovacao_hemocentros,
-    name="painel_aprovacao_hemocentros",
-),
+        "hemocentros/validacao/",
+        views.painel_aprovacao_hemocentros,
+        name="painel_aprovacao_hemocentros",
+    ),
+
+    # ==========================================================
+    # COMPATIBILIDADE SANGUINEA
+    # ==========================================================
+
     path(
-    "compatibilidade-sanguinea/",
-    views.compatibilidade_sanguinea,
-    name="compatibilidade_sanguinea",
-),
-# Essa URL não possui login_required.
-# Portanto, visitantes e usuários autenticados podem acessá-la.
-path(
-    "estoque/",
-    views.visualizacao_publica_estoque,
-    name="estoque_publico",
-),
+        "compatibilidade-sanguinea/",
+        views.compatibilidade_sanguinea,
+        name="compatibilidade_sanguinea",
+    ),
+
+    # ==========================================================
+    # ESTOQUE PUBLICO
+    # ==========================================================
+
+    path(
+        "estoque/",
+        views.visualizacao_publica_estoque,
+        name="estoque_publico",
+    ),
 ]

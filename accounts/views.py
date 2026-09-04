@@ -12,6 +12,7 @@ O cadastro usa uma transacao para impedir que apenas metade da operacao
 seja salva. O dashboard usa login_required para bloquear visitantes.
 """
 
+from django import forms
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
@@ -22,6 +23,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from .forms import CadastroUsuarioForm, TriagemExtensaForm
+from .estoque import obter_estoques_publicos
 from .models import (
     ConsentimentoLGPD,
     RespostaTriagem,
@@ -55,6 +57,217 @@ from .triagem_servico import (
     salvar_resposta,
     voltar_pergunta,
 )
+
+
+class FormularioPergunta(forms.Form):
+    """
+    Formulario dinamico usado pela triagem por etapas.
+
+    A pergunta vem da camada triagem_servico como um dicionario. O formulario
+    aceita os formatos de resposta mais comuns do projeto sem obrigar cada
+    pergunta a ter uma classe de formulario separada.
+    """
+
+    def __init__(self, pergunta, *args, valor_inicial=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.pergunta = pergunta
+        texto = (
+            pergunta.get("texto")
+            or pergunta.get("pergunta")
+            or pergunta.get("label")
+            or "Resposta"
+        )
+        ajuda = (
+            pergunta.get("explicacao")
+            or pergunta.get("ajuda")
+            or pergunta.get("help_text")
+            or ""
+        )
+        obrigatoria = pergunta.get("obrigatoria", True)
+
+        tipo = str(
+            pergunta.get("tipo_resposta")
+            or pergunta.get("tipo")
+            or pergunta.get("formato")
+            or "ESCOLHA"
+        ).strip().upper()
+
+        opcoes = self._normalizar_opcoes(
+            pergunta.get("opcoes")
+            or pergunta.get("alternativas")
+            or pergunta.get("choices")
+            or []
+        )
+
+        initial = self._normalizar_valor_inicial(valor_inicial)
+
+        if opcoes:
+            if tipo in {
+                "MULTIPLAS",
+                "MULTIPLA_SELECAO",
+                "MULTIPLA_SELEÇÃO",
+                "CHECKBOX",
+                "CHECKBOXES",
+            }:
+                campo = forms.MultipleChoiceField(
+                    label=texto,
+                    choices=opcoes,
+                    required=obrigatoria,
+                    initial=initial,
+                    help_text=ajuda,
+                    widget=forms.CheckboxSelectMultiple,
+                )
+            else:
+                campo = forms.ChoiceField(
+                    label=texto,
+                    choices=opcoes,
+                    required=obrigatoria,
+                    initial=initial,
+                    help_text=ajuda,
+                    widget=forms.RadioSelect,
+                )
+
+        elif tipo in {"SIM_NAO", "SIM/NÃO", "SIM/NAO", "BOOLEAN", "BOOL"}:
+            campo = forms.ChoiceField(
+                label=texto,
+                choices=[
+                    ("SIM", "Sim"),
+                    ("NAO", "Não"),
+                    ("NAO_SEI", "Não sei"),
+                ],
+                required=obrigatoria,
+                initial=initial,
+                help_text=ajuda,
+                widget=forms.RadioSelect,
+            )
+
+        elif tipo in {"DATA", "DATE"}:
+            campo = forms.DateField(
+                label=texto,
+                required=obrigatoria,
+                initial=initial,
+                help_text=ajuda,
+                widget=forms.DateInput(attrs={"type": "date"}),
+            )
+
+        elif tipo in {
+            "NUMERO",
+            "NÚMERO",
+            "NUMBER",
+            "INTEIRO",
+            "INTEGER",
+            "DECIMAL",
+        }:
+            campo = forms.DecimalField(
+                label=texto,
+                required=obrigatoria,
+                initial=initial,
+                help_text=ajuda,
+            )
+
+        else:
+            campo = forms.CharField(
+                label=texto,
+                required=obrigatoria,
+                initial=initial,
+                help_text=ajuda,
+                max_length=pergunta.get("max_length", 500),
+                widget=forms.Textarea(attrs={"rows": 3})
+                if tipo in {"TEXTO", "TEXT", "TEXTAREA"}
+                else forms.TextInput(),
+            )
+
+        self.fields["valor"] = campo
+
+    @staticmethod
+    def _primeiro_valor(dados, chaves):
+        for chave in chaves:
+            if chave in dados and dados[chave] is not None:
+                return dados[chave]
+        return None
+
+    @classmethod
+    def _normalizar_opcoes(cls, opcoes):
+        """
+        Converte opcoes em pares (valor, rotulo).
+
+        Aceita:
+        - lista de dicionarios;
+        - lista de tuplas;
+        - lista de textos;
+        - dicionario no formato codigo -> rotulo.
+        """
+
+        if isinstance(opcoes, dict):
+            return [
+                (str(valor), str(rotulo))
+                for valor, rotulo in opcoes.items()
+            ]
+
+        resultado = []
+
+        for opcao in opcoes:
+            if isinstance(opcao, dict):
+                valor = cls._primeiro_valor(
+                    opcao,
+                    (
+                        "codigo",
+                        "codigo_resposta",
+                        "valor",
+                        "value",
+                        "id",
+                        "chave",
+                    ),
+                )
+                rotulo = cls._primeiro_valor(
+                    opcao,
+                    (
+                        "texto",
+                        "resposta_label",
+                        "label",
+                        "rotulo",
+                        "nome",
+                    ),
+                )
+
+                if valor is None and rotulo is not None:
+                    valor = rotulo
+
+                if valor is not None:
+                    resultado.append(
+                        (
+                            str(valor),
+                            str(rotulo if rotulo is not None else valor),
+                        )
+                    )
+
+            elif isinstance(opcao, (list, tuple)) and len(opcao) >= 2:
+                resultado.append((str(opcao[0]), str(opcao[1])))
+
+            else:
+                resultado.append((str(opcao), str(opcao)))
+
+        return resultado
+
+    @classmethod
+    def _normalizar_valor_inicial(cls, valor):
+        if not isinstance(valor, dict):
+            return valor
+
+        return cls._primeiro_valor(
+            valor,
+            (
+                "valor",
+                "codigo",
+                "codigo_resposta",
+                "resposta",
+                "opcao",
+                "data",
+                "numero",
+                "texto",
+            ),
+        )
 
 
 POSTOS_COLETA = [
@@ -588,6 +801,67 @@ def solicitar_correcao_hemocentro(request, id_hemocentro):
         "accounts:painel_aprovacao_hemocentros"
     )
 
+
+def triagem_apresentacao(request):
+    """
+    Exibe a pagina publica de apresentacao da triagem.
+
+    A pagina nao cria nenhuma triagem. Quando o usuario estiver autenticado,
+    o contexto informa se ele pode responder e se ja possui uma triagem
+    extensa concluida para liberar a modalidade simplificada.
+    """
+
+    usuario_pode_responder = False
+    extensa_base = None
+
+    if request.user.is_authenticated:
+        usuario_pode_responder = pode_responder(request.user)
+
+        if usuario_pode_responder:
+            extensa_base = obter_extensa_base(request.user)
+
+    return render(
+        request,
+        "accounts/triagem_apresentacao.html",
+        {
+            "pode_responder_triagem": usuario_pode_responder,
+            "triagem_extensa_base": extensa_base,
+            "tem_triagem_extensa_base": extensa_base is not None,
+        },
+    )
+
+
+@login_required
+def triagem_historico(request):
+    """
+    Lista somente as triagens pertencentes ao usuario autenticado.
+
+    O historico mostra tanto triagens em andamento quanto concluidas e
+    canceladas, permitindo que o template ofereca continuar ou consultar
+    o resultado conforme o status.
+    """
+
+    if not pode_responder(request.user):
+        messages.error(
+            request,
+            "A triagem de doacao nao esta disponivel para este perfil.",
+        )
+        return redirect("accounts:dashboard")
+
+    triagens = (
+        request.user.triagens
+        .select_related("triagem_base")
+        .order_by("-iniciada_em")
+    )
+
+    return render(
+        request,
+        "accounts/triagem_historico.html",
+        {
+            "triagens": triagens,
+        },
+    )
+
 @login_required
 @require_POST
 def triagem_iniciar(request, modalidade):
@@ -728,3 +1002,52 @@ def triagem_resultado(request, id_triagem):
             "triagem": triagem,
         },
     )
+
+
+def visualizacao_publica_estoque(request):
+    """
+    Exibe publicamente os estoques dos Hemocentros aprovados.
+
+    A camada accounts.estoque devolve apenas os dados permitidos para
+    exibicao publica, sem expor os limites internos usados pelo Hemocentro.
+    """
+
+    estoques = obter_estoques_publicos()
+
+    consulta = (request.GET.get("q") or "").strip().lower()
+    tipo = (request.GET.get("tipo") or "").strip().upper()
+
+    if consulta:
+        estoques = [
+            estoque
+            for estoque in estoques
+            if consulta
+            in " ".join(
+                [
+                    estoque.get("nome", ""),
+                    estoque.get("cidade", ""),
+                    estoque.get("estado", ""),
+                    estoque.get("tipo_sanguineo", ""),
+                    estoque.get("status", ""),
+                ]
+            ).lower()
+        ]
+
+    if tipo:
+        estoques = [
+            estoque
+            for estoque in estoques
+            if estoque.get("tipo_sanguineo") == tipo
+        ]
+
+    return render(
+        request,
+        "accounts/estoque_publico.html",
+        {
+            "estoques": estoques,
+            "consulta": request.GET.get("q", ""),
+            "tipo_selecionado": tipo,
+            "tipos_sanguineos": TIPOS_SANGUINEOS,
+        },
+    )
+
