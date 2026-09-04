@@ -301,6 +301,59 @@ def _avaliar_limite_doacoes(respostas):
     )
 
 
+def _avaliar_seguranca_estetica(respostas, hoje):
+    """Aplica 12 meses quando a segurança estética não é comprovada."""
+
+    valor = respostas.get("EXT-24") or {}
+    codigos = set(valor.get("codigos") or []) - {"NENHUM"}
+    if not codigos:
+        return []
+
+    pergunta = obter_pergunta("EXT-24")
+    achados = []
+
+    if valor.get("inflamacao") in {"SIM", "NAO_SEI"}:
+        achados.append(
+            _novo_achado(
+                pergunta,
+                "COM_INFLAMACAO",
+                Triagem.Resultado.AVALIACAO,
+                "Inflamação ou infecção precisa estar curada e ser avaliada.",
+            )
+        )
+
+    seguranca = valor.get("seguranca")
+    if seguranca == "SIM":
+        return achados
+
+    for codigo in codigos:
+        data_evento = _data_da_resposta(valor, codigo)
+        if data_evento is None:
+            achados.append(
+                _novo_achado(
+                    pergunta,
+                    f"{codigo}_SEGURANCA_SEM_DATA",
+                    Triagem.Resultado.AVALIACAO,
+                    "Sem comprovação de segurança, informe a data ou confirme presencialmente.",
+                )
+            )
+            continue
+
+        data_final = _somar_meses(data_evento, 12)
+        if data_final > hoje:
+            achados.append(
+                _novo_achado(
+                    pergunta,
+                    f"{codigo}_SEM_SEGURANCA",
+                    Triagem.Resultado.TEMPORARIA,
+                    "Sem comprovação de antissepsia ou material, aguarde 12 meses.",
+                    data_liberacao=data_final,
+                )
+            )
+
+    return achados
+
+
 def _respostas_para_avaliar(modalidade, respostas, respostas_base):
     """Combina somente dados estáveis da extensa com a checagem rápida."""
 
@@ -347,6 +400,13 @@ def avaliar_triagem(
             continue
 
         for codigo in valor.get("codigos") or []:
+            # EXT-24 usa a regra curta somente quando a segurança foi confirmada.
+            if (
+                id_pergunta == "EXT-24"
+                and valor.get("seguranca") != "SIM"
+            ):
+                continue
+
             achado = _avaliar_regra_declarada(
                 pergunta,
                 codigo,
@@ -367,6 +427,10 @@ def avaliar_triagem(
     achado_limite = _avaliar_limite_doacoes(respostas_atuais)
     if achado_limite:
         achados.append(achado_limite)
+
+    achados.extend(
+        _avaliar_seguranca_estetica(respostas_atuais, hoje)
+    )
 
     resultado = escolher_resultado(achados)
     datas = [

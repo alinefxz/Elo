@@ -87,6 +87,48 @@ class MotorTriagemTests(SimpleTestCase):
         )
         self.assertIsNone(calculo["data_liberacao"])
 
+    def test_estetica_sem_seguranca_usa_doze_meses(self):
+        """Falha se um procedimento inseguro receber apenas o prazo de três dias."""
+
+        calculo = avaliar_triagem(
+            Triagem.Modalidade.EXTENSA,
+            {
+                "EXT-24": {
+                    "codigos": ["BOTOX"],
+                    "datas": {"BOTOX": "2026-08-01"},
+                    "seguranca": "NAO_SEI",
+                    "inflamacao": "NAO",
+                },
+            },
+            hoje=date(2026, 8, 28),
+        )
+
+        self.assertEqual(
+            calculo["data_liberacao"],
+            date(2027, 8, 1),
+        )
+
+    def test_estetica_com_inflamacao_exige_avaliacao(self):
+        """Falha se uma complicação estética for tratada como recuperação simples."""
+
+        calculo = avaliar_triagem(
+            Triagem.Modalidade.EXTENSA,
+            {
+                "EXT-24": {
+                    "codigos": ["BOTOX"],
+                    "datas": {"BOTOX": "2026-08-01"},
+                    "seguranca": "SIM",
+                    "inflamacao": "SIM",
+                },
+            },
+            hoje=date(2026, 8, 28),
+        )
+
+        self.assertEqual(
+            calculo["resultado"],
+            Triagem.Resultado.AVALIACAO,
+        )
+
     def test_ultima_doacao_calcula_intervalo_feminino(self):
         """Falha se o intervalo feminino não usar noventa dias."""
 

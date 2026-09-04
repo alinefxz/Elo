@@ -40,6 +40,9 @@ def pergunta(
     multipla=False,
     permite_data=False,
     exige_data_para=(),
+    exige_detalhes_para=(),
+    perguntar_seguranca=False,
+    perguntar_inflamacao=False,
     mostrar_se=None,
     regras=None,
     fonte="Manual Elo; ref. [1]",
@@ -56,6 +59,9 @@ def pergunta(
         "multipla": multipla,
         "permite_data": permite_data,
         "exige_data_para": list(exige_data_para),
+        "exige_detalhes_para": list(exige_detalhes_para),
+        "perguntar_seguranca": perguntar_seguranca,
+        "perguntar_inflamacao": perguntar_inflamacao,
         "mostrar_se": mostrar_se,
         "abrir_extensa": {},
         "regras": regras or {},
@@ -72,6 +78,9 @@ def pergunta_tabela(
     itens,
     *,
     permite_data=True,
+    exige_detalhes_para=(),
+    perguntar_seguranca=False,
+    perguntar_inflamacao=False,
     fonte="Manual Elo; ref. [1]",
 ):
     """Monta perguntas longas em que várias condições podem ser marcadas."""
@@ -96,6 +105,9 @@ def pergunta_tabela(
         multipla=True,
         permite_data=permite_data,
         exige_data_para=exige_data,
+        exige_detalhes_para=exige_detalhes_para,
+        perguntar_seguranca=perguntar_seguranca,
+        perguntar_inflamacao=perguntar_inflamacao,
         regras=regras,
         fonte=fonte,
     )
@@ -617,6 +629,7 @@ PERGUNTAS_EXTENSAS.update({
         "EXT-50", "Outra condição importante", "Existe doença, tratamento, internação, exame invasivo, transfusão, medicamento, exposição ou situação de saúde que não apareceu e que você acha importante informar?",
         "Esta pergunta evita falsa segurança quando algo não está nas listas públicas.",
         [("NAO", "Não."), ("SIM", "Sim, quero descrever."), ("NAO_SEI", "Não sei se algo que tive é relevante.")],
+        exige_detalhes_para=("SIM",),
         regras={
             "SIM": regra(AVALIACAO, "A descrição precisa ser avaliada por profissional e regra validada."),
             "NAO_SEI": regra(AVALIACAO, "A situação incerta deve ser discutida presencialmente."),
@@ -1082,6 +1095,8 @@ PERGUNTAS_EXTENSAS.update({
             ("OUTRO", "Outro procedimento estético invasivo.", AVALIACAO, "O procedimento, material e antissepsia precisam ser avaliados.", None),
             ("NENHUM", "Nenhum procedimento invasivo recente.", None, "", None),
         ],
+        perguntar_seguranca=True,
+        perguntar_inflamacao=True,
         fonte="Manual Elo, seção 7; ref. [1]",
     ),
     "EXT-25": pergunta(
