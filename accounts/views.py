@@ -21,6 +21,9 @@ from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
+from .estoque import obter_estoques_publicos
+
+
 
 from .forms import (
     CadastrarEstoqueForm,
@@ -820,3 +823,23 @@ def atualizar_estoque_view(request, id_estoque):
         )
 
     return redirect("accounts:estoque_hemocentro")
+
+def visualizacao_publica_estoque(request):
+    """ RF 32 - Exibe publicamente a situação dos estoques. Esta página não exige login.
+Visitantes e usuários autenticados podem acessar. Somente Hemocentros aprovados aparecem na consulta.
+    """
+
+    # Busca os dados através da camada de serviço.
+    estoques = obter_estoques_publicos()
+
+    # Cria o contexto que será enviado ao template.
+    contexto = {
+        "estoques": estoques,
+    }
+
+    return render(
+        request,
+        "accounts/estoque_publico.html",
+        contexto,
+    )
+

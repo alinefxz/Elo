@@ -254,3 +254,69 @@ def registrar_movimentacao_estoque(
         )
 
     return movimentacao
+
+
+
+def calcular_status_publico(quantidade_bolsas, nivel_minimo, nivel_critico):
+    """
+    Calcula o status que será exibido publicamente.
+
+    Os níveis mínimo e crítico são utilizados apenas internamente
+    para determinar a situação do estoque e não são exibidos ao público.
+    """
+
+    if quantidade_bolsas <= nivel_critico:
+        return "CRITICO"
+
+    if quantidade_bolsas <= nivel_minimo:
+        return "BAIXO"
+
+    if quantidade_bolsas > nivel_minimo * 2:
+        return "ALTO"
+
+    return "ADEQUADO"
+
+
+def obter_estoques_publicos():
+    """
+    Busca os estoques dos Hemocentros aprovados e retorna somente
+    os dados que podem ser exibidos publicamente.
+    """
+
+    estoques = (
+        Estoque.objects
+        .select_related("hemocentro")
+        .filter(
+            hemocentro__perfil=Usuario.Perfil.HEMOCENTRO,
+            hemocentro__status_validacao=(
+                Usuario.StatusValidacaoHemocentro.APROVADO
+            ),
+        )
+        .order_by(
+            "hemocentro__cidade",
+            "hemocentro__nome",
+            "tipo_sanguineo",
+        )
+    )
+
+    resultado = []
+
+    for estoque in estoques:
+        resultado.append(
+            {
+                "nome": estoque.hemocentro.nome,
+                "cidade": estoque.hemocentro.cidade,
+                "estado": estoque.hemocentro.estado,
+                "tipo_sanguineo": estoque.tipo_sanguineo,
+                "quantidade_bolsas": estoque.quantidade_bolsas,
+                "status": calcular_status_publico(
+                    estoque.quantidade_bolsas,
+                    estoque.nivel_minimo,
+                    estoque.nivel_critico,
+                ),
+                "data_atualizacao": estoque.data_atualizacao,
+            }
+        )
+
+    return resultado
+
