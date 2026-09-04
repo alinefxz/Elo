@@ -804,29 +804,52 @@ def solicitar_correcao_hemocentro(request, id_hemocentro):
 
 def triagem_apresentacao(request):
     """
-    Exibe a pagina publica de apresentacao da triagem.
+    Exibe a apresentação pública da triagem.
 
-    A pagina nao cria nenhuma triagem. Quando o usuario estiver autenticado,
-    o contexto informa se ele pode responder e se ja possui uma triagem
-    extensa concluida para liberar a modalidade simplificada.
+    Somente usuários com perfil permitido podem iniciar a triagem.
+    A modalidade simplificada é liberada quando existe uma triagem
+    extensa concluída que possa ser utilizada como base.
     """
 
-    usuario_pode_responder = False
+    pode_iniciar = False
+    pode_simplificada = False
+    triagem_em_andamento = None
+    ultima_triagem = None
     extensa_base = None
 
     if request.user.is_authenticated:
-        usuario_pode_responder = pode_responder(request.user)
+        pode_iniciar = pode_responder(request.user)
 
-        if usuario_pode_responder:
+        if pode_iniciar:
+            triagens = (
+                request.user.triagens
+                .select_related("triagem_base")
+                .order_by("-iniciada_em")
+            )
+
+            ultima_triagem = triagens.first()
+
+            triagem_em_andamento = (
+                triagens
+                .filter(status=Triagem.Status.EM_ANDAMENTO)
+                .first()
+            )
+
             extensa_base = obter_extensa_base(request.user)
+
+            # A simplificada só fica disponível quando existe
+            # uma triagem extensa concluída válida como base.
+            pode_simplificada = extensa_base is not None
 
     return render(
         request,
         "accounts/triagem_apresentacao.html",
         {
-            "pode_responder_triagem": usuario_pode_responder,
+            "pode_iniciar": pode_iniciar,
+            "pode_simplificada": pode_simplificada,
+            "triagem_em_andamento": triagem_em_andamento,
+            "ultima_triagem": ultima_triagem,
             "triagem_extensa_base": extensa_base,
-            "tem_triagem_extensa_base": extensa_base is not None,
         },
     )
 
