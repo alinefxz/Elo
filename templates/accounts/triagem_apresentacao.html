@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% comment %}
+Esta página é pública para que a pessoa entenda a triagem antes de entrar.
+Somente os formulários abaixo iniciam um registro no histórico.
+{% endcomment %}
+
+{% block title %}Triagem para doação | Elo{% endblock %}
+
+{% block content %}
+<h1>Seu gesto de cuidado começa aqui.</h1>
+
+<p>
+    Esta triagem foi preparada para orientar você antes da doação, de forma
+    simples, tranquila e cuidadosa. As perguntas ajudam a identificar situações
+    que podem precisar de mais atenção ou que talvez façam com que a doação
+    precise ser adiada.
+</p>
+
+<p>
+    Para tornar esse processo mais adequado a cada pessoa, você poderá escolher
+    entre <strong>duas formas de triagem</strong>. A
+    <strong>triagem extensa</strong> é mais completa e indicada principalmente
+    para quem nunca doou sangue, está fazendo essa avaliação pela primeira vez
+    ou ainda tem dúvidas sobre alguma condição, procedimento, medicamento ou
+    situação específica. Por ter mais perguntas e trazer mais detalhes, ela pode
+    levar um pouco mais de tempo. Já a <strong>triagem simplificada</strong>
+    possui perguntas mais diretas e resumidas, sendo uma opção mais ágil para
+    quem já conhece essas informações e precisa apenas verificar se houve alguma
+    mudança importante desde a última avaliação.
+</p>
+
+<p>
+    Algumas questões envolvem sua saúde, seus hábitos e acontecimentos recentes.
+    Responda com calma e sinceridade. Se não souber ou não se lembrar de alguma
+    informação, tudo bem — basta indicar isso ao longo da triagem.
+</p>
+
+<p>
+    É importante lembrar que esta triagem é <strong>somente orientativa</strong>.
+    Ela não substitui a avaliação feita no hemocentro e não confirma se você pode
+    ou não doar sangue. <strong>Quem dará a resposta final será sempre a equipe
+    do hemocentro</strong>, após a entrevista e as avaliações realizadas no
+    local.
+</p>
+
+<p>
+    A ideia aqui é apenas ajudar você a chegar mais informado(a), seguro(a) e
+    preparado(a) para esse momento.
+</p>
+
+<p>
+    <strong>Quando estiver pronto(a), escolha a opção que mais combina com você
+    e podemos começar.</strong>
+</p>
+
+<section>
+    <h2>Triagem extensa</h2>
+    <p>Questionário completo, indicado para a primeira avaliação ou para revisar todo o histórico.</p>
+
+    {% if pode_iniciar %}
+        <form method="post" action="{% url 'accounts:triagem_iniciar' modalidade='extensa' %}">
+            {% csrf_token %}
+            <button type="submit">Iniciar ou continuar triagem extensa</button>
+        </form>
+    {% endif %}
+</section>
+
+<section>
+    <h2>Triagem simplificada</h2>
+    <p>Verificação mais rápida para quem já concluiu a extensa e deseja informar mudanças.</p>
+
+    {% if pode_simplificada %}
+        <form method="post" action="{% url 'accounts:triagem_iniciar' modalidade='simplificada' %}">
+            {% csrf_token %}
+            <button type="submit">Iniciar ou continuar triagem simplificada</button>
+        </form>
+    {% elif pode_iniciar %}
+        <p>Conclua uma triagem extensa para liberar esta opção.</p>
+    {% endif %}
+</section>
+
+{% if pode_iniciar %}
+    <p><a href="{% url 'accounts:triagem_historico' %}">Ver meu histórico de triagens</a></p>
+{% elif user.is_authenticated %}
+    <p>A triagem para doação está disponível para os perfis Doador e Receptor.</p>
+{% else %}
+    <p>Para responder e salvar sua triagem, crie uma conta ou entre no sistema.</p>
+    <p>
+        <a href="{% url 'accounts:cadastro' %}">Criar conta</a>
+        <a href="{% url 'accounts:login' %}">Entrar</a>
+    </p>
+{% endif %}
+
+<p><a href="{% url 'accounts:inicio' %}">Voltar para a página inicial</a></p>
+{% endblock %}

@@ -47,18 +47,28 @@ urlpatterns = [
     # A protecao desta rota esta no decorador login_required da view.
     path("dashboard/", views.dashboard, name="dashboard"),
 
-    # Inicia a triagem extensa do Doador.
+    # A apresentação é pública; iniciar, responder e consultar histórico exige
+    # login. O POST separado evita criar uma triagem só por abrir uma página.
+    path("triagem/", views.triagem_apresentacao, name="triagem_apresentacao"),
     path(
-        "triagem/",
-        views.triagem_extensa,
-        name="triagem_extensa",
+        "triagem/iniciar/<str:modalidade>/",
+        views.triagem_iniciar,
+        name="triagem_iniciar",
     ),
-
-    # Exibe o resultado salvo da triagem.
+    path(
+        "triagem/<int:id_triagem>/pergunta/",
+        views.triagem_pergunta,
+        name="triagem_pergunta",
+    ),
     path(
         "triagem/<int:id_triagem>/resultado/",
         views.triagem_resultado,
         name="triagem_resultado",
+    ),
+    path(
+        "triagens/historico/",
+        views.triagem_historico,
+        name="triagem_historico",
     ),
     # UC_07 - Aprovar Hemocentro. As acoes alteram apenas o backend: status
     # atual do Hemocentro, historico de validacao e auditoria administrativa.

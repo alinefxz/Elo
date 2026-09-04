@@ -75,19 +75,19 @@ class TriagemExtensaTests(TestCase):
             Triagem.Resultado.SEM_IMPEDIMENTO,
         )
 
-    def test_post_salva_triagem_respostas_e_consentimento(self):
+    def test_post_inicia_triagem_e_consentimento(self):
         """
-        O envio deve salvar triagem, respostas e consentimento.
+        O clique inicial cria a triagem e o consentimento versionado.
         """
 
         usuario = self.criar_doador()
         self.client.force_login(usuario)
 
-        dados = self.dados_sem_impedimento()
-
         resposta = self.client.post(
-            reverse("accounts:triagem_extensa"),
-            dados,
+            reverse(
+                "accounts:triagem_iniciar",
+                kwargs={"modalidade": "extensa"},
+            ),
         )
 
         self.assertEqual(
@@ -102,10 +102,8 @@ class TriagemExtensaTests(TestCase):
         self.assertRedirects(
             resposta,
             reverse(
-                "accounts:triagem_resultado",
-                kwargs={
-                    "id_triagem": triagem.pk,
-                },
+                "accounts:triagem_pergunta",
+                kwargs={"id_triagem": triagem.pk},
             ),
         )
 
@@ -113,7 +111,7 @@ class TriagemExtensaTests(TestCase):
             RespostaTriagem.objects.filter(
                 triagem=triagem,
             ).count(),
-            5,
+            0,
         )
 
         self.assertTrue(
@@ -137,11 +135,61 @@ class TriagemExtensaTests(TestCase):
 
         self.client.force_login(usuario)
 
-        resposta = self.client.get(
-            reverse("accounts:triagem_extensa"),
+        resposta = self.client.post(
+            reverse(
+                "accounts:triagem_iniciar",
+                kwargs={"modalidade": "extensa"},
+            ),
         )
 
-        self.assertRedirects(
+        self.assertEqual(resposta.status_code, 403)
+
+    def test_receptor_pode_acessar_a_triagem(self):
+        """
+        Receptor também pode responder à triagem para doação.
+        """
+
+        usuario = Usuario.objects.create_user(
+            email="receptor@teste.com",
+            password="SenhaForte123!",
+            nome="Receptor Teste",
+            perfil=Usuario.Perfil.RECEPTOR,
+        )
+
+        self.client.force_login(usuario)
+
+        resposta = self.client.post(
+            reverse(
+                "accounts:triagem_iniciar",
+                kwargs={"modalidade": "extensa"},
+            ),
+        )
+
+        self.assertEqual(
+            resposta.status_code,
+            302,
+        )
+
+    def test_visitante_pode_ver_apresentacao_da_triagem(self):
+        """
+        Visitante pode conhecer a triagem sem estar autenticado.
+        """
+
+        resposta = self.client.get(
+            reverse("accounts:triagem_apresentacao"),
+        )
+
+        self.assertEqual(
+            resposta.status_code,
+            200,
+        )
+
+        self.assertContains(
             resposta,
-            reverse("accounts:dashboard"),
+            "Seu gesto de cuidado começa aqui.",
+        )
+
+        self.assertContains(
+            resposta,
+            "Criar conta",
         )

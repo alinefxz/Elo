@@ -12,24 +12,23 @@ O cadastro usa uma transacao para impedir que apenas metade da operacao
 seja salva. O dashboard usa login_required para bloquear visitantes.
 """
 
-from django.utils import timezone
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from .forms import CadastroUsuarioForm, TriagemExtensaForm
+from .forms import CadastroUsuarioForm
 from .models import (
     ConsentimentoLGPD,
-    RespostaTriagem,
     Triagem,
     Usuario,
     ValidacaoHemocentro,
 )
+from .triagem_forms import FormularioPergunta
 from .validacao_hemocentro import (
     aprovar_hemocentro as aprovar_hemocentro_servico,
     recusar_hemocentro as recusar_hemocentro_servico,
@@ -42,10 +41,18 @@ from .compatibilidade import (
     tabela_de_compatibilidade,
     tipos_que_recebem_de,
 )
-from .triagem import (
-    TRIAGEM_RULE_VERSION,
-    calcular_resultado,
-    preparar_respostas,
+from .triagem_servico import (
+    TriagemConcluida,
+    TriagemExtensaNecessaria,
+    TriagemIncompleta,
+    TriagemSimplificadaIndisponivel,
+    concluir_triagem,
+    iniciar_triagem,
+    obter_extensa_base,
+    obter_pergunta_atual,
+    pode_responder,
+    salvar_resposta,
+    voltar_pergunta,
 )
 
 
@@ -408,6 +415,12 @@ def dashboard(request):
             .first()
         )
 
+    # O resumo usa apenas registros do usuário autenticado. As respostas
+    # detalhadas não são expostas no painel geral.
+    ultima_triagem = None
+    if pode_responder(request.user):
+        ultima_triagem = request.user.triagens.order_by("-iniciada_em").first()
+
     contexto = {
         "painel": painel,
         "postos": POSTOS_COLETA,
@@ -415,6 +428,7 @@ def dashboard(request):
         "pedidos_ativos": PEDIDOS_ATIVOS,
         "campanhas_ativas": CAMPANHAS_ATIVAS,
         "validacao_atual": validacao_atual,
+        "ultima_triagem": ultima_triagem,
     }
 
     return render(
@@ -573,115 +587,156 @@ def solicitar_correcao_hemocentro(request, id_hemocentro):
         "accounts:painel_aprovacao_hemocentros"
     )
 
-@login_required
-def triagem_extensa(request):
-    """
-    Exibe e processa a primeira versão da triagem extensa.
+def triagem_apresentacao(request):
+    """Apresenta publicamente as diferenças entre as duas modalidades."""
 
-    Nesta etapa, somente usuários com perfil Doador
-    podem iniciar a triagem.
-    """
-
-    # Bloqueia outros perfis nesta primeira versão.
-    if request.user.perfil != Usuario.Perfil.DOADOR:
-        messages.error(
-            request,
-            "A triagem de doação está disponível somente para Doadores.",
-        )
-        return redirect("accounts:dashboard")
-
-    if request.method == "POST":
-        form = TriagemExtensaForm(request.POST)
-
-        if form.is_valid():
-            calculo = calcular_resultado(
-                form.cleaned_data
-            )
-
-            with transaction.atomic():
-                # Registra o consentimento específico da triagem.
-                consentimento, _ = (
-                    ConsentimentoLGPD.objects.get_or_create(
-                        usuario=request.user,
-                        tipo_termo=(
-                            ConsentimentoLGPD.TipoTermo.TRIAGEM
-                        ),
-                        versao_termo=TRIAGEM_RULE_VERSION,
-                        defaults={
-                            "aceito": True,
-                            "ip": obter_ip(request),
-                        },
-                    )
-                )
-
-                # Atualiza o consentimento caso ele já existisse
-                # mas estivesse marcado como não aceito.
-                if not consentimento.aceito:
-                    consentimento.aceito = True
-                    consentimento.revogado_em = None
-                    consentimento.ip = obter_ip(request)
-                    consentimento.save(
-                        update_fields=[
-                            "aceito",
-                            "revogado_em",
-                            "ip",
-                        ]
-                    )
-
-                # Salva o resultado da triagem.
-                triagem = Triagem.objects.create(
-                    usuario=request.user,
-                    modalidade=Triagem.Modalidade.EXTENSA,
-                    regra_version=TRIAGEM_RULE_VERSION,
-                    resultado=calculo["resultado"],
-                    mensagem_resultado=calculo["mensagem"],
-                    data_liberacao=calculo["data_liberacao"],
-                    achados=calculo["achados"],
-                    finalizada_em=timezone.now(),
-                )
-
-                # Salva todas as respostas individuais.
-                respostas = preparar_respostas(form)
-
-                RespostaTriagem.objects.bulk_create(
-                    [
-                        RespostaTriagem(
-                            triagem=triagem,
-                            **resposta,
-                        )
-                        for resposta in respostas
-                    ]
-                )
-
-            return redirect(
-                "accounts:triagem_resultado",
-                id_triagem=triagem.pk,
-            )
-
-    else:
-        form = TriagemExtensaForm()
+    pode_iniciar = request.user.is_authenticated and pode_responder(request.user)
+    pode_simplificada = (
+        pode_iniciar and obter_extensa_base(request.user) is not None
+    )
 
     return render(
         request,
-        "accounts/triagem_extensa.html",
+        "accounts/triagem_apresentacao.html",
         {
+            "pode_iniciar": pode_iniciar,
+            "pode_simplificada": pode_simplificada,
+        },
+    )
+
+
+@login_required
+@require_POST
+def triagem_iniciar(request, modalidade):
+    """Inicia ou retoma uma triagem somente após clique explícito."""
+
+    modalidades = {
+        "extensa": Triagem.Modalidade.EXTENSA,
+        "simplificada": Triagem.Modalidade.SIMPLIFICADA,
+    }
+    if modalidade not in modalidades:
+        raise Http404("Modalidade de triagem inexistente.")
+
+    try:
+        triagem = iniciar_triagem(
+            request.user,
+            modalidades[modalidade],
+            ip=obter_ip(request),
+        )
+    except TriagemSimplificadaIndisponivel:
+        messages.info(
+            request,
+            "Conclua primeiro a triagem extensa para usar a versão simplificada.",
+        )
+        return redirect("accounts:triagem_apresentacao")
+
+    return redirect("accounts:triagem_pergunta", id_triagem=triagem.pk)
+
+
+def _triagem_do_usuario_ou_404(request, id_triagem):
+    """Evita que uma conta consulte o questionário privado de outra."""
+
+    return get_object_or_404(
+        Triagem,
+        pk=id_triagem,
+        usuario=request.user,
+    )
+
+
+@login_required
+def triagem_pergunta(request, id_triagem):
+    """Mostra, valida e salva uma única pergunta por página."""
+
+    triagem = _triagem_do_usuario_ou_404(request, id_triagem)
+    if triagem.status == Triagem.Status.CONCLUIDA:
+        return redirect("accounts:triagem_resultado", id_triagem=triagem.pk)
+    if triagem.status == Triagem.Status.CANCELADA:
+        return redirect("accounts:triagem_apresentacao")
+
+    # O botão anterior muda apenas o cursor e não valida campos da página.
+    if request.method == "POST" and request.POST.get("acao") == "anterior":
+        voltar_pergunta(triagem)
+        return redirect("accounts:triagem_pergunta", id_triagem=triagem.pk)
+
+    pergunta = obter_pergunta_atual(triagem)
+    if pergunta is None:
+        try:
+            triagem = concluir_triagem(triagem)
+        except TriagemIncompleta:
+            messages.error(request, "Ainda existem perguntas sem resposta.")
+            return redirect("accounts:triagem_historico")
+        return redirect("accounts:triagem_resultado", id_triagem=triagem.pk)
+
+    resposta_anterior = triagem.respostas.filter(
+        id_pergunta=pergunta["id"]
+    ).first()
+    valor_inicial = resposta_anterior.valor if resposta_anterior else None
+    form = FormularioPergunta(
+        pergunta,
+        request.POST or None,
+        valor_inicial=valor_inicial,
+    )
+
+    if request.method == "POST" and form.is_valid():
+        try:
+            salvar_resposta(triagem, pergunta["id"], form.cleaned_data["valor"])
+        except TriagemExtensaNecessaria:
+            # O serviço já cancelou a rápida antes de solicitar a troca.
+            nova_extensa = iniciar_triagem(
+                request.user,
+                Triagem.Modalidade.EXTENSA,
+                ip=obter_ip(request),
+            )
+            messages.info(
+                request,
+                "Como o resumo mudou, continue pela triagem extensa.",
+            )
+            return redirect(
+                "accounts:triagem_pergunta",
+                id_triagem=nova_extensa.pk,
+            )
+
+        if request.POST.get("acao") == "salvar":
+            messages.success(request, "Andamento da triagem salvo.")
+            return redirect("accounts:triagem_historico")
+
+        # O serviço mantém o cursor na explicação quando a pessoa não entendeu
+        # e volta ao início quando ela escolhe revisar a confirmação final.
+        if triagem.pergunta_atual >= len(triagem.fluxo_perguntas):
+            try:
+                triagem = concluir_triagem(triagem)
+            except (TriagemConcluida, TriagemIncompleta) as erro:
+                messages.error(request, str(erro))
+            else:
+                return redirect(
+                    "accounts:triagem_resultado",
+                    id_triagem=triagem.pk,
+                )
+
+        return redirect("accounts:triagem_pergunta", id_triagem=triagem.pk)
+
+    return render(
+        request,
+        "accounts/triagem_pergunta.html",
+        {
+            "triagem": triagem,
+            "pergunta": pergunta,
             "form": form,
+            "numero_pergunta": triagem.pergunta_atual + 1,
+            "total_perguntas": len(triagem.fluxo_perguntas),
         },
     )
 
 
 @login_required
 def triagem_resultado(request, id_triagem):
-    """
-    Mostra o resultado somente para o usuário que realizou
-    aquela triagem.
-    """
+    """Mostra a orientação concluída somente ao dono da triagem."""
 
-    triagem = get_object_or_404(
-        Triagem,
-        pk=id_triagem,
-        usuario=request.user,
-    )
+    triagem = _triagem_do_usuario_ou_404(request, id_triagem)
+    if triagem.status == Triagem.Status.EM_ANDAMENTO:
+        return redirect("accounts:triagem_pergunta", id_triagem=triagem.pk)
+    if triagem.status == Triagem.Status.CANCELADA:
+        return redirect("accounts:triagem_historico")
 
     return render(
         request,
@@ -689,4 +744,18 @@ def triagem_resultado(request, id_triagem):
         {
             "triagem": triagem,
         },
+    )
+
+
+@login_required
+def triagem_historico(request):
+    """Lista apenas o histórico pertencente à conta autenticada."""
+
+    triagens = request.user.triagens.select_related("triagem_base").order_by(
+        "-iniciada_em"
+    )
+    return render(
+        request,
+        "accounts/triagem_historico.html",
+        {"triagens": triagens},
     )

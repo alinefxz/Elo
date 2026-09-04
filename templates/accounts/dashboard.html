@@ -30,13 +30,46 @@ Hemocentro ou Administrador.
         {% endfor %}
     </ul>
 
-    {% if user.perfil == "DOADOR" %}
+    {% if user.perfil == "DOADOR" or user.perfil == "RECEPTOR" %}
 
-    <p>
-        <a href="{% url 'accounts:triagem_extensa' %}">
-            Iniciar triagem extensa
-        </a>
-    </p>
+    <section>
+        <h2>Triagem para doação</h2>
+
+        {% if user.perfil == "DOADOR" %}
+
+            <p>
+                Responda à triagem inicial antes de procurar um posto de coleta.
+            </p>
+
+        {% else %}
+
+            <p>
+                Mesmo sendo Receptor, você pode responder à triagem
+                caso também queira doar sangue.
+            </p>
+
+        {% endif %}
+
+        <p>
+            <a href="{% url 'accounts:triagem_apresentacao' %}">
+                Escolher ou continuar uma triagem
+            </a>
+        </p>
+
+        <p>
+            <a href="{% url 'accounts:triagem_historico' %}">
+                Ver meu histórico de triagens
+            </a>
+        </p>
+
+        {% if ultima_triagem %}
+            <p>
+                <strong>Última triagem:</strong>
+                {{ ultima_triagem.get_modalidade_display }} —
+                {{ ultima_triagem.get_status_display }}
+            </p>
+        {% endif %}
+    </section>
 
 {% endif %}
 </section>

@@ -16,6 +16,8 @@ from .auditoria import campos_sensiveis_alterados, registrar_auditoria
 from .models import (
     AuditoriaAcaoCritica,
     ConsentimentoLGPD,
+    RespostaTriagem,
+    Triagem,
     Usuario,
     ValidacaoHemocentro,
 )
@@ -391,5 +393,144 @@ class AuditoriaAcaoCriticaAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return False
 
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(Triagem)
+class TriagemAdmin(admin.ModelAdmin):
+    """
+    Permite ao administrador consultar as triagens realizadas.
+
+    Os dados ficam somente para consulta no painel administrativo.
+    """
+
+    # Colunas exibidas na listagem de triagens.
+    list_display = (
+        "id_triagem",
+        "usuario",
+        "modalidade",
+        "status",
+        "resultado",
+        "regra_version",
+        "data_liberacao",
+        "iniciada_em",
+        "finalizada_em",
+    )
+
+    # Filtros disponíveis no lado direito do admin.
+    list_filter = (
+        "modalidade",
+        "status",
+        "resultado",
+        "regra_version",
+        "iniciada_em",
+    )
+
+    # Campos usados na busca.
+    search_fields = (
+        "usuario__nome",
+        "usuario__email",
+        "regra_version",
+    )
+
+    # Impede alteração manual de resultados médicos.
+    readonly_fields = (
+        "id_triagem",
+        "usuario",
+        "modalidade",
+        "status",
+        "pergunta_atual",
+        "fluxo_perguntas",
+        "triagem_base",
+        "regra_version",
+        "resultado",
+        "mensagem_resultado",
+        "data_liberacao",
+        "achados",
+        "iniciada_em",
+        "finalizada_em",
+        "atualizada_em",
+    )
+
+    # Mostra a navegação por data.
+    date_hierarchy = "iniciada_em"
+
+    # Ordena as triagens mais recentes primeiro.
+    ordering = ("-iniciada_em",)
+
+    # Impede criação manual pelo administrador.
+    def has_add_permission(self, request):
+        return False
+
+    # Impede alteração pelo administrador.
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    # Impede exclusão pelo administrador.
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(RespostaTriagem)
+class RespostaTriagemAdmin(admin.ModelAdmin):
+    """
+    Permite consultar as respostas individuais das triagens.
+    """
+
+    # Colunas exibidas na listagem.
+    list_display = (
+        "id_resposta",
+        "triagem",
+        "id_pergunta",
+        "codigo_resposta",
+        "resposta_label",
+        "data_evento",
+        "respondido_em",
+    )
+
+    # Filtros disponíveis.
+    list_filter = (
+        "id_pergunta",
+        "rule_version",
+        "respondido_em",
+    )
+
+    # Campos pesquisáveis.
+    search_fields = (
+        "triagem__usuario__nome",
+        "triagem__usuario__email",
+        "id_pergunta",
+        "codigo_resposta",
+        "resposta_label",
+    )
+
+    # Respostas não devem ser editadas manualmente.
+    readonly_fields = (
+        "id_resposta",
+        "triagem",
+        "id_pergunta",
+        "codigo_resposta",
+        "resposta_label",
+        "data_evento",
+        "metadata",
+        "valor",
+        "rule_version",
+        "source_ref",
+        "respondido_em",
+    )
+
+    # Ordena pelas respostas mais recentes.
+    ordering = ("-respondido_em",)
+
+    # Impede criação manual.
+    def has_add_permission(self, request):
+        return False
+
+    # Impede alteração.
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    # Impede exclusão.
     def has_delete_permission(self, request, obj=None):
         return False
