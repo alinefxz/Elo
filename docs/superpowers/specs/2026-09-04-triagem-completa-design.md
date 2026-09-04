@@ -257,7 +257,7 @@ Receptor. Hemocentro e Observador verão apenas a apresentação pública.
 
 Os testes automatizados cobrirão:
 
-- catálogo com todos os IDs `EXT-01` a `EXT-51` e `SIM-01` a `SIM-18`;
+- catálogo com as 55 entradas extensas (`EXT-01` a `EXT-51`, incluindo as quatro subperguntas) e todos os IDs `SIM-01` a `SIM-18`;
 - alternativas e fontes obrigatórias;
 - ramificações principais e retorno à pergunta anterior;
 - cálculo de 48h, 72h, dias, semanas, meses e anos;
@@ -276,7 +276,7 @@ Os testes automatizados cobrirão:
 
 ## Critério de conclusão
 
-A funcionalidade estará concluída quando as 51 perguntas extensas e as 18
+A funcionalidade estará concluída quando as 55 entradas extensas e as 18
 simplificadas estiverem representadas no catálogo, as ramificações e regras
 estiverem cobertas por testes, cada resultado permanecer no histórico privado,
 as duas modalidades estiverem apontadas no site e `python manage.py check`,
