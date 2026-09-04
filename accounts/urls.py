@@ -102,4 +102,11 @@ urlpatterns = [
     views.compatibilidade_sanguinea,
     name="compatibilidade_sanguinea",
 ),
+# Essa URL não possui login_required.
+# Portanto, visitantes e usuários autenticados podem acessá-la.
+path(
+    "estoque/",
+    views.visualizacao_publica_estoque,
+    name="estoque_publico",
+),
 ]

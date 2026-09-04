@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% comment %}
+RESUMO DO ARQUIVO
+=================
+Painel do Hemocentro/Estoque (UC_29 e UC_30).
+
+Mostra os estoques ja cadastrados pelo Hemocentro logado, cada um com seu
+proprio formulario de movimentacao (entrada, saida ou ajuste), e um
+formulario para cadastrar estoque de um tipo sanguineo ainda nao criado.
+So chega ate aqui um Hemocentro com status_validacao == APROVADO, porque
+a view usa @exigir_hemocentro_aprovado.
+{% endcomment %}
+
+{% block title %}Estoque do Hemocentro | Elo{% endblock %}
+
+{% block content %}
+
+<h1>Estoque do Hemocentro</h1>
+
+<p>
+    Cadastre a estrutura de estoque de cada tipo sanguíneo e registre
+    entradas, saídas ou ajustes de bolsas. Toda alteração fica registrada
+    no histórico, com o responsável e a data.
+</p>
+
+
+<section>
+
+    <h2>Estoques cadastrados</h2>
+
+    {% if estoques %}
+
+        {% for estoque in estoques %}
+
+            <hr>
+
+            <article>
+
+                <h3>
+                    {{ estoque.tipo_sanguineo }} -
+                    {{ estoque.get_status_calculado_display }}
+                </h3>
+
+                <p>
+                    <strong>Quantidade atual:</strong>
+                    {{ estoque.quantidade_bolsas }} bolsa(s)
+                </p>
+
+                <p>
+                    <strong>Nível mínimo:</strong> {{ estoque.nivel_minimo }} &nbsp;|&nbsp;
+                    <strong>Nível crítico:</strong> {{ estoque.nivel_critico }}
+                </p>
+
+                <p>
+                    <strong>Última atualização:</strong>
+                    {{ estoque.data_atualizacao|date:"d/m/Y H:i" }}
+                </p>
+
+                <h4>Registrar movimentação</h4>
+
+                <form
+                    method="post"
+                    action="{% url 'accounts:atualizar_estoque' estoque.pk %}"
+                >
+                    {% csrf_token %}
+
+                    {{ form_movimentacao.non_field_errors }}
+
+                    {% for campo in form_movimentacao %}
+                        <p>
+                            <label for="{{ campo.id_for_label }}-{{ estoque.pk }}">
+                                {{ campo.label }}
+                            </label>
+
+                            <br>
+
+                            {{ campo }}
+
+                            {{ campo.errors }}
+
+                            {% if campo.help_text %}
+                                <br><small>{{ campo.help_text }}</small>
+                            {% endif %}
+                        </p>
+                    {% endfor %}
+
+                    <button type="submit">
+                        Registrar movimentação
+                    </button>
+                </form>
+
+                <h4>Últimas movimentações</h4>
+
+                {% with ultimas_movimentacoes=estoque.movimentacoes.all|slice:":5" %}
+
+                    {% if ultimas_movimentacoes %}
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Tipo</th>
+                                    <th>Anterior</th>
+                                    <th>Movimentado</th>
+                                    <th>Nova</th>
+                                    <th>Responsável</th>
+                                    <th>Motivo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for mov in ultimas_movimentacoes %}
+                                    <tr>
+                                        <td>{{ mov.data_hora|date:"d/m/Y H:i" }}</td>
+                                        <td>{{ mov.get_tipo_movimento_display }}</td>
+                                        <td>{{ mov.quantidade_anterior }}</td>
+                                        <td>{{ mov.quantidade_movimentada }}</td>
+                                        <td>{{ mov.quantidade_nova }}</td>
+                                        <td>{{ mov.usuario_resp.nome|default:"Conta removida" }}</td>
+                                        <td>{{ mov.motivo|default:"-" }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+
+                    {% else %}
+
+                        <p>Nenhuma movimentação registrada ainda.</p>
+
+                    {% endif %}
+
+                {% endwith %}
+
+            </article>
+
+        {% endfor %}
+
+    {% else %}
+
+        <hr>
+
+        <p>
+            Nenhum estoque cadastrado ainda. Use o formulário abaixo para
+            cadastrar o primeiro tipo sanguíneo.
+        </p>
+
+    {% endif %}
+
+</section>
+
+
+<section>
+
+    <hr>
+
+    <h2>Cadastrar estoque de um novo tipo sanguíneo</h2>
+
+    {% if tipos_disponiveis %}
+
+        <form method="post" action="{% url 'accounts:cadastrar_estoque' %}">
+
+            {% csrf_token %}
+
+            {{ form_cadastro.non_field_errors }}
+
+            {% for campo in form_cadastro %}
+                <p>
+                    <label for="{{ campo.id_for_label }}">
+                        {{ campo.label }}
+                    </label>
+
+                    <br>
+
+                    {{ campo }}
+
+                    {{ campo.errors }}
+
+                    {% if campo.help_text %}
+                        <br><small>{{ campo.help_text }}</small>
+                    {% endif %}
+                </p>
+            {% endfor %}
+
+            <button type="submit">
+                Cadastrar estoque
+            </button>
+
+        </form>
+
+    {% else %}
+
+        <p>
+            Todos os tipos sanguíneos já possuem estoque cadastrado
+            para este Hemocentro.
+        </p>
+
+    {% endif %}
+
+</section>
+
+{% endblock %}

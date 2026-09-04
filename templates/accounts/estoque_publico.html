@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% comment %}
+RF 32 - Visualização pública de estoques
+
+Esta página pode ser acessada por visitantes e usuários autenticados.
+
+São exibidos somente dados públicos:
+- Nome do Hemocentro
+- Cidade e estado
+- Tipo sanguíneo
+- Quantidade de bolsas
+- Situação do estoque
+- Última atualização
+
+Não são exibidos dados internos, como:
+- CPF
+- CNPJ
+- E-mail
+- Responsável pelas movimentações
+- Histórico
+- Nível mínimo
+- Nível crítico
+- Auditorias
+{% endcomment %}
+
+{% block title %}Estoques de Sangue | Elo{% endblock %}
+
+{% block content %}
+
+<h1>Estoques de Sangue</h1>
+
+<p>
+    Consulte a situação dos estoques disponíveis nos Hemocentros cadastrados e aprovados no Elo.
+</p>
+
+<!-- Legenda dos indicadores -->
+<section>
+    <h2>Indicadores</h2>
+
+    <ul>
+        <li>
+            <strong>Crítico</strong> - estoque em situação crítica.
+        </li>
+        <li>
+            <strong>Baixo</strong> - estoque abaixo do nível esperado.
+        </li>
+        <li>
+            <strong>Adequado</strong> - estoque dentro da faixa esperada.
+        </li>
+        <li>
+            <strong>Alto</strong> - estoque acima da faixa adequada.
+        </li>
+    </ul>
+</section>
+
+<!-- Listagem dos estoques -->
+<section>
+    <h2>Estoques por Hemocentro</h2>
+
+    {% if estoques %}
+        {% regroup estoques by nome as hemocentros %}
+
+        {% for hemocentro in hemocentros %}
+            <article>
+                <h3>{{ hemocentro.grouper }}</h3>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tipo sanguíneo</th>
+                            <th>Quantidade</th>
+                            <th>Situação</th>
+                            <th>Última atualização</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for item in hemocentro.list %}
+                            <tr>
+                                <td>
+                                    <strong>{{ item.tipo_sanguineo }}</strong>
+                                </td>
+
+                                <td>
+                                    {{ item.quantidade_bolsas }} bolsas
+                                </td>
+
+                                <td>
+                                    {% if item.status_codigo == "CRITICO" %}
+                                        <span>
+                                            <strong>Crítico</strong>
+                                        </span>
+                                    {% elif item.status_codigo == "BAIXO" %}
+                                        <span>
+                                            <strong>Baixo</strong>
+                                        </span>
+                                    {% elif item.status_codigo == "ADEQUADO" %}
+                                        <span>
+                                            <strong>Adequado</strong>
+                                        </span>
+                                    {% elif item.status_codigo == "ALTO" %}
+                                        <span>
+                                            <strong>Alto</strong>
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {{ item.data_atualizacao|date:"d/m/Y H:i" }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <p>
+                    <strong>Localização:</strong>
+                    {{ hemocentro.list.0.cidade }}/{{ hemocentro.list.0.estado }}
+                </p>
+            </article>
+
+            <hr>
+        {% endfor %}
+    {% else %}
+        <p>Nenhum estoque público disponível no momento.</p>
+    {% endif %}
+</section>
+
+<section>
+    <p>
+        <strong>Importante:</strong>
+        os dados apresentados têm finalidade informativa. A disponibilidade real das bolsas deve ser confirmada diretamente com o Hemocentro.
+    </p>
+</section>
+
+{% endblock %}
+

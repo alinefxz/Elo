@@ -15,22 +15,23 @@ seja salva. O dashboard usa login_required para bloquear visitantes.
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from .forms import CadastroUsuarioForm
+from .forms import CadastroUsuarioForm, TriagemExtensaForm
 from .models import (
     ConsentimentoLGPD,
+    RespostaTriagem,
     Triagem,
     Usuario,
     ValidacaoHemocentro,
 )
-from .triagem_forms import FormularioPergunta
 from .validacao_hemocentro import (
     aprovar_hemocentro as aprovar_hemocentro_servico,
+    exigir_hemocentro_aprovado,
     recusar_hemocentro as recusar_hemocentro_servico,
     solicitar_correcao_hemocentro as solicitar_correcao_hemocentro_servico,
     usuario_e_administrador,
@@ -587,24 +588,6 @@ def solicitar_correcao_hemocentro(request, id_hemocentro):
         "accounts:painel_aprovacao_hemocentros"
     )
 
-def triagem_apresentacao(request):
-    """Apresenta publicamente as diferenças entre as duas modalidades."""
-
-    pode_iniciar = request.user.is_authenticated and pode_responder(request.user)
-    pode_simplificada = (
-        pode_iniciar and obter_extensa_base(request.user) is not None
-    )
-
-    return render(
-        request,
-        "accounts/triagem_apresentacao.html",
-        {
-            "pode_iniciar": pode_iniciar,
-            "pode_simplificada": pode_simplificada,
-        },
-    )
-
-
 @login_required
 @require_POST
 def triagem_iniciar(request, modalidade):
@@ -744,18 +727,4 @@ def triagem_resultado(request, id_triagem):
         {
             "triagem": triagem,
         },
-    )
-
-
-@login_required
-def triagem_historico(request):
-    """Lista apenas o histórico pertencente à conta autenticada."""
-
-    triagens = request.user.triagens.select_related("triagem_base").order_by(
-        "-iniciada_em"
-    )
-    return render(
-        request,
-        "accounts/triagem_historico.html",
-        {"triagens": triagens},
     )

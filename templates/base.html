@@ -25,6 +25,9 @@ que as paginas filhas substituem: title e content. Nao ha CSS nesta entrega.
         <!-- user vem do context processor de autenticacao em settings.py. -->
         {% if user.is_authenticated %}
             <a href="{% url 'accounts:dashboard' %}">Painel</a>
+            <a href="{% url 'accounts:compatibilidade_sanguinea' %}">Compatibilidade sanguinea</a>
+            <a href="{% url 'accounts:estoque_publico' %}">Estoques</a>
+
             <span>{{ user.get_short_name }}</span>
 
             <!-- Logout usa POST para impedir encerramento acidental por links.
@@ -38,6 +41,7 @@ que as paginas filhas substituem: title e content. Nao ha CSS nesta entrega.
             <a href="{% url 'accounts:login' %}">Entrar</a>
             <a href="{% url 'accounts:cadastro' %}">Criar conta</a>
             <a href="{% url 'accounts:compatibilidade_sanguinea' %}">Compatibilidade sanguinea</a>
+            <a href="{% url 'accounts:estoque_publico' %}">Estoques</a>
         {% endif %}
     </nav>
 
