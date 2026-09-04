@@ -99,4 +99,23 @@ path(
     views.visualizacao_publica_estoque,
     name="estoque_publico",
 ),
+# Rotas para gerenciamento do estoque pelo Hemocentro.
+# O acesso é protegido pelas validações presentes nas views.
+path(
+    "estoque/hemocentro/",
+    views.estoque_hemocentro,
+    name="estoque_hemocentro",
+),
+
+path(
+    "estoque/hemocentro/cadastrar/",
+    views.cadastrar_estoque_view,
+    name="cadastrar_estoque",
+),
+
+path(
+    "estoque/hemocentro/<int:id_estoque>/atualizar/",
+    views.atualizar_estoque_view,
+    name="atualizar_estoque",
+),
 ]
