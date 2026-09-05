@@ -63,6 +63,10 @@ Somente os formulários abaixo iniciam um registro no histórico.
             {% csrf_token %}
             <button type="submit">Iniciar ou continuar triagem extensa</button>
         </form>
+    {% elif not user.is_authenticated %}
+        <form method="get" action="{% url 'accounts:cadastro' %}">
+            <button type="submit">Criar conta para iniciar a triagem extensa</button>
+        </form>
     {% endif %}
 </section>
 
@@ -77,6 +81,10 @@ Somente os formulários abaixo iniciam um registro no histórico.
         </form>
     {% elif pode_iniciar %}
         <p>Conclua uma triagem extensa para liberar esta opção.</p>
+    {% elif not user.is_authenticated %}
+        <form method="get" action="{% url 'accounts:login' %}">
+            <button type="submit">Entrar para continuar uma triagem</button>
+        </form>
     {% endif %}
 </section>
 
@@ -86,10 +94,6 @@ Somente os formulários abaixo iniciam um registro no histórico.
     <p>A triagem para doação está disponível para os perfis Doador e Receptor.</p>
 {% else %}
     <p>Para responder e salvar sua triagem, crie uma conta ou entre no sistema.</p>
-    <p>
-        <a href="{% url 'accounts:cadastro' %}">Criar conta</a>
-        <a href="{% url 'accounts:login' %}">Entrar</a>
-    </p>
 {% endif %}
 
 <p><a href="{% url 'accounts:inicio' %}">Voltar para a página inicial</a></p>

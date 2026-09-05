@@ -57,6 +57,7 @@ from .triagem_servico import (
     salvar_resposta,
     voltar_pergunta,
 )
+from .triagem_forms import FormularioPergunta as FormularioPerguntaTriagem
 
 
 class FormularioPergunta(forms.Form):
@@ -951,7 +952,7 @@ def triagem_pergunta(request, id_triagem):
         id_pergunta=pergunta["id"]
     ).first()
     valor_inicial = resposta_anterior.valor if resposta_anterior else None
-    form = FormularioPergunta(
+    form = FormularioPerguntaTriagem(
         pergunta,
         request.POST or None,
         valor_inicial=valor_inicial,

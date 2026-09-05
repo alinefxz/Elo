@@ -95,6 +95,15 @@ class TriagemViewsTests(TestCase):
         self.assertContains(resposta, "Quem dará a resposta final será sempre")
         self.assertContains(resposta, "Criar conta")
 
+    def test_visitante_ve_botoes_de_acao_na_apresentacao(self):
+        """Falha se a apresentação não oferecer ações visíveis ao visitante."""
+
+        resposta = self.client.get(reverse("accounts:triagem_apresentacao"))
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Criar conta para iniciar a triagem extensa")
+        self.assertContains(resposta, "Entrar para continuar uma triagem")
+
     def test_inicio_exige_post_e_login(self):
         """Falha se uma simples visita à URL criar registro no banco."""
 
