@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% comment %}
+Uma pergunta por página deixa o formulário legível. O Django cria os campos
+de data e complemento somente quando a regra da pergunta precisa deles.
+{% endcomment %}
+
+{% block title %}Pergunta da triagem | Elo{% endblock %}
+
+{% block content %}
+<h1>{{ triagem.get_modalidade_display }}</h1>
+
+<p>Triagem {{ triagem.id_triagem }} — Pergunta {{ numero_pergunta }} de {{ total_perguntas }}</p>
+
+<h2>{{ pergunta.titulo }}</h2>
+<p>{{ pergunta.explicacao }}</p>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+
+    {% for field in form %}
+        <p>
+            {{ field.label_tag }}<br>
+            {{ field }}
+            {% if field.help_text %}<br><small>{{ field.help_text }}</small>{% endif %}
+            {% for error in field.errors %}<br>{{ error }}{% endfor %}
+        </p>
+    {% endfor %}
+
+    {% if numero_pergunta > 1 %}
+        <button type="submit" name="acao" value="anterior">Anterior</button>
+    {% endif %}
+    <button type="submit" name="acao" value="salvar">Salvar e sair</button>
+    <button type="submit" name="acao" value="continuar">Continuar</button>
+</form>
+
+<p><a href="{% url 'accounts:triagem_historico' %}">Meu histórico de triagens</a></p>
+{% endblock %}

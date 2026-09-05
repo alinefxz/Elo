@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 
 {% comment %}
-Resumo:
-Painel protegido do usuário cadastrado. A view envia o conteúdo adequado ao
+RESUMO DO ARQUIVO
+=================
+Painel protegido do usuario cadastrado. A view envia o conteudo adequado ao
 perfil escolhido no cadastro: Doador, Receptor/Solicitante, Observador,
 Hemocentro ou Administrador.
 {% endcomment %}
@@ -11,15 +12,16 @@ Hemocentro ou Administrador.
 
 {% block content %}
 
-<h1>Olá, {{ user.get_short_name }}!</h1>
+<!-- get_short_name retorna o primeiro nome ou, se vazio, o e-mail. -->
+<h1>Ola, {{ user.get_short_name }}!</h1>
 
 <p>
     <strong>{{ painel.rotulo }}</strong>
 </p>
 
+
 <section>
     <h2>{{ painel.titulo }}</h2>
-
     <p>{{ painel.descricao }}</p>
 
     <ul>
@@ -28,35 +30,55 @@ Hemocentro ou Administrador.
         {% endfor %}
     </ul>
 
-    {% if user.perfil == "DOADOR" %}
-        <p>
-            <a href="{% url 'accounts:triagem_extensa' %}">
-                Iniciar triagem extensa
-            </a>
-        </p>
-    {% endif %}
+    {% if user.perfil == "DOADOR" or user.perfil == "RECEPTOR" %}
 
-    {% if user.perfil == "HEMOCENTRO" and user.status_validacao == "APROVADO" %}
         <section>
-            <h2>Estoque</h2>
+            <h2>Triagem para doação</h2>
+
+            {% if user.perfil == "DOADOR" %}
+
+                <p>
+                    Responda à triagem inicial antes de procurar um posto de coleta.
+                </p>
+
+            {% else %}
+
+                <p>
+                    Mesmo sendo Receptor, você pode responder à triagem
+                    caso também queira doar sangue.
+                </p>
+
+            {% endif %}
 
             <p>
-                Cadastre e atualize as bolsas disponíveis por tipo sanguíneo.
-            </p>
-
-            <p>
-                <a href="{% url 'accounts:estoque_hemocentro' %}">
-                    Gerenciar meu estoque
+                <a href="{% url 'accounts:triagem_apresentacao' %}">
+                    Escolher ou continuar uma triagem
                 </a>
             </p>
+
+            <p>
+                <a href="{% url 'accounts:triagem_historico' %}">
+                    Ver meu histórico de triagens
+                </a>
+            </p>
+
+            {% if ultima_triagem %}
+                <p>
+                    <strong>Última triagem:</strong>
+                    {{ ultima_triagem.get_modalidade_display }} -
+                    {{ ultima_triagem.get_status_display }}
+                </p>
+            {% endif %}
         </section>
+
     {% endif %}
 </section>
 
 
 {% if painel.mostra_campanhas %}
+
     <section>
-        <h2>Campanhas e mutirões</h2>
+        <h2>Campanhas e mutiroes</h2>
 
         <ul>
             {% for campanha in campanhas_ativas %}
@@ -69,19 +91,21 @@ Hemocentro ou Administrador.
             {% endfor %}
         </ul>
     </section>
+
 {% endif %}
 
 
 {% if painel.mostra_estoque %}
+
     <section>
         <h2>Estoque geral</h2>
 
         <table>
             <thead>
                 <tr>
-                    <th>Tipo sanguíneo</th>
-                    <th>Nível</th>
-                    <th>Ocupação</th>
+                    <th>Tipo sanguineo</th>
+                    <th>Nivel</th>
+                    <th>Ocupacao</th>
                 </tr>
             </thead>
 
@@ -95,17 +119,19 @@ Hemocentro ou Administrador.
                 {% empty %}
                     <tr>
                         <td colspan="3">
-                            Nenhum dado de estoque disponível.
+                            Nenhum dado de estoque disponivel.
                         </td>
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
     </section>
+
 {% endif %}
 
 
 {% if painel.mostra_pedidos %}
+
     <section>
         <h2>Pedidos ativos</h2>
 
@@ -115,13 +141,14 @@ Hemocentro ou Administrador.
                     <strong>{{ pedido.titulo }}</strong><br>
                     {{ pedido.tipo_sanguineo }} -
                     {{ pedido.cidade }} -
-                    Urgência {{ pedido.urgencia }}
+                    Urgencia {{ pedido.urgencia }}
                 </li>
             {% empty %}
                 <li>Nenhum pedido ativo no momento.</li>
             {% endfor %}
         </ul>
     </section>
+
 {% endif %}
 
 
@@ -143,15 +170,21 @@ Hemocentro ou Administrador.
 
 
 {% comment %}
-Status da validação do Hemocentro.
-Mostra a situação atual do cadastro institucional.
+=================================================================
+STATUS DA VALIDACAO DO HEMOCENTRO
+=================================================================
+Mostra para o Hemocentro a situacao atual do cadastro institucional.
 {% endcomment %}
 
 {% if request.user.perfil == "HEMOCENTRO" %}
+
     <section>
+
         <h2>Status da validação institucional</h2>
 
+
         {% if request.user.status_validacao == "PENDENTE" %}
+
             <h3>Pendente</h3>
 
             <p>
@@ -164,7 +197,9 @@ Mostra a situação atual do cadastro institucional.
                 de estoques e campanhas permanece bloqueada.
             </p>
 
+
         {% elif request.user.status_validacao == "APROVADO" %}
+
             <h3>Aprovado</h3>
 
             <p>
@@ -176,7 +211,15 @@ Mostra a situação atual do cadastro institucional.
                 e campanhas.
             </p>
 
+            <p>
+                <a href="{% url 'accounts:estoque_hemocentro' %}">
+                    Cadastrar e atualizar estoque
+                </a>
+            </p>
+
+
         {% elif request.user.status_validacao == "RECUSADO" %}
+
             <h3>Cadastro recusado</h3>
 
             <p>
@@ -184,6 +227,7 @@ Mostra a situação atual do cadastro institucional.
             </p>
 
             {% if validacao_atual and validacao_atual.parecer %}
+
                 <p>
                     <strong>Parecer do administrador:</strong>
                     {{ validacao_atual.parecer }}
@@ -193,9 +237,12 @@ Mostra a situação atual do cadastro institucional.
                     <strong>Data da análise:</strong>
                     {{ validacao_atual.data_analise|date:"d/m/Y H:i" }}
                 </p>
+
             {% endif %}
 
+
         {% elif request.user.status_validacao == "CORRECAO" %}
+
             <h3>Correção necessária</h3>
 
             <p>
@@ -204,6 +251,7 @@ Mostra a situação atual do cadastro institucional.
             </p>
 
             {% if validacao_atual and validacao_atual.parecer %}
+
                 <p>
                     <strong>Orientação do administrador:</strong>
                     {{ validacao_atual.parecer }}
@@ -213,18 +261,27 @@ Mostra a situação atual do cadastro institucional.
                     <strong>Data da análise:</strong>
                     {{ validacao_atual.data_analise|date:"d/m/Y H:i" }}
                 </p>
+
             {% endif %}
+
         {% endif %}
+
     </section>
+
 {% endif %}
 
 
 {% comment %}
-Acesso do administrador à área de aprovação de Hemocentros.
+=================================================================
+ACESSO DO ADMINISTRADOR
+=================================================================
+Mostra o link para a tela de aprovação quando o usuário é administrador.
 {% endcomment %}
 
 {% if request.user.is_staff or request.user.is_superuser or request.user.perfil == "ADMINISTRADOR" %}
+
     <section>
+
         <h2>Gestão de Hemocentros</h2>
 
         <p>
@@ -236,8 +293,10 @@ Acesso do administrador à área de aprovação de Hemocentros.
                 Acessar aprovação de Hemocentros
             </a>
         </p>
+
     </section>
+
 {% endif %}
 
-{% endblock %}
 
+{% endblock %}

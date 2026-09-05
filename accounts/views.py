@@ -12,36 +12,24 @@ O cadastro usa uma transacao para impedir que apenas metade da operacao
 seja salva. O dashboard usa login_required para bloquear visitantes.
 """
 
-from django.utils import timezone
+from django import forms
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
+
+from .forms import CadastroUsuarioForm, TriagemExtensaForm
 from .estoque import obter_estoques_publicos
-
-
-
-from .forms import (
-    CadastrarEstoqueForm,
-    CadastroUsuarioForm,
-    MovimentarEstoqueForm,
-    TriagemExtensaForm,
-)
 from .models import (
     ConsentimentoLGPD,
-    Estoque,
     RespostaTriagem,
     Triagem,
     Usuario,
     ValidacaoHemocentro,
-)
-from .estoque import (
-    cadastrar_estoque as cadastrar_estoque_servico,
-    registrar_movimentacao_estoque as registrar_movimentacao_estoque_servico,
 )
 from .validacao_hemocentro import (
     aprovar_hemocentro as aprovar_hemocentro_servico,
@@ -56,11 +44,230 @@ from .compatibilidade import (
     tabela_de_compatibilidade,
     tipos_que_recebem_de,
 )
-from .triagem import (
-    TRIAGEM_RULE_VERSION,
-    calcular_resultado,
-    preparar_respostas,
+from .triagem_servico import (
+    TriagemConcluida,
+    TriagemExtensaNecessaria,
+    TriagemIncompleta,
+    TriagemSimplificadaIndisponivel,
+    concluir_triagem,
+    iniciar_triagem,
+    obter_extensa_base,
+    obter_pergunta_atual,
+    pode_responder,
+    salvar_resposta,
+    voltar_pergunta,
 )
+
+
+class FormularioPergunta(forms.Form):
+    """
+    Formulario dinamico usado pela triagem por etapas.
+
+    A pergunta vem da camada triagem_servico como um dicionario. O formulario
+    aceita os formatos de resposta mais comuns do projeto sem obrigar cada
+    pergunta a ter uma classe de formulario separada.
+    """
+
+    def __init__(self, pergunta, *args, valor_inicial=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.pergunta = pergunta
+        texto = (
+            pergunta.get("texto")
+            or pergunta.get("pergunta")
+            or pergunta.get("label")
+            or "Resposta"
+        )
+        ajuda = (
+            pergunta.get("explicacao")
+            or pergunta.get("ajuda")
+            or pergunta.get("help_text")
+            or ""
+        )
+        obrigatoria = pergunta.get("obrigatoria", True)
+
+        tipo = str(
+            pergunta.get("tipo_resposta")
+            or pergunta.get("tipo")
+            or pergunta.get("formato")
+            or "ESCOLHA"
+        ).strip().upper()
+
+        opcoes = self._normalizar_opcoes(
+            pergunta.get("opcoes")
+            or pergunta.get("alternativas")
+            or pergunta.get("choices")
+            or []
+        )
+
+        initial = self._normalizar_valor_inicial(valor_inicial)
+
+        if opcoes:
+            if tipo in {
+                "MULTIPLAS",
+                "MULTIPLA_SELECAO",
+                "MULTIPLA_SELEÇÃO",
+                "CHECKBOX",
+                "CHECKBOXES",
+            }:
+                campo = forms.MultipleChoiceField(
+                    label=texto,
+                    choices=opcoes,
+                    required=obrigatoria,
+                    initial=initial,
+                    help_text=ajuda,
+                    widget=forms.CheckboxSelectMultiple,
+                )
+            else:
+                campo = forms.ChoiceField(
+                    label=texto,
+                    choices=opcoes,
+                    required=obrigatoria,
+                    initial=initial,
+                    help_text=ajuda,
+                    widget=forms.RadioSelect,
+                )
+
+        elif tipo in {"SIM_NAO", "SIM/NÃO", "SIM/NAO", "BOOLEAN", "BOOL"}:
+            campo = forms.ChoiceField(
+                label=texto,
+                choices=[
+                    ("SIM", "Sim"),
+                    ("NAO", "Não"),
+                    ("NAO_SEI", "Não sei"),
+                ],
+                required=obrigatoria,
+                initial=initial,
+                help_text=ajuda,
+                widget=forms.RadioSelect,
+            )
+
+        elif tipo in {"DATA", "DATE"}:
+            campo = forms.DateField(
+                label=texto,
+                required=obrigatoria,
+                initial=initial,
+                help_text=ajuda,
+                widget=forms.DateInput(attrs={"type": "date"}),
+            )
+
+        elif tipo in {
+            "NUMERO",
+            "NÚMERO",
+            "NUMBER",
+            "INTEIRO",
+            "INTEGER",
+            "DECIMAL",
+        }:
+            campo = forms.DecimalField(
+                label=texto,
+                required=obrigatoria,
+                initial=initial,
+                help_text=ajuda,
+            )
+
+        else:
+            campo = forms.CharField(
+                label=texto,
+                required=obrigatoria,
+                initial=initial,
+                help_text=ajuda,
+                max_length=pergunta.get("max_length", 500),
+                widget=forms.Textarea(attrs={"rows": 3})
+                if tipo in {"TEXTO", "TEXT", "TEXTAREA"}
+                else forms.TextInput(),
+            )
+
+        self.fields["valor"] = campo
+
+    @staticmethod
+    def _primeiro_valor(dados, chaves):
+        for chave in chaves:
+            if chave in dados and dados[chave] is not None:
+                return dados[chave]
+        return None
+
+    @classmethod
+    def _normalizar_opcoes(cls, opcoes):
+        """
+        Converte opcoes em pares (valor, rotulo).
+
+        Aceita:
+        - lista de dicionarios;
+        - lista de tuplas;
+        - lista de textos;
+        - dicionario no formato codigo -> rotulo.
+        """
+
+        if isinstance(opcoes, dict):
+            return [
+                (str(valor), str(rotulo))
+                for valor, rotulo in opcoes.items()
+            ]
+
+        resultado = []
+
+        for opcao in opcoes:
+            if isinstance(opcao, dict):
+                valor = cls._primeiro_valor(
+                    opcao,
+                    (
+                        "codigo",
+                        "codigo_resposta",
+                        "valor",
+                        "value",
+                        "id",
+                        "chave",
+                    ),
+                )
+                rotulo = cls._primeiro_valor(
+                    opcao,
+                    (
+                        "texto",
+                        "resposta_label",
+                        "label",
+                        "rotulo",
+                        "nome",
+                    ),
+                )
+
+                if valor is None and rotulo is not None:
+                    valor = rotulo
+
+                if valor is not None:
+                    resultado.append(
+                        (
+                            str(valor),
+                            str(rotulo if rotulo is not None else valor),
+                        )
+                    )
+
+            elif isinstance(opcao, (list, tuple)) and len(opcao) >= 2:
+                resultado.append((str(opcao[0]), str(opcao[1])))
+
+            else:
+                resultado.append((str(opcao), str(opcao)))
+
+        return resultado
+
+    @classmethod
+    def _normalizar_valor_inicial(cls, valor):
+        if not isinstance(valor, dict):
+            return valor
+
+        return cls._primeiro_valor(
+            valor,
+            (
+                "valor",
+                "codigo",
+                "codigo_resposta",
+                "resposta",
+                "opcao",
+                "data",
+                "numero",
+                "texto",
+            ),
+        )
 
 
 POSTOS_COLETA = [
@@ -422,6 +629,12 @@ def dashboard(request):
             .first()
         )
 
+    # O resumo usa apenas registros do usuário autenticado. As respostas
+    # detalhadas não são expostas no painel geral.
+    ultima_triagem = None
+    if pode_responder(request.user):
+        ultima_triagem = request.user.triagens.order_by("-iniciada_em").first()
+
     contexto = {
         "painel": painel,
         "postos": POSTOS_COLETA,
@@ -429,6 +642,7 @@ def dashboard(request):
         "pedidos_ativos": PEDIDOS_ATIVOS,
         "campanhas_ativas": CAMPANHAS_ATIVAS,
         "validacao_atual": validacao_atual,
+        "ultima_triagem": ultima_triagem,
     }
 
     return render(
@@ -588,115 +802,221 @@ def solicitar_correcao_hemocentro(request, id_hemocentro):
     )
 
 
-@login_required
-def triagem_extensa(request):
+def triagem_apresentacao(request):
     """
-    Exibe e processa a primeira versão da triagem extensa.
+    Exibe a apresentação pública da triagem.
 
-    Nesta etapa, somente usuários com perfil Doador
-    podem iniciar a triagem.
+    Somente usuários com perfil permitido podem iniciar a triagem.
+    A modalidade simplificada é liberada quando existe uma triagem
+    extensa concluída que possa ser utilizada como base.
     """
 
-    # Bloqueia outros perfis nesta primeira versão.
-    if request.user.perfil != Usuario.Perfil.DOADOR:
-        messages.error(
-            request,
-            "A triagem de doação está disponível somente para Doadores.",
-        )
-        return redirect("accounts:dashboard")
+    pode_iniciar = False
+    pode_simplificada = False
+    triagem_em_andamento = None
+    ultima_triagem = None
+    extensa_base = None
 
-    if request.method == "POST":
-        form = TriagemExtensaForm(request.POST)
+    if request.user.is_authenticated:
+        pode_iniciar = pode_responder(request.user)
 
-        if form.is_valid():
-            calculo = calcular_resultado(
-                form.cleaned_data
+        if pode_iniciar:
+            triagens = (
+                request.user.triagens
+                .select_related("triagem_base")
+                .order_by("-iniciada_em")
             )
 
-            with transaction.atomic():
-                # Registra o consentimento específico da triagem.
-                consentimento, _ = (
-                    ConsentimentoLGPD.objects.get_or_create(
-                        usuario=request.user,
-                        tipo_termo=(
-                            ConsentimentoLGPD.TipoTermo.TRIAGEM
-                        ),
-                        versao_termo=TRIAGEM_RULE_VERSION,
-                        defaults={
-                            "aceito": True,
-                            "ip": obter_ip(request),
-                        },
-                    )
-                )
+            ultima_triagem = triagens.first()
 
-                # Atualiza o consentimento caso ele já existisse
-                # mas estivesse marcado como não aceito.
-                if not consentimento.aceito:
-                    consentimento.aceito = True
-                    consentimento.revogado_em = None
-                    consentimento.ip = obter_ip(request)
-                    consentimento.save(
-                        update_fields=[
-                            "aceito",
-                            "revogado_em",
-                            "ip",
-                        ]
-                    )
-
-                # Salva o resultado da triagem.
-                triagem = Triagem.objects.create(
-                    usuario=request.user,
-                    modalidade=Triagem.Modalidade.EXTENSA,
-                    regra_version=TRIAGEM_RULE_VERSION,
-                    resultado=calculo["resultado"],
-                    mensagem_resultado=calculo["mensagem"],
-                    data_liberacao=calculo["data_liberacao"],
-                    achados=calculo["achados"],
-                    finalizada_em=timezone.now(),
-                )
-
-                # Salva todas as respostas individuais.
-                respostas = preparar_respostas(form)
-
-                RespostaTriagem.objects.bulk_create(
-                    [
-                        RespostaTriagem(
-                            triagem=triagem,
-                            **resposta,
-                        )
-                        for resposta in respostas
-                    ]
-                )
-
-            return redirect(
-                "accounts:triagem_resultado",
-                id_triagem=triagem.pk,
+            triagem_em_andamento = (
+                triagens
+                .filter(status=Triagem.Status.EM_ANDAMENTO)
+                .first()
             )
 
-    else:
-        form = TriagemExtensaForm()
+            extensa_base = obter_extensa_base(request.user)
+
+            # A simplificada só fica disponível quando existe
+            # uma triagem extensa concluída válida como base.
+            pode_simplificada = extensa_base is not None
 
     return render(
         request,
-        "accounts/triagem_extensa.html",
+        "accounts/triagem_apresentacao.html",
         {
+            "pode_iniciar": pode_iniciar,
+            "pode_simplificada": pode_simplificada,
+            "triagem_em_andamento": triagem_em_andamento,
+            "ultima_triagem": ultima_triagem,
+            "triagem_extensa_base": extensa_base,
+        },
+    )
+
+
+@login_required
+def triagem_historico(request):
+    """
+    Lista somente as triagens pertencentes ao usuario autenticado.
+
+    O historico mostra tanto triagens em andamento quanto concluidas e
+    canceladas, permitindo que o template ofereca continuar ou consultar
+    o resultado conforme o status.
+    """
+
+    if not pode_responder(request.user):
+        messages.error(
+            request,
+            "A triagem de doacao nao esta disponivel para este perfil.",
+        )
+        return redirect("accounts:dashboard")
+
+    triagens = (
+        request.user.triagens
+        .select_related("triagem_base")
+        .order_by("-iniciada_em")
+    )
+
+    return render(
+        request,
+        "accounts/triagem_historico.html",
+        {
+            "triagens": triagens,
+        },
+    )
+
+@login_required
+@require_POST
+def triagem_iniciar(request, modalidade):
+    """Inicia ou retoma uma triagem somente após clique explícito."""
+
+    modalidades = {
+        "extensa": Triagem.Modalidade.EXTENSA,
+        "simplificada": Triagem.Modalidade.SIMPLIFICADA,
+    }
+    if modalidade not in modalidades:
+        raise Http404("Modalidade de triagem inexistente.")
+
+    try:
+        triagem = iniciar_triagem(
+            request.user,
+            modalidades[modalidade],
+            ip=obter_ip(request),
+        )
+    except TriagemSimplificadaIndisponivel:
+        messages.info(
+            request,
+            "Conclua primeiro a triagem extensa para usar a versão simplificada.",
+        )
+        return redirect("accounts:triagem_apresentacao")
+
+    return redirect("accounts:triagem_pergunta", id_triagem=triagem.pk)
+
+
+def _triagem_do_usuario_ou_404(request, id_triagem):
+    """Evita que uma conta consulte o questionário privado de outra."""
+
+    return get_object_or_404(
+        Triagem,
+        pk=id_triagem,
+        usuario=request.user,
+    )
+
+
+@login_required
+def triagem_pergunta(request, id_triagem):
+    """Mostra, valida e salva uma única pergunta por página."""
+
+    triagem = _triagem_do_usuario_ou_404(request, id_triagem)
+    if triagem.status == Triagem.Status.CONCLUIDA:
+        return redirect("accounts:triagem_resultado", id_triagem=triagem.pk)
+    if triagem.status == Triagem.Status.CANCELADA:
+        return redirect("accounts:triagem_apresentacao")
+
+    # O botão anterior muda apenas o cursor e não valida campos da página.
+    if request.method == "POST" and request.POST.get("acao") == "anterior":
+        voltar_pergunta(triagem)
+        return redirect("accounts:triagem_pergunta", id_triagem=triagem.pk)
+
+    pergunta = obter_pergunta_atual(triagem)
+    if pergunta is None:
+        try:
+            triagem = concluir_triagem(triagem)
+        except TriagemIncompleta:
+            messages.error(request, "Ainda existem perguntas sem resposta.")
+            return redirect("accounts:triagem_historico")
+        return redirect("accounts:triagem_resultado", id_triagem=triagem.pk)
+
+    resposta_anterior = triagem.respostas.filter(
+        id_pergunta=pergunta["id"]
+    ).first()
+    valor_inicial = resposta_anterior.valor if resposta_anterior else None
+    form = FormularioPergunta(
+        pergunta,
+        request.POST or None,
+        valor_inicial=valor_inicial,
+    )
+
+    if request.method == "POST" and form.is_valid():
+        try:
+            salvar_resposta(triagem, pergunta["id"], form.cleaned_data["valor"])
+        except TriagemExtensaNecessaria:
+            # O serviço já cancelou a rápida antes de solicitar a troca.
+            nova_extensa = iniciar_triagem(
+                request.user,
+                Triagem.Modalidade.EXTENSA,
+                ip=obter_ip(request),
+            )
+            messages.info(
+                request,
+                "Como o resumo mudou, continue pela triagem extensa.",
+            )
+            return redirect(
+                "accounts:triagem_pergunta",
+                id_triagem=nova_extensa.pk,
+            )
+
+        if request.POST.get("acao") == "salvar":
+            messages.success(request, "Andamento da triagem salvo.")
+            return redirect("accounts:triagem_historico")
+
+        # O serviço mantém o cursor na explicação quando a pessoa não entendeu
+        # e volta ao início quando ela escolhe revisar a confirmação final.
+        if triagem.pergunta_atual >= len(triagem.fluxo_perguntas):
+            try:
+                triagem = concluir_triagem(triagem)
+            except (TriagemConcluida, TriagemIncompleta) as erro:
+                messages.error(request, str(erro))
+            else:
+                return redirect(
+                    "accounts:triagem_resultado",
+                    id_triagem=triagem.pk,
+                )
+
+        return redirect("accounts:triagem_pergunta", id_triagem=triagem.pk)
+
+    return render(
+        request,
+        "accounts/triagem_pergunta.html",
+        {
+            "triagem": triagem,
+            "pergunta": pergunta,
             "form": form,
+            "numero_pergunta": triagem.pergunta_atual + 1,
+            "total_perguntas": len(triagem.fluxo_perguntas),
         },
     )
 
 
 @login_required
 def triagem_resultado(request, id_triagem):
-    """
-    Mostra o resultado somente para o usuário que realizou
-    aquela triagem.
-    """
+    """Mostra a orientação concluída somente ao dono da triagem."""
 
-    triagem = get_object_or_404(
-        Triagem,
-        pk=id_triagem,
-        usuario=request.user,
-    )
+    triagem = _triagem_do_usuario_ou_404(request, id_triagem)
+    if triagem.status == Triagem.Status.EM_ANDAMENTO:
+        return redirect("accounts:triagem_pergunta", id_triagem=triagem.pk)
+    if triagem.status == Triagem.Status.CANCELADA:
+        return redirect("accounts:triagem_historico")
 
     return render(
         request,
@@ -707,139 +1027,50 @@ def triagem_resultado(request, id_triagem):
     )
 
 
-# UC_29 / UC_30 - Estoque do Hemocentro. As duas views de escrita reusam
-# @exigir_hemocentro_aprovado (definida em validacao_hemocentro.py), que
-# bloqueia quem nao for Hemocentro com status_validacao == APROVADO.
-
-
-@login_required
-@exigir_hemocentro_aprovado
-def estoque_hemocentro(request):
-    """
-    Painel do Hemocentro/Estoque.
-
-    Mostra os estoques ja cadastrados (cada um com seu proprio formulario
-    de movimentacao) e o formulario de cadastro para os tipos sanguineos
-    que este hemocentro ainda nao cadastrou.
-    """
-
-    estoques = (
-        Estoque.objects
-        .filter(hemocentro=request.user)
-        .order_by("tipo_sanguineo")
-        .prefetch_related("movimentacoes")
-    )
-
-    tipos_ja_cadastrados = {estoque.tipo_sanguineo for estoque in estoques}
-    tipos_disponiveis = [
-        tipo for tipo in TIPOS_SANGUINEOS if tipo not in tipos_ja_cadastrados
-    ]
-
-    contexto = {
-        "estoques": estoques,
-        "tipos_disponiveis": tipos_disponiveis,
-        "form_cadastro": CadastrarEstoqueForm(),
-        "form_movimentacao": MovimentarEstoqueForm(),
-    }
-
-    return render(
-        request,
-        "accounts/estoque_hemocentro.html",
-        contexto,
-    )
-
-
-@login_required
-@exigir_hemocentro_aprovado
-@require_POST
-def cadastrar_estoque_view(request):
-    """UC_29 - Processa o cadastro de estoque de um tipo sanguineo."""
-
-    form = CadastrarEstoqueForm(request.POST)
-
-    if form.is_valid():
-        try:
-            cadastrar_estoque_servico(
-                hemocentro=request.user,
-                tipo_sanguineo=form.cleaned_data["tipo_sanguineo"],
-                quantidade_bolsas=form.cleaned_data["quantidade_bolsas"],
-                nivel_minimo=form.cleaned_data["nivel_minimo"],
-                nivel_critico=form.cleaned_data["nivel_critico"],
-                request=request,
-            )
-        except ValidationError as erro:
-            messages.error(request, " ".join(erro.messages))
-        else:
-            messages.success(
-                request,
-                "Estoque cadastrado com sucesso.",
-            )
-    else:
-        messages.error(
-            request,
-            "Nao foi possivel cadastrar o estoque. Corrija os erros indicados.",
-        )
-
-    return redirect("accounts:estoque_hemocentro")
-
-
-@login_required
-@exigir_hemocentro_aprovado
-@require_POST
-def atualizar_estoque_view(request, id_estoque):
-    """UC_30 - Processa uma entrada, saida ou ajuste de bolsas."""
-
-    # get_object_or_404 com hemocentro=request.user impede que um
-    # Hemocentro movimente o estoque de outro, mesmo sabendo o id.
-    estoque = get_object_or_404(
-        Estoque,
-        pk=id_estoque,
-        hemocentro=request.user,
-    )
-
-    form = MovimentarEstoqueForm(request.POST)
-
-    if form.is_valid():
-        try:
-            registrar_movimentacao_estoque_servico(
-                estoque=estoque,
-                usuario_resp=request.user,
-                tipo_movimento=form.cleaned_data["tipo_movimento"],
-                quantidade=form.cleaned_data["quantidade"],
-                motivo=form.cleaned_data["motivo"],
-                request=request,
-            )
-        except ValidationError as erro:
-            messages.error(request, " ".join(erro.messages))
-        else:
-            messages.success(
-                request,
-                "Estoque atualizado com sucesso.",
-            )
-    else:
-        messages.error(
-            request,
-            "Nao foi possivel atualizar o estoque. Corrija os erros indicados.",
-        )
-
-    return redirect("accounts:estoque_hemocentro")
-
 def visualizacao_publica_estoque(request):
-    """ RF 32 - Exibe publicamente a situação dos estoques. Esta página não exige login.
-Visitantes e usuários autenticados podem acessar. Somente Hemocentros aprovados aparecem na consulta.
+    """
+    Exibe publicamente os estoques dos Hemocentros aprovados.
+
+    A camada accounts.estoque devolve apenas os dados permitidos para
+    exibicao publica, sem expor os limites internos usados pelo Hemocentro.
     """
 
-    # Busca os dados através da camada de serviço.
     estoques = obter_estoques_publicos()
 
-    # Cria o contexto que será enviado ao template.
-    contexto = {
-        "estoques": estoques,
-    }
+    consulta = (request.GET.get("q") or "").strip().lower()
+    tipo = (request.GET.get("tipo") or "").strip().upper()
+
+    if consulta:
+        estoques = [
+            estoque
+            for estoque in estoques
+            if consulta
+            in " ".join(
+                [
+                    estoque.get("nome", ""),
+                    estoque.get("cidade", ""),
+                    estoque.get("estado", ""),
+                    estoque.get("tipo_sanguineo", ""),
+                    estoque.get("status", ""),
+                ]
+            ).lower()
+        ]
+
+    if tipo:
+        estoques = [
+            estoque
+            for estoque in estoques
+            if estoque.get("tipo_sanguineo") == tipo
+        ]
 
     return render(
         request,
         "accounts/estoque_publico.html",
-        contexto,
+        {
+            "estoques": estoques,
+            "consulta": request.GET.get("q", ""),
+            "tipo_selecionado": tipo,
+            "tipos_sanguineos": TIPOS_SANGUINEOS,
+        },
     )
 

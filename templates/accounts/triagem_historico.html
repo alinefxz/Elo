@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% comment %}
+O queryset desta página já pertence ao usuário autenticado. A listagem mostra
+somente o resumo; respostas individuais continuam protegidas no banco.
+{% endcomment %}
+
+{% block title %}Meu histórico de triagens | Elo{% endblock %}
+
+{% block content %}
+<h1>Meu histórico de triagens</h1>
+
+{% if triagens %}
+    <ul>
+        {% for triagem in triagens %}
+            <li>
+                <strong>Triagem {{ triagem.id_triagem }} — {{ triagem.get_modalidade_display }}</strong><br>
+                Iniciada em {{ triagem.iniciada_em|date:"d/m/Y H:i" }}<br>
+                Situação: {{ triagem.get_status_display }}
+
+                {% if triagem.status == "CONCLUIDA" %}
+                    <br>Orientação: {{ triagem.get_resultado_display }}
+                    <br><a href="{% url 'accounts:triagem_resultado' id_triagem=triagem.id_triagem %}">Ver resultado</a>
+                {% elif triagem.status == "EM_ANDAMENTO" %}
+                    <br><a href="{% url 'accounts:triagem_pergunta' id_triagem=triagem.id_triagem %}">Continuar triagem</a>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>Você ainda não iniciou uma triagem.</p>
+{% endif %}
+
+<p><a href="{% url 'accounts:triagem_apresentacao' %}">Escolher uma triagem</a></p>
+<p><a href="{% url 'accounts:dashboard' %}">Voltar para o painel</a></p>
+{% endblock %}

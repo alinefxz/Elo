@@ -28,6 +28,11 @@ que as paginas filhas substituem: title e content. Nao ha CSS nesta entrega.
             <a href="{% url 'accounts:compatibilidade_sanguinea' %}">Compatibilidade sanguinea</a>
             <a href="{% url 'accounts:estoque_publico' %}">Estoques</a>
 
+            <!-- Hemocentro aprovado recebe atalho direto para o estoque privado. -->
+            {% if user.perfil == "HEMOCENTRO" and user.status_validacao == "APROVADO" %}
+                <a href="{% url 'accounts:estoque_hemocentro' %}">Meu estoque</a>
+            {% endif %}
+
             <span>{{ user.get_short_name }}</span>
 
             <!-- Logout usa POST para impedir encerramento acidental por links.
