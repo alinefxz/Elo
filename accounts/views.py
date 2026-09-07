@@ -22,10 +22,20 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from .forms import CadastroUsuarioForm, TriagemExtensaForm
-from .estoque import obter_estoques_publicos
+from .forms import (
+    CadastrarEstoqueForm,
+    CadastroUsuarioForm,
+    MovimentarEstoqueForm,
+    TriagemExtensaForm,
+)
+from .estoque import (
+    cadastrar_estoque,
+    obter_estoques_publicos,
+    registrar_movimentacao_estoque,
+)
 from .models import (
     ConsentimentoLGPD,
+    Estoque,
     RespostaTriagem,
     Triagem,
     Usuario,
@@ -1075,3 +1085,118 @@ def visualizacao_publica_estoque(request):
         },
     )
 
+
+def _formatar_erro_validacao(erro):
+    """Converte um ValidationError (string, lista ou dict) em texto legivel."""
+
+    if hasattr(erro, "message_dict"):
+        return "; ".join(
+            f"{campo}: {', '.join(mensagens)}"
+            for campo, mensagens in erro.message_dict.items()
+        )
+
+    return "; ".join(erro.messages)
+
+
+@login_required
+@exigir_hemocentro_aprovado
+def estoque_hemocentro(request):
+    """
+    UC_29 / UC_30 - Mostra o estoque do proprio Hemocentro logado e os
+    formularios para cadastrar um novo tipo sanguineo ou movimentar um
+    estoque ja existente.
+    """
+
+    estoques = (
+        Estoque.objects
+        .filter(hemocentro=request.user)
+        .order_by("tipo_sanguineo")
+    )
+
+    tipos_cadastrados = set(
+        estoques.values_list("tipo_sanguineo", flat=True)
+    )
+    tipos_disponiveis = [
+        tipo for tipo in TIPOS_SANGUINEOS if tipo not in tipos_cadastrados
+    ]
+
+    form_cadastro = CadastrarEstoqueForm()
+    form_cadastro.fields["tipo_sanguineo"].choices = [
+        (tipo, tipo) for tipo in tipos_disponiveis
+    ]
+
+    return render(
+        request,
+        "accounts/estoque_hemocentro.html",
+        {
+            "estoques": estoques,
+            "tipos_disponiveis": tipos_disponiveis,
+            "form_cadastro": form_cadastro,
+            "form_movimentacao": MovimentarEstoqueForm(),
+        },
+    )
+
+
+@login_required
+@require_POST
+@exigir_hemocentro_aprovado
+def cadastrar_estoque_view(request):
+    """UC_29 - Cria a estrutura de estoque de um tipo sanguineo."""
+
+    form = CadastrarEstoqueForm(request.POST)
+
+    if form.is_valid():
+        try:
+            cadastrar_estoque(
+                hemocentro=request.user,
+                tipo_sanguineo=form.cleaned_data["tipo_sanguineo"],
+                quantidade_bolsas=form.cleaned_data["quantidade_bolsas"],
+                nivel_minimo=form.cleaned_data["nivel_minimo"],
+                nivel_critico=form.cleaned_data["nivel_critico"],
+                request=request,
+            )
+        except ValidationError as erro:
+            messages.error(request, _formatar_erro_validacao(erro))
+        else:
+            messages.success(request, "Estoque cadastrado com sucesso.")
+    else:
+        messages.error(
+            request,
+            "Corrija os erros destacados no formulario de cadastro.",
+        )
+
+    return redirect("accounts:estoque_hemocentro")
+
+
+@login_required
+@require_POST
+@exigir_hemocentro_aprovado
+def atualizar_estoque_view(request, id_estoque):
+    """UC_30 - Registra uma entrada, saida ou ajuste em um estoque existente."""
+
+    estoque = get_object_or_404(Estoque, pk=id_estoque)
+    form = MovimentarEstoqueForm(request.POST)
+
+    if form.is_valid():
+        try:
+            registrar_movimentacao_estoque(
+                estoque=estoque,
+                usuario_resp=request.user,
+                tipo_movimento=form.cleaned_data["tipo_movimento"],
+                quantidade=form.cleaned_data["quantidade"],
+                motivo=form.cleaned_data["motivo"],
+                request=request,
+            )
+        except PermissionDenied as erro:
+            messages.error(request, str(erro))
+        except ValidationError as erro:
+            messages.error(request, _formatar_erro_validacao(erro))
+        else:
+            messages.success(request, "Estoque atualizado com sucesso.")
+    else:
+        messages.error(
+            request,
+            "Corrija os erros destacados no formulario de movimentacao.",
+        )
+
+    return redirect("accounts:estoque_hemocentro")

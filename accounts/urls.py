@@ -128,52 +128,38 @@ urlpatterns = [
     # ==========================================================
 
     path(
-<<<<<<< HEAD
-    "compatibilidade-sanguinea/",
-    views.compatibilidade_sanguinea,
-    name="compatibilidade_sanguinea",
-),
-# Essa URL não possui login_required.
-# Portanto, visitantes e usuários autenticados podem acessá-la.
-path(
-    "estoque/",
-    views.visualizacao_publica_estoque,
-    name="estoque_publico",
-),
-# Rotas para gerenciamento do estoque pelo Hemocentro.
-# O acesso é protegido pelas validações presentes nas views.
-path(
-    "estoque/hemocentro/",
-    views.estoque_hemocentro,
-    name="estoque_hemocentro",
-),
-
-path(
-    "estoque/hemocentro/cadastrar/",
-    views.cadastrar_estoque_view,
-    name="cadastrar_estoque",
-),
-
-path(
-    "estoque/hemocentro/<int:id_estoque>/atualizar/",
-    views.atualizar_estoque_view,
-    name="atualizar_estoque",
-),
-]
-=======
         "compatibilidade-sanguinea/",
         views.compatibilidade_sanguinea,
         name="compatibilidade_sanguinea",
     ),
 
     # ==========================================================
-    # ESTOQUE PUBLICO
+    # ESTOQUE
     # ==========================================================
 
+    # Publica. Visitantes e usuarios autenticados podem acessar.
     path(
         "estoque/",
         views.visualizacao_publica_estoque,
         name="estoque_publico",
     ),
+
+    # Privadas do Hemocentro. O acesso e protegido dentro das views.
+    path(
+        "estoque/hemocentro/",
+        views.estoque_hemocentro,
+        name="estoque_hemocentro",
+    ),
+
+    path(
+        "estoque/hemocentro/cadastrar/",
+        views.cadastrar_estoque_view,
+        name="cadastrar_estoque",
+    ),
+
+    path(
+        "estoque/hemocentro/<int:id_estoque>/atualizar/",
+        views.atualizar_estoque_view,
+        name="atualizar_estoque",
+    ),
 ]
->>>>>>> 943ae952b268b41598072082432051f3f0fbf984
