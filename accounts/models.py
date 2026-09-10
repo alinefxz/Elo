@@ -153,6 +153,12 @@ class Usuario(AbstractUser):
         blank=True,
         default="",
     )
+    tipo_sanguineo = models.CharField(
+        max_length=3,
+        choices=[(tipo, tipo) for tipo in TIPOS_SANGUINEOS],
+        blank=True,
+        default="",
+    )
     cidade = models.CharField(max_length=100, blank=True, default="")
     estado = models.CharField(max_length=2, blank=True, default="")
 
@@ -918,3 +924,73 @@ class EstoqueMovimentacao(models.Model):
             f"{self.get_tipo_movimento_display()} - "
             f"{self.quantidade_anterior} -> {self.quantidade_nova}"
         )
+
+
+class Notificacao(models.Model):
+
+    """
+    Guarda avisos internos exibidos no dashboard do usuario.
+
+    Nesta etapa, a notificacao sera usada para avisar doadores compativeis
+    quando um estoque atualizado por Hemocentro ficar em nivel BAIXO ou CRITICO.
+    Futuramente a mesma tabela tambem pode receber outros avisos do sistema.
+    """
+
+    class Tipo(models.TextChoices):
+        """Classificacao do aviso para facilitar filtros futuros."""
+
+        ESTOQUE_BAIXO = "ESTOQUE_BAIXO", "Estoque baixo"
+        ESTOQUE_CRITICO = "ESTOQUE_CRITICO", "Estoque crítico"
+        GERAL = "GERAL", "Aviso geral"
+
+    id_notificacao = models.BigAutoField(primary_key=True)
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notificacoes",
+        db_column="id_usuario",
+    )
+
+    estoque = models.ForeignKey(
+        Estoque,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notificacoes",
+        db_column="id_estoque",
+    )
+
+    tipo = models.CharField(
+        max_length=30,
+        choices=Tipo.choices,
+        default=Tipo.GERAL,
+    )
+
+    titulo = models.CharField(max_length=120)
+    mensagem = models.TextField()
+    url_destino = models.CharField(max_length=255, blank=True, default="")
+    lida = models.BooleanField(default=False)
+    criada_em = models.DateTimeField(auto_now_add=True)
+    lida_em = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "notificacoes"
+        verbose_name = "notificacao"
+        verbose_name_plural = "notificacoes"
+        ordering = ["-criada_em"]
+        indexes = [
+            models.Index(
+                fields=["usuario", "lida", "-criada_em"],
+                name="notificacao_usuario_lida_idx",
+            ),
+            models.Index(
+                fields=["tipo", "-criada_em"],
+                name="notificacao_tipo_data_idx",
+            ),
+        ]
+
+    def __str__(self):
+        """Texto usado no admin e no terminal."""
+
+        return f"{self.usuario.nome} - {self.titulo}"

@@ -27,6 +27,7 @@ Os testes verificam:
 
 from django.core.exceptions import PermissionDenied
 from django.test import TestCase
+from django.urls import reverse
 
 from .models import AuditoriaAcaoCritica, Usuario, ValidacaoHemocentro
 from .validacao_hemocentro import (
@@ -187,3 +188,34 @@ class ValidacaoHemocentroTests(TestCase):
         self.hemocentro.refresh_from_db()
 
         self.assertTrue(validar_publicacao_hemocentro(self.hemocentro))
+
+    def test_dashboard_hemocentro_mostra_status_sem_link_de_aprovacao(self):
+        """Hemocentro ve seu status, mas nao acessa validacao administrativa."""
+
+        self.client.force_login(self.hemocentro)
+
+        resposta = self.client.get(reverse("accounts:dashboard"))
+
+        self.assertContains(resposta, "Status da validação institucional")
+        self.assertContains(resposta, "Pendente")
+        self.assertNotContains(resposta, "Gestão de Hemocentros")
+        self.assertNotContains(resposta, "Acessar aprovação de Hemocentros")
+
+    def test_dashboard_admin_nao_mostra_validacao_fora_do_admin(self):
+        """Aprovacao de Hemocentro deve ficar somente dentro do Django Admin."""
+
+        self.client.force_login(self.admin)
+
+        resposta = self.client.get(reverse("accounts:dashboard"))
+
+        self.assertNotContains(resposta, "Gestão de Hemocentros")
+        self.assertNotContains(resposta, "Acessar aprovação de Hemocentros")
+
+    def test_urls_comuns_de_validacao_foram_removidas(self):
+        """Links diretos antigos de validacao nao devem funcionar no site comum."""
+
+        self.client.force_login(self.admin)
+
+        resposta = self.client.get("/hemocentros/validacao/")
+
+        self.assertEqual(resposta.status_code, 404)

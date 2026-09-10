@@ -1,10 +1,16 @@
 {% comment %}
 RESUMO DO ARQUIVO
 =================
-Template-base reutilizado por cadastro, login e dashboard.
+Template-base reutilizado pelas paginas do sistema.
 
 Ele define a estrutura HTML, a navegacao, as mensagens temporarias e dois blocos
-que as paginas filhas substituem: title e content. Nao ha CSS nesta entrega.
+que as paginas filhas substituem: title e content.
+
+A navegacao tambem respeita a particularizacao por perfil:
+- todos podem acessar paginas publicas;
+- usuarios autenticados acessam o painel;
+- Hemocentro aprovado recebe atalho para gerenciar o proprio estoque;
+- Administrador recebe atalhos de validacao e painel administrativo.
 {% endcomment %}
 <!doctype html>
 <html lang="pt-br">
@@ -19,18 +25,38 @@ que as paginas filhas substituem: title e content. Nao ha CSS nesta entrega.
 </head>
 <body>
     <nav>
-        <!-- A tag url usa o nome da rota, evitando enderecos fixos no HTML. -->
-        <a href="{% url 'accounts:inicio' %}">Elo</a>
-
         <!-- user vem do context processor de autenticacao em settings.py. -->
         {% if user.is_authenticated %}
-            <a href="{% url 'accounts:dashboard' %}">Painel</a>
-            <a href="{% url 'accounts:compatibilidade_sanguinea' %}">Compatibilidade sanguinea</a>
-            <a href="{% url 'accounts:estoque_publico' %}">Estoques</a>
 
-            <!-- Hemocentro aprovado recebe atalho direto para o estoque privado. -->
+            <!-- Usuario logado volta para o painel, nao para a pagina publica. -->
+            <a href="{% url 'accounts:dashboard' %}">Elo</a>
+
+            <a href="{% url 'accounts:dashboard' %}">Painel</a>
+
+            <a href="{% url 'accounts:compatibilidade_sanguinea' %}">
+                Compatibilidade sanguinea
+            </a>
+
+            <a href="{% url 'accounts:estoque_publico' %}">
+                Estoques publicos
+            </a>
+
+            <!-- Somente Hemocentro aprovado gerencia estoque proprio. -->
             {% if user.perfil == "HEMOCENTRO" and user.status_validacao == "APROVADO" %}
-                <a href="{% url 'accounts:estoque_hemocentro' %}">Meu estoque</a>
+                <a href="{% url 'accounts:estoque_hemocentro' %}">
+                    Meu estoque
+                </a>
+            {% endif %}
+
+            <!-- Administrador valida Hemocentros e pode acessar o admin Django. -->
+            {% if user.is_staff or user.is_superuser or user.perfil == "ADMINISTRADOR" %}
+                <a href="{% url 'accounts:painel_aprovacao_hemocentros' %}">
+                    Aprovar Hemocentros
+                </a>
+
+                <a href="/admin/">
+                    Admin
+                </a>
             {% endif %}
 
             <span>{{ user.get_short_name }}</span>
@@ -41,12 +67,32 @@ que as paginas filhas substituem: title e content. Nao ha CSS nesta entrega.
                 {% csrf_token %}
                 <button type="submit">Sair</button>
             </form>
+
         {% else %}
-            <a href="{% url 'accounts:inicio' %}">Acesso visitante</a>
-            <a href="{% url 'accounts:login' %}">Entrar</a>
-            <a href="{% url 'accounts:cadastro' %}">Criar conta</a>
-            <a href="{% url 'accounts:compatibilidade_sanguinea' %}">Compatibilidade sanguinea</a>
-            <a href="{% url 'accounts:estoque_publico' %}">Estoques</a>
+
+            <!-- Visitante fica na pagina publica. -->
+            <a href="{% url 'accounts:inicio' %}">Elo</a>
+
+            <a href="{% url 'accounts:inicio' %}">
+                Acesso visitante
+            </a>
+
+            <a href="{% url 'accounts:compatibilidade_sanguinea' %}">
+                Compatibilidade sanguinea
+            </a>
+
+            <a href="{% url 'accounts:estoque_publico' %}">
+                Estoques publicos
+            </a>
+
+            <a href="{% url 'accounts:login' %}">
+                Entrar
+            </a>
+
+            <a href="{% url 'accounts:cadastro' %}">
+                Criar conta
+            </a>
+
         {% endif %}
     </nav>
 

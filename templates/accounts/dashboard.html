@@ -3,9 +3,14 @@
 {% comment %}
 RESUMO DO ARQUIVO
 =================
-Painel protegido do usuario cadastrado. A view envia o conteudo adequado ao
-perfil escolhido no cadastro: Doador, Receptor/Solicitante, Observador,
-Hemocentro ou Administrador.
+Painel protegido do usuario cadastrado.
+
+A view envia dois dicionarios principais:
+- painel: textos gerais do perfil logado;
+- visibilidade: regras que dizem quais blocos cada usuario pode enxergar.
+
+Assim, a particularizacao fica centralizada na view e o template apenas mostra
+ou esconde as secoes correspondentes.
 {% endcomment %}
 
 {% block title %}Painel | Elo{% endblock %}
@@ -19,6 +24,29 @@ Hemocentro ou Administrador.
     <strong>{{ painel.rotulo }}</strong>
 </p>
 
+{% if notificacoes_dashboard %}
+
+    <section>
+        <h2>Notificações</h2>
+
+        <ul>
+            {% for notificacao in notificacoes_dashboard %}
+                <li>
+                    <strong>{{ notificacao.titulo }}</strong><br>
+                    {{ notificacao.mensagem }}
+
+                    {% if notificacao.url_destino %}
+                        <br>
+                        <a href="{{ notificacao.url_destino }}">
+                            Ver detalhes
+                        </a>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    </section>
+
+{% endif %}
 
 <section>
     <h2>{{ painel.titulo }}</h2>
@@ -29,53 +57,70 @@ Hemocentro ou Administrador.
             <li>{{ acao }}</li>
         {% endfor %}
     </ul>
-
-    {% if user.perfil == "DOADOR" or user.perfil == "RECEPTOR" %}
-
-        <section>
-            <h2>Triagem para doação</h2>
-
-            {% if user.perfil == "DOADOR" %}
-
-                <p>
-                    Responda à triagem inicial antes de procurar um posto de coleta.
-                </p>
-
-            {% else %}
-
-                <p>
-                    Mesmo sendo Receptor, você pode responder à triagem
-                    caso também queira doar sangue.
-                </p>
-
-            {% endif %}
-
-            <p>
-                <a href="{% url 'accounts:triagem_apresentacao' %}">
-                    Escolher ou continuar uma triagem
-                </a>
-            </p>
-
-            <p>
-                <a href="{% url 'accounts:triagem_historico' %}">
-                    Ver meu histórico de triagens
-                </a>
-            </p>
-
-            {% if ultima_triagem %}
-                <p>
-                    <strong>Última triagem:</strong>
-                    {{ ultima_triagem.get_modalidade_display }} -
-                    {{ ultima_triagem.get_status_display }}
-                </p>
-            {% endif %}
-        </section>
-
-    {% endif %}
 </section>
 
 
-{% if painel.mostra_campanhas %}
+{% comment %}
+=================================================================
+TRIAGEM
+=================================================================
+Doador e Receptor/Solicitante podem acessar a triagem. Outros perfis nao
+devem ver esse bloco no dashboard.
+{% endcomment %}
+
+{% if visibilidade.mostra_triagem %}
+
+    <section>
+        <h2>Triagem para doação</h2>
+
+        {% if user.perfil == "DOADOR" %}
+
+            <p>
+                Responda à triagem inicial antes de procurar um posto de coleta.
+            </p>
+
+        {% elif user.perfil == "RECEPTOR" %}
+
+            <p>
+                Mesmo sendo Receptor, você pode responder à triagem
+                caso também queira doar sangue.
+            </p>
+
+        {% endif %}
+
+        <p>
+            <a href="{% url 'accounts:triagem_apresentacao' %}">
+                Escolher ou continuar uma triagem
+            </a>
+        </p>
+
+        <p>
+            <a href="{% url 'accounts:triagem_historico' %}">
+                Ver meu histórico de triagens
+            </a>
+        </p>
+
+        {% if ultima_triagem %}
+            <p>
+                <strong>Última triagem:</strong>
+                {{ ultima_triagem.get_modalidade_display }} -
+                {{ ultima_triagem.get_status_display }}
+            </p>
+        {% endif %}
+    </section>
+
+{% endif %}
+
+
+{% comment %}
+=================================================================
+CAMPANHAS
+=================================================================
+Doador e Observador veem campanhas publicas. Hemocentro pendente nao publica
+campanha; Hemocentro aprovado pode ganhar uma tela propria futuramente.
+{% endcomment %}
+
+{% if visibilidade.mostra_campanhas %}
 
     <section>
         <h2>Campanhas e mutiroes</h2>
@@ -95,10 +140,28 @@ Hemocentro ou Administrador.
 {% endif %}
 
 
-{% if painel.mostra_estoque %}
+{% comment %}
+=================================================================
+ESTOQUE PUBLICO
+=================================================================
+Doador, Receptor e Observador podem consultar a situacao publica dos estoques.
+Gerenciar estoque e diferente de consultar estoque publico.
+{% endcomment %}
+
+{% if visibilidade.mostra_estoque_publico %}
 
     <section>
-        <h2>Estoque geral</h2>
+        <h2>Estoque público</h2>
+
+        <p>
+            Consulte os estoques informados pelos Hemocentros aprovados.
+        </p>
+
+        <p>
+            <a href="{% url 'accounts:estoque_publico' %}">
+                Ver estoque público completo
+            </a>
+        </p>
 
         <table>
             <thead>
@@ -130,10 +193,25 @@ Hemocentro ou Administrador.
 {% endif %}
 
 
-{% if painel.mostra_pedidos %}
+{% comment %}
+=================================================================
+PEDIDOS
+=================================================================
+Doador, Receptor, Observador e Hemocentro podem ver pedidos ativos. O
+Administrador nao precisa receber essa lista no painel administrativo.
+{% endcomment %}
+
+{% if visibilidade.mostra_pedidos %}
 
     <section>
         <h2>Pedidos ativos</h2>
+
+        {% if user.perfil == "RECEPTOR" %}
+            <p>
+                A criação de pedidos próprios poderá ser conectada aqui
+                quando essa funcionalidade for implementada.
+            </p>
+        {% endif %}
 
         <ul>
             {% for pedido in pedidos_ativos %}
@@ -152,21 +230,33 @@ Hemocentro ou Administrador.
 {% endif %}
 
 
-<section>
-    <h2>Postos de coleta</h2>
+{% comment %}
+=================================================================
+POSTOS DE COLETA
+=================================================================
+Doador e Observador recebem a lista de postos no dashboard. Outros perfis
+podem acessar informacoes publicas pela pagina inicial quando necessario.
+{% endcomment %}
 
-    <ul>
-        {% for posto in postos %}
-            <li>
-                <strong>{{ posto.nome }}</strong><br>
-                {{ posto.cidade }}/{{ posto.estado }} -
-                {{ posto.horario }}
-            </li>
-        {% empty %}
-            <li>Nenhum posto de coleta cadastrado.</li>
-        {% endfor %}
-    </ul>
-</section>
+{% if visibilidade.mostra_postos %}
+
+    <section>
+        <h2>Postos de coleta</h2>
+
+        <ul>
+            {% for posto in postos %}
+                <li>
+                    <strong>{{ posto.nome }}</strong><br>
+                    {{ posto.cidade }}/{{ posto.estado }} -
+                    {{ posto.horario }}
+                </li>
+            {% empty %}
+                <li>Nenhum posto de coleta cadastrado.</li>
+            {% endfor %}
+        </ul>
+    </section>
+
+{% endif %}
 
 
 {% comment %}
@@ -174,14 +264,14 @@ Hemocentro ou Administrador.
 STATUS DA VALIDACAO DO HEMOCENTRO
 =================================================================
 Mostra para o Hemocentro a situacao atual do cadastro institucional.
+Somente Hemocentro aprovado recebe o link para gerenciar estoque.
 {% endcomment %}
 
-{% if request.user.perfil == "HEMOCENTRO" %}
+{% if visibilidade.mostra_status_hemocentro %}
 
     <section>
 
         <h2>Status da validação institucional</h2>
-
 
         {% if request.user.status_validacao == "PENDENTE" %}
 
@@ -197,7 +287,6 @@ Mostra para o Hemocentro a situacao atual do cadastro institucional.
                 de estoques e campanhas permanece bloqueada.
             </p>
 
-
         {% elif request.user.status_validacao == "APROVADO" %}
 
             <h3>Aprovado</h3>
@@ -207,16 +296,16 @@ Mostra para o Hemocentro a situacao atual do cadastro institucional.
             </p>
 
             <p>
-                O Hemocentro está autorizado a publicar estoques
-                e campanhas.
+                O Hemocentro está autorizado a cadastrar e atualizar estoques.
             </p>
 
-            <p>
-                <a href="{% url 'accounts:estoque_hemocentro' %}">
-                    Cadastrar e atualizar estoque
-                </a>
-            </p>
-
+            {% if visibilidade.pode_gerenciar_estoque %}
+                <p>
+                    <a href="{% url 'accounts:estoque_hemocentro' %}">
+                        Cadastrar e atualizar estoque
+                    </a>
+                </p>
+            {% endif %}
 
         {% elif request.user.status_validacao == "RECUSADO" %}
 
@@ -239,7 +328,6 @@ Mostra para o Hemocentro a situacao atual do cadastro institucional.
                 </p>
 
             {% endif %}
-
 
         {% elif request.user.status_validacao == "CORRECAO" %}
 
@@ -276,9 +364,10 @@ Mostra para o Hemocentro a situacao atual do cadastro institucional.
 ACESSO DO ADMINISTRADOR
 =================================================================
 Mostra o link para a tela de aprovação quando o usuário é administrador.
+Administrador nao e tratado como Hemocentro.
 {% endcomment %}
 
-{% if request.user.is_staff or request.user.is_superuser or request.user.perfil == "ADMINISTRADOR" %}
+{% if visibilidade.pode_aprovar_hemocentros %}
 
     <section>
 
@@ -291,6 +380,12 @@ Mostra o link para a tela de aprovação quando o usuário é administrador.
         <p>
             <a href="{% url 'accounts:painel_aprovacao_hemocentros' %}">
                 Acessar aprovação de Hemocentros
+            </a>
+        </p>
+
+        <p>
+            <a href="/admin/">
+                Acessar painel administrativo
             </a>
         </p>
 

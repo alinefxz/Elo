@@ -11,7 +11,7 @@ from .triagem_catalogo import (
 
 
 IDS_EXTENSOS = {
-    "EXT-01", "EXT-02", "EXT-03", "EXT-04", "EXT-05", "EXT-05A",
+    "EXT-01", "EXT-01A", "EXT-02", "EXT-03", "EXT-04", "EXT-05", "EXT-05A",
     "EXT-05B", "EXT-06", "EXT-07", "EXT-07A", "EXT-08", "EXT-09",
     "EXT-10", "EXT-11", "EXT-11A", "EXT-12", "EXT-13", "EXT-14",
     "EXT-15", "EXT-16", "EXT-17", "EXT-18", "EXT-19", "EXT-20",
@@ -32,7 +32,7 @@ IDS_SIMPLIFICADOS = {
 class CatalogosTriagemTests(SimpleTestCase):
     """Valida a estrutura consumida pelo formulário, serviço e motor."""
 
-    def test_catalogo_extenso_possui_todas_as_55_entradas(self):
+    def test_catalogo_extenso_possui_todas_as_56_entradas(self):
         """Falha se qualquer pergunta extensa da especificação for omitida."""
 
         self.assertEqual(set(PERGUNTAS_EXTENSAS), IDS_EXTENSOS)

@@ -6,6 +6,7 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.utils import timezone
 
+from .compatibilidade import normalizar_tipo_sanguineo
 from .models import ConsentimentoLGPD, RespostaTriagem, Triagem, Usuario
 from .triagem_catalogo import (
     PERGUNTAS_EXTENSAS,
@@ -44,7 +45,7 @@ PERFIS_COM_TRIAGEM = {
 
 # A ordem explícita evita que a posição dependa da organização física do arquivo.
 ORDEM_EXTENSA = [
-    "EXT-01", "EXT-02", "EXT-03", "EXT-04", "EXT-05", "EXT-05A",
+    "EXT-01", "EXT-01A", "EXT-02", "EXT-03", "EXT-04", "EXT-05", "EXT-05A",
     "EXT-05B", "EXT-06", "EXT-07", "EXT-07A", "EXT-08", "EXT-09",
     "EXT-10", "EXT-11", "EXT-11A", "EXT-12", "EXT-13", "EXT-14",
     "EXT-15", "EXT-16", "EXT-17", "EXT-18", "EXT-19", "EXT-20",
@@ -280,6 +281,31 @@ def _resposta_exige_extensa(id_pergunta, codigos):
     )
 
 
+def atualizar_tipo_sanguineo_do_usuario(triagem, valor):
+    """
+    Atualiza o tipo sanguineo do usuario a partir da pergunta informativa.
+
+    Essa informacao nao interfere no resultado da triagem; ela apenas liga o
+    usuario aos alertas internos de estoque e a compatibilidade sanguinea.
+    """
+
+    codigos = valor.get("codigos") or []
+    if not codigos:
+        return
+
+    try:
+        tipo_sanguineo = normalizar_tipo_sanguineo(codigos[0])
+    except ValueError:
+        return
+
+    usuario = triagem.usuario
+    if usuario.tipo_sanguineo == tipo_sanguineo:
+        return
+
+    usuario.tipo_sanguineo = tipo_sanguineo
+    usuario.save(update_fields=["tipo_sanguineo", "atualizado_em"])
+
+
 def salvar_resposta(triagem, id_pergunta, valor):
     """Salva ou corrige uma resposta e avança o fluxo com segurança."""
 
@@ -318,6 +344,9 @@ def salvar_resposta(triagem, id_pergunta, valor):
                 "source_ref": pergunta["fonte"],
             },
         )
+
+        if id_pergunta == "EXT-01A":
+            atualizar_tipo_sanguineo_do_usuario(registro, valor)
 
         exige_extensa = (
             registro.modalidade == Triagem.Modalidade.SIMPLIFICADA

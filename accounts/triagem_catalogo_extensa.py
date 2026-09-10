@@ -132,6 +132,27 @@ PERGUNTAS_EXTENSAS = {
         },
         fonte="Manual Elo, seções 1, 2 e 18; termo de triagem do projeto",
     ),
+    "EXT-01A": pergunta(
+        "EXT-01A",
+        "Tipo sanguíneo",
+        "Qual é o seu tipo sanguíneo?",
+        (
+            "Esta informação não altera o resultado da pré-triagem. "
+            "Ela será usada para compatibilidade sanguínea e alertas internos "
+            "quando algum estoque estiver baixo ou crítico."
+        ),
+        [
+            ("O-", "O-"),
+            ("O+", "O+"),
+            ("A-", "A-"),
+            ("A+", "A+"),
+            ("B-", "B-"),
+            ("B+", "B+"),
+            ("AB-", "AB-"),
+            ("AB+", "AB+"),
+            ("NAO_SEI", "Não sei / prefiro informar depois."),
+        ],
+    ),
     "EXT-02": pergunta(
         "EXT-02",
         "Idade",

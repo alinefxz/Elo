@@ -204,7 +204,7 @@ class TriagemServicoTests(TestCase):
         preferencias_neutras = (
             "NAO", "NENHUMA", "NENHUM", "NUNCA", "SIM", "18_60",
             "56_129_9", "MASCULINO", "ORIGINAL", "DESCANSADO",
-            "LEVE", "NAO_MEDI", "CONFIRMAR",
+            "LEVE", "NAO_MEDI", "NAO_SEI", "CONFIRMAR",
         )
         for id_pergunta in triagem.fluxo_perguntas:
             pergunta = obter_pergunta(id_pergunta)

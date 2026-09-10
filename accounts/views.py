@@ -358,73 +358,114 @@ PAINEIS_POR_PERFIL = {
     Usuario.Perfil.DOADOR: {
         "rotulo": "Doador",
         "titulo": "Painel do doador",
-        "descricao": "Organize sua jornada de doacao e acompanhe sua evolucao.",
+        "descricao": "Acompanhe sua jornada de doacao e encontre oportunidades para ajudar.",
         "acoes": [
-            "Responder ao questionario de saude da pre-triagem.",
-            "Registrar intencao de doacao em um posto de coleta.",
-            "Confirmar presenca em mutiroes e campanhas.",
-            "Consultar historico de doacoes, pontos e ranking.",
+            "Responder ou continuar a triagem de doacao.",
+            "Ver campanhas de doacao ativas.",
+            "Consultar pedidos de sangue em andamento.",
+            "Consultar o estoque publico dos Hemocentros.",
+            "Encontrar postos de coleta.",
+            "Consultar a compatibilidade sanguinea.",
         ],
+        "mostra_triagem": True,
         "mostra_campanhas": True,
         "mostra_pedidos": True,
-        "mostra_estoque": True,
+        "mostra_estoque_publico": True,
+        "mostra_postos": True,
     },
     Usuario.Perfil.RECEPTOR: {
         "rotulo": "Receptor / Solicitante",
         "titulo": "Painel do receptor",
-        "descricao": "Publique pedidos de sangue e acompanhe a disponibilidade.",
+        "descricao": "Acompanhe pedidos de sangue e consulte a disponibilidade publica.",
         "acoes": [
-            "Publicar pedido de socorro para si, familiar ou amigo.",
-            "Informar tipo sanguineo, cidade e urgencia do pedido.",
-            "Verificar bolsas disponiveis no estoque geral.",
-            "Acompanhar a situacao dos pedidos publicados.",
+            "Ver estoque publico dos Hemocentros.",
+            "Consultar pedidos de sangue ativos.",
+            "Criar pedido proprio futuramente.",
+            "Consultar a compatibilidade sanguinea.",
+            "Responder a triagem caso tambem queira doar sangue.",
         ],
+        "mostra_triagem": True,
         "mostra_campanhas": False,
         "mostra_pedidos": True,
-        "mostra_estoque": True,
+        "mostra_estoque_publico": True,
+        "mostra_postos": False,
     },
     Usuario.Perfil.OBSERVADOR: {
         "rotulo": "Observador",
         "titulo": "Painel do observador",
-        "descricao": "Acompanhe o cenario de pedidos e estoques ativos.",
+        "descricao": "Consulte informacoes publicas sobre campanhas, pedidos, postos e estoques.",
         "acoes": [
-            "Consultar pedidos de sangue ativos.",
-            "Acompanhar os niveis gerais dos estoques.",
-            "Pesquisar postos de coleta por cidade ou UF.",
+            "Ver estoque publico dos Hemocentros.",
+            "Consultar postos de coleta.",
+            "Acompanhar pedidos publicos.",
+            "Acompanhar campanhas publicas.",
         ],
-        "mostra_campanhas": False,
+        "mostra_triagem": False,
+        "mostra_campanhas": True,
         "mostra_pedidos": True,
-        "mostra_estoque": True,
+        "mostra_estoque_publico": True,
+        "mostra_postos": True,
     },
     Usuario.Perfil.HEMOCENTRO: {
         "rotulo": "Hemocentro",
         "titulo": "Painel do hemocentro",
-        "descricao": "Gerencie a operacao de doacao e disponibilidade de bolsas.",
+        "descricao": "Acompanhe a validacao institucional e gerencie recursos liberados.",
         "acoes": [
-            "Atualizar quantidade de bolsas por tipo sanguineo.",
-            "Criar campanhas e mutiroes de arrecadacao.",
-            "Confirmar comparecimento e doacao realizada pelo doador.",
-            "Monitorar pedidos ativos que dependem do estoque.",
+            "Acompanhar o status da validacao institucional.",
+            "Cadastrar estoque quando o cadastro estiver aprovado.",
+            "Atualizar estoque quando o cadastro estiver aprovado.",
+            "Consultar historico de movimentacoes de estoque.",
+            "Acompanhar pedidos ativos relacionados a doacao.",
         ],
-        "mostra_campanhas": True,
+        "mostra_triagem": False,
+        "mostra_campanhas": False,
         "mostra_pedidos": True,
-        "mostra_estoque": True,
+        "mostra_estoque_publico": False,
+        "mostra_postos": False,
     },
     Usuario.Perfil.ADMINISTRADOR: {
         "rotulo": "Administrador",
         "titulo": "Painel administrativo",
-        "descricao": "Acompanhe cadastros, consentimentos e operacoes internas.",
+        "descricao": "Gerencie validacoes institucionais e acompanhe operacoes sensiveis.",
         "acoes": [
-            "Gerenciar usuarios e perfis no painel administrativo.",
-            "Consultar consentimentos LGPD registrados.",
-            "Apoiar hemocentros e solicitantes em fluxos excepcionais.",
+            "Aprovar Hemocentros.",
+            "Recusar Hemocentros.",
+            "Solicitar correcao cadastral de Hemocentros.",
+            "Acessar o painel administrativo do Django.",
         ],
-        "mostra_campanhas": True,
-        "mostra_pedidos": True,
-        "mostra_estoque": True,
+        "mostra_triagem": False,
+        "mostra_campanhas": False,
+        "mostra_pedidos": False,
+        "mostra_estoque_publico": False,
+        "mostra_postos": False,
     },
 }
+def montar_visibilidade_dashboard(usuario, painel):
+    """
+    Centraliza a particularizacao do dashboard por perfil.
 
+    O dicionario PAINEIS_POR_PERFIL define o que cada tipo de conta pode ver
+    por padrao. Esta funcao acrescenta regras que dependem do estado atual do
+    usuario, como Hemocentro aprovado e Administrador.
+    """
+
+    hemocentro_aprovado = (
+        usuario.perfil == Usuario.Perfil.HEMOCENTRO
+        and usuario.status_validacao == Usuario.StatusValidacaoHemocentro.APROVADO
+    )
+
+    administrador = usuario_e_administrador(usuario)
+
+    return {
+        "mostra_triagem": painel.get("mostra_triagem", False),
+        "mostra_campanhas": painel.get("mostra_campanhas", False),
+        "mostra_pedidos": painel.get("mostra_pedidos", False),
+        "mostra_estoque_publico": painel.get("mostra_estoque_publico", False),
+        "mostra_postos": painel.get("mostra_postos", False),
+        "mostra_status_hemocentro": usuario.perfil == Usuario.Perfil.HEMOCENTRO,
+        "pode_gerenciar_estoque": hemocentro_aprovado,
+        "pode_aprovar_hemocentros": administrador,
+    }
 
 def obter_ip(request):
     """Extrai o IP usado no registro do consentimento LGPD."""
@@ -646,14 +687,25 @@ def dashboard(request):
     if pode_responder(request.user):
         ultima_triagem = request.user.triagens.order_by("-iniciada_em").first()
 
+    visibilidade = montar_visibilidade_dashboard(request.user, painel)
+
+    notificacoes_dashboard = (
+        request.user.notificacoes
+        .select_related("estoque", "estoque__hemocentro")
+        .filter(lida=False)
+        .order_by("-criada_em")[:5]
+    )
+    
     contexto = {
         "painel": painel,
+        "visibilidade": visibilidade,
         "postos": POSTOS_COLETA,
         "estoque_geral": ESTOQUE_GERAL,
         "pedidos_ativos": PEDIDOS_ATIVOS,
         "campanhas_ativas": CAMPANHAS_ATIVAS,
         "validacao_atual": validacao_atual,
         "ultima_triagem": ultima_triagem,
+        "notificacoes_dashboard": notificacoes_dashboard,
     }
 
     return render(

@@ -22,6 +22,7 @@ from .models import (
     RespostaTriagem,
     Estoque,
     EstoqueMovimentacao,
+    Notificacao,
 )
 from .validacao_hemocentro import (
     aprovar_hemocentro,
@@ -62,6 +63,7 @@ class UsuarioAdmin(UserAdmin):
         "email",
         "nome",
         "perfil",
+        "tipo_sanguineo",
         "status_validacao",
         "is_active",
         "email_verificado",
@@ -71,6 +73,7 @@ class UsuarioAdmin(UserAdmin):
     # Filtros laterais e campos pesquisaveis no painel.
     list_filter = (
         "perfil",
+        "tipo_sanguineo",
         "status_validacao",
         "is_active",
         "email_verificado",
@@ -106,6 +109,7 @@ class UsuarioAdmin(UserAdmin):
                     "telefone",
                     "data_nascimento",
                     "sexo",
+                    "tipo_sanguineo",
                     "cidade",
                     "estado",
                     "status_validacao",
@@ -611,3 +615,31 @@ class RespostaTriagemAdmin(admin.ModelAdmin):
     # Impede exclusão.
     def has_delete_permission(self, request, obj=None):
         return False
+
+@admin.register(Notificacao)
+class NotificacaoAdmin(admin.ModelAdmin):
+    """Permite consultar os avisos internos enviados aos usuarios."""
+
+    list_display = (
+        "usuario",
+        "tipo",
+        "titulo",
+        "lida",
+        "criada_em",
+    )
+    list_filter = (
+        "tipo",
+        "lida",
+        "criada_em",
+    )
+    search_fields = (
+        "usuario__email",
+        "usuario__nome",
+        "titulo",
+        "mensagem",
+    )
+    readonly_fields = (
+        "criada_em",
+        "lida_em",
+    )
+    ordering = ("-criada_em",)

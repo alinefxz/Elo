@@ -9,26 +9,95 @@ UC_30 - Atualizar Estoque:
     ``registrar_movimentacao_estoque`` aplica uma entrada, saida ou ajuste
     de bolsas, atualiza a quantidade do Estoque e grava o historico em
     EstoqueMovimentacao com o responsavel pela alteracao.
-
-Assim como em validacao_hemocentro.py, as views nunca devem criar ou
-alterar Estoque/EstoqueMovimentacao diretamente: elas devem chamar estas
-funcoes, que concentram validacao, transacao e auditoria em um so lugar.
 """
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.urls import reverse
 
 from .auditoria import registrar_auditoria
-from .compatibilidade import normalizar_tipo_sanguineo
-from .models import AuditoriaAcaoCritica, Estoque, EstoqueMovimentacao, Usuario
+from .compatibilidade import doadores_compativeis_para, normalizar_tipo_sanguineo
+from .models import (
+    AuditoriaAcaoCritica,
+    Estoque,
+    EstoqueMovimentacao,
+    Notificacao,
+    Usuario,
+)
 from .validacao_hemocentro import validar_publicacao_hemocentro
+
+
+STATUS_DE_ESTOQUE_QUE_GERAM_ALERTA = {
+    Estoque.StatusCalculado.BAIXO: Notificacao.Tipo.ESTOQUE_BAIXO,
+    Estoque.StatusCalculado.CRITICO: Notificacao.Tipo.ESTOQUE_CRITICO,
+}
+
+
+def criar_notificacoes_para_doadores_compativeis(*, estoque, status_calculado):
+    """
+    Cria notificacoes internas para doadores compativeis.
+
+    Quando o estoque atualizado fica BAIXO ou CRITICO, o sistema procura
+    doadores ativos cujo tipo sanguineo seja compativel com aquele estoque.
+    """
+
+    if status_calculado not in STATUS_DE_ESTOQUE_QUE_GERAM_ALERTA:
+        return 0
+
+    tipos_compativeis = doadores_compativeis_para(estoque.tipo_sanguineo)
+    tipo_notificacao = STATUS_DE_ESTOQUE_QUE_GERAM_ALERTA[status_calculado]
+
+    doadores = Usuario.objects.filter(
+        perfil=Usuario.Perfil.DOADOR,
+        tipo_sanguineo__in=tipos_compativeis,
+        is_active=True,
+    )
+
+    usuarios_com_alerta_aberto = set(
+        Notificacao.objects.filter(
+            usuario__in=doadores,
+            estoque=estoque,
+            tipo=tipo_notificacao,
+            lida=False,
+        ).values_list("usuario_id", flat=True)
+    )
+
+    nivel = "critico"
+    if status_calculado == Estoque.StatusCalculado.BAIXO:
+        nivel = "baixo"
+
+    notificacoes = []
+
+    for doador in doadores:
+        if doador.pk in usuarios_com_alerta_aberto:
+            continue
+
+        notificacoes.append(
+            Notificacao(
+                usuario=doador,
+                estoque=estoque,
+                tipo=tipo_notificacao,
+                titulo=f"Estoque {nivel} para {estoque.tipo_sanguineo}",
+                mensagem=(
+                    f"O estoque {estoque.tipo_sanguineo} do Hemocentro "
+                    f"{estoque.hemocentro.nome} esta em nivel {nivel}. "
+                    f"Seu tipo sanguineo ({doador.tipo_sanguineo}) "
+                    "e compativel para doacao."
+                ),
+                url_destino=reverse("accounts:estoque_publico"),
+            )
+        )
+
+    Notificacao.objects.bulk_create(notificacoes)
+
+    return len(notificacoes)
 
 
 def calcular_status_calculado(*, quantidade_bolsas, nivel_minimo, nivel_critico):
     """
     Deriva o status do estoque a partir da quantidade e dos niveis de alerta.
 
-    Regra (da mais grave para a mais leve):
+    Regra:
     - quantidade <= nivel_critico  -> CRITICO;
     - quantidade <= nivel_minimo   -> BAIXO;
     - caso contrario               -> ESTAVEL.
@@ -46,12 +115,9 @@ def calcular_status_calculado(*, quantidade_bolsas, nivel_minimo, nivel_critico)
 def validar_responsavel_pelo_estoque(*, estoque, usuario):
     """
     Garante que somente o proprio Hemocentro aprovado, dono do estoque,
-    possa gerenciar aquele registro (cadastrar ou movimentar bolsas).
+    possa gerenciar aquele registro.
     """
 
-    # validar_publicacao_hemocentro ja cobre: autenticado, perfil
-    # Hemocentro e status_validacao == APROVADO. Reaproveitar essa funcao
-    # evita duas regras de aprovacao divergentes no projeto.
     validar_publicacao_hemocentro(usuario)
 
     if estoque is not None and estoque.hemocentro_id != usuario.pk:
@@ -63,7 +129,7 @@ def validar_responsavel_pelo_estoque(*, estoque, usuario):
 
 
 def obter_estoque_do_hemocentro(*, hemocentro, tipo_sanguineo):
-    """Busca (ou None) o Estoque de um tipo sanguineo especifico."""
+    """Busca um Estoque de um tipo sanguineo especifico."""
 
     tipo = normalizar_tipo_sanguineo(tipo_sanguineo)
 
@@ -85,23 +151,25 @@ def cadastrar_estoque(
     """
     UC_29 - Cria a estrutura de estoque de um tipo sanguineo para um
     Hemocentro aprovado.
-
-    Levanta ValidationError se o tipo sanguineo for invalido, se os
-    niveis estiverem incoerentes ou se ja existir estoque cadastrado
-    para aquele par hemocentro + tipo sanguineo.
     """
 
-    # Somente Hemocentro aprovado pode cadastrar o proprio estoque.
     validar_publicacao_hemocentro(hemocentro)
 
     tipo = normalizar_tipo_sanguineo(tipo_sanguineo)
 
     if nivel_critico > nivel_minimo:
         raise ValidationError(
-            {"nivel_critico": "O nivel critico deve ser menor ou igual ao nivel minimo."}
+            {
+                "nivel_critico": (
+                    "O nivel critico deve ser menor ou igual ao nivel minimo."
+                )
+            }
         )
 
-    if Estoque.objects.filter(hemocentro=hemocentro, tipo_sanguineo=tipo).exists():
+    if Estoque.objects.filter(
+        hemocentro=hemocentro,
+        tipo_sanguineo=tipo,
+    ).exists():
         raise ValidationError(
             f"Ja existe estoque cadastrado para o tipo {tipo} neste hemocentro."
         )
@@ -152,15 +220,6 @@ def registrar_movimentacao_estoque(
     """
     UC_30 - Aplica uma movimentacao de bolsas sobre um Estoque existente
     e grava o historico correspondente.
-
-    ``quantidade`` tem um significado diferente por tipo_movimento:
-    - ENTRADA / SAIDA: quantidade de bolsas a somar ou subtrair (> 0);
-    - AJUSTE: a nova quantidade absoluta de bolsas no estoque (>= 0),
-      usada por exemplo apos uma contagem fisica.
-
-    A funcao trava a linha do Estoque (select_for_update) durante a
-    transacao para que duas movimentacoes simultaneas nunca calculem a
-    quantidade nova a partir do mesmo valor antigo.
     """
 
     validar_responsavel_pelo_estoque(estoque=estoque, usuario=usuario_resp)
@@ -182,9 +241,6 @@ def registrar_movimentacao_estoque(
         )
 
     with transaction.atomic():
-        # select_for_update busca o Estoque de novo, ja bloqueado para
-        # escrita, para evitar condicao de corrida entre duas
-        # movimentacoes feitas quase ao mesmo tempo.
         estoque_atual = Estoque.objects.select_for_update().get(pk=estoque.pk)
 
         quantidade_anterior = estoque_atual.quantidade_bolsas
@@ -203,10 +259,11 @@ def registrar_movimentacao_estoque(
                         )
                     }
                 )
+
             quantidade_movimentada = quantidade
             quantidade_nova = quantidade_anterior - quantidade
 
-        else:  # AJUSTE
+        else:
             quantidade_nova = quantidade
             quantidade_movimentada = quantidade_nova - quantidade_anterior
 
@@ -236,6 +293,11 @@ def registrar_movimentacao_estoque(
             motivo=(motivo or "").strip(),
         )
 
+        notificacoes_geradas = criar_notificacoes_para_doadores_compativeis(
+            estoque=estoque_atual,
+            status_calculado=status_calculado,
+        )
+
         registrar_auditoria(
             acao=AuditoriaAcaoCritica.Acao.ATUALIZACAO_ESTOQUE,
             usuario=usuario_resp,
@@ -249,6 +311,7 @@ def registrar_movimentacao_estoque(
                 "quantidade_movimentada": quantidade_movimentada,
                 "quantidade_nova": quantidade_nova,
                 "status_calculado": status_calculado,
+                "notificacoes_geradas": notificacoes_geradas,
                 "motivo": movimentacao.motivo,
             },
         )
@@ -256,13 +319,12 @@ def registrar_movimentacao_estoque(
     return movimentacao
 
 
-
 def calcular_status_publico(quantidade_bolsas, nivel_minimo, nivel_critico):
     """
-    Calcula o status que será exibido publicamente.
+    Calcula o status que sera exibido publicamente.
 
-    Os níveis mínimo e crítico são utilizados apenas internamente
-    para determinar a situação do estoque e não são exibidos ao público.
+    Os niveis minimo e critico sao utilizados apenas internamente
+    para determinar a situacao do estoque.
     """
 
     if quantidade_bolsas <= nivel_critico:
@@ -319,4 +381,3 @@ def obter_estoques_publicos():
         )
 
     return resultado
-
