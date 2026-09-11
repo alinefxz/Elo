@@ -206,12 +206,11 @@ Administrador nao precisa receber essa lista no painel administrativo.
     <section>
         <h2>Pedidos ativos</h2>
 
-        {% if user.perfil == "RECEPTOR" %}
-            <p>
-                A criação de pedidos próprios poderá ser conectada aqui
-                quando essa funcionalidade for implementada.
-            </p>
-        {% endif %}
+        <p>
+            <a href="{% url 'accounts:pedido_publicar' %}">
+                Publicar pedido de sangue
+            </a>
+        </p>
 
         <ul>
             {% for pedido in pedidos_ativos %}

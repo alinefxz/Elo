@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Pedido de sangue registrado | Elo{% endblock %}
+
+{% block content %}
+<h1>Pedido de sangue registrado</h1>
+
+<p>
+    Seu pedido foi registrado e está aguardando validação.
+</p>
+
+<dl>
+    <dt>Para quem</dt>
+    <dd>{{ pedido.get_para_quem_display }}</dd>
+
+    <dt>Tipo solicitado</dt>
+    <dd>{{ pedido.tipo_sanguineo }}</dd>
+
+    <dt>Hemocentro</dt>
+    <dd>{{ pedido.hemocentro.nome }}</dd>
+
+    <dt>Cidade</dt>
+    <dd>{{ pedido.cidade }}{% if pedido.hemocentro.estado %} - {{ pedido.hemocentro.estado }}{% endif %}</dd>
+
+    <dt>Urgência</dt>
+    <dd>{{ pedido.get_urgencia_display }}</dd>
+
+    {% if pedido.nome_paciente %}
+        <dt>Nome da pessoa</dt>
+        <dd>{{ pedido.nome_paciente }}</dd>
+    {% endif %}
+
+    <dt>Descrição</dt>
+    <dd>{{ pedido.descricao }}</dd>
+
+    <dt>Status</dt>
+    <dd>{{ pedido.get_status_display }}</dd>
+
+    <dt>Data</dt>
+    <dd>{{ pedido.data_criacao|date:"d/m/Y H:i" }}</dd>
+</dl>
+
+<p><a href="{% url 'accounts:dashboard' %}">Voltar ao início</a></p>
+{% endblock %}
