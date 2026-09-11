@@ -438,7 +438,7 @@ PAINEIS_POR_PERFIL = {
         ],
         "mostra_triagem": False,
         "mostra_campanhas": False,
-        "mostra_pedidos": False,
+        "mostra_pedidos": True,
         "mostra_estoque_publico": False,
         "mostra_postos": False,
     },

@@ -135,12 +135,13 @@ class PedidoSangueTests(TestCase):
             self.observador,
         )
 
-    def test_administrador_nao_publica_pedido(self):
+    def test_administrador_pode_acessar_publicacao_de_pedido(self):
         self.client.force_login(self.administrador)
 
         resposta = self.client.get(reverse("accounts:pedido_publicar"))
 
-        self.assertEqual(resposta.status_code, 403)
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "Publicar pedido de sangue")
         self.assertFalse(PedidoSangue.objects.exists())
 
     def test_visitante_precisa_entrar(self):

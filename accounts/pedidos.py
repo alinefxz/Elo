@@ -11,6 +11,7 @@ PERFIS_QUE_PUBLICAM_PEDIDOS = {
     Usuario.Perfil.RECEPTOR,
     Usuario.Perfil.OBSERVADOR,
     Usuario.Perfil.HEMOCENTRO,
+    Usuario.Perfil.ADMINISTRADOR,
 }
 
 
