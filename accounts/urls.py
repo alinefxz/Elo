@@ -50,6 +50,18 @@ urlpatterns = [
         name="dashboard",
     ),
 
+    # Publicação de pedidos de sangue.
+    path(
+        "pedidos/publicar/",
+        views.pedido_publicar,
+        name="pedido_publicar",
+    ),
+    path(
+        "pedidos/<int:id_pedido>/",
+        views.pedido_detalhe,
+        name="pedido_detalhe",
+    ),
+
     # ==========================================================
     # TRIAGEM
     # ==========================================================

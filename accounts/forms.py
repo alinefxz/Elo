@@ -17,7 +17,7 @@ from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 
 from .compatibilidade import TIPOS_SANGUINEOS
-from .models import EstoqueMovimentacao, Usuario
+from .models import EstoqueMovimentacao, PedidoSangue, Usuario
 
 from datetime import date
 
@@ -301,6 +301,65 @@ class LoginUsuarioForm(AuthenticationForm):
     )
 
 
+class PedidoSangueForm(forms.ModelForm):
+    """Formulário para registrar um pedido, sem decidir sua validade."""
+
+    class Meta:
+        model = PedidoSangue
+        fields = [
+            "para_quem",
+            "tipo_sanguineo",
+            "hemocentro",
+            "urgencia",
+            "nome_paciente",
+            "descricao",
+        ]
+        labels = {
+            "para_quem": "Para quem é este pedido?",
+            "tipo_sanguineo": "Tipo sanguíneo necessário",
+            "hemocentro": "Hemocentro de destino",
+            "urgencia": "Urgência",
+            "nome_paciente": "Nome da pessoa (opcional)",
+            "descricao": "Descrição do pedido",
+        }
+        help_texts = {
+            "hemocentro": (
+                "A cidade será preenchida automaticamente a partir do hemocentro."
+            ),
+            "descricao": "Explique a necessidade em poucas palavras.",
+        }
+        widgets = {
+            "para_quem": forms.RadioSelect,
+            "tipo_sanguineo": forms.RadioSelect,
+            "urgencia": forms.RadioSelect,
+            "descricao": forms.Textarea(attrs={"rows": 5}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["hemocentro"].queryset = (
+            Usuario.objects
+            .filter(
+                perfil=Usuario.Perfil.HEMOCENTRO,
+                status_validacao=Usuario.StatusValidacaoHemocentro.APROVADO,
+            )
+            .order_by("nome")
+        )
+
+    def clean_nome_paciente(self):
+        return (self.cleaned_data.get("nome_paciente") or "").strip()
+
+    def clean_descricao(self):
+        descricao = (self.cleaned_data.get("descricao") or "").strip()
+
+        if len(descricao) < 10:
+            raise forms.ValidationError(
+                "Descreva a necessidade com pelo menos 10 caracteres."
+            )
+
+        return descricao
+
+
 class TriagemExtensaForm(forms.Form):
     """
     Formulário inicial da triagem extensa.
@@ -540,4 +599,3 @@ class MovimentarEstoqueForm(forms.Form):
             )
 
         return dados
-    

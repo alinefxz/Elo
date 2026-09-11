@@ -26,6 +26,7 @@ from .forms import (
     CadastrarEstoqueForm,
     CadastroUsuarioForm,
     MovimentarEstoqueForm,
+    PedidoSangueForm,
     TriagemExtensaForm,
 )
 from .estoque import (
@@ -36,6 +37,7 @@ from .estoque import (
 from .models import (
     ConsentimentoLGPD,
     Estoque,
+    PedidoSangue,
     RespostaTriagem,
     Triagem,
     Usuario,
@@ -68,6 +70,7 @@ from .triagem_servico import (
     voltar_pergunta,
 )
 from .triagem_forms import FormularioPergunta as FormularioPerguntaTriagem
+from .pedidos import pode_publicar_pedido, publicar_pedido
 
 
 class FormularioPergunta(forms.Form):
@@ -380,7 +383,7 @@ PAINEIS_POR_PERFIL = {
         "acoes": [
             "Ver estoque publico dos Hemocentros.",
             "Consultar pedidos de sangue ativos.",
-            "Criar pedido proprio futuramente.",
+            "Publicar pedido de sangue.",
             "Consultar a compatibilidade sanguinea.",
             "Responder a triagem caso tambem queira doar sangue.",
         ],
@@ -712,6 +715,54 @@ def dashboard(request):
         request,
         "accounts/dashboard.html",
         contexto,
+    )
+
+
+@login_required
+def pedido_publicar(request):
+    """Exibe e processa o formulário de publicação de pedido."""
+
+    if not pode_publicar_pedido(request.user):
+        raise PermissionDenied(
+            "Este perfil não pode publicar pedidos de sangue."
+        )
+
+    if request.method == "POST":
+        form = PedidoSangueForm(request.POST)
+        if form.is_valid():
+            pedido = publicar_pedido(request.user, form)
+            messages.success(
+                request,
+                "Seu pedido de sangue foi registrado e está aguardando validação.",
+            )
+            return redirect(
+                "accounts:pedido_detalhe",
+                id_pedido=pedido.pk,
+            )
+    else:
+        form = PedidoSangueForm()
+
+    return render(
+        request,
+        "accounts/pedido_publicar.html",
+        {"form": form},
+    )
+
+
+@login_required
+def pedido_detalhe(request, id_pedido):
+    """Exibe a confirmação somente para quem publicou o pedido."""
+
+    pedido = get_object_or_404(
+        PedidoSangue,
+        pk=id_pedido,
+        solicitante=request.user,
+    )
+
+    return render(
+        request,
+        "accounts/pedido_detalhe.html",
+        {"pedido": pedido},
     )
 
 
