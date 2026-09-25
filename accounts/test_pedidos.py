@@ -2,8 +2,9 @@ from django.test import TestCase
 from django.urls import reverse
 
 from .forms import PedidoSangueForm
-from .models import PedidoSangue, Usuario
+from .models import PedidoSangue, Usuario, ValidacaoPedido
 from .validacao_hemocentro import aprovar_hemocentro
+from .validacao_pedido import aprovar_pedido
 
 
 class PedidoSangueTests(TestCase):
@@ -18,20 +19,15 @@ class PedidoSangueTests(TestCase):
         )
 
     def setUp(self):
-        self.doador = self.criar_usuario(
-            email="doador@elo.test",
-            nome="Doador Elo",
-            perfil=Usuario.Perfil.DOADOR,
-        )
         self.receptor = self.criar_usuario(
             email="receptor@elo.test",
             nome="Receptor Elo",
             perfil=Usuario.Perfil.RECEPTOR,
         )
-        self.observador = self.criar_usuario(
-            email="observador@elo.test",
-            nome="Familiar Elo",
-            perfil=Usuario.Perfil.OBSERVADOR,
+        self.doador = self.criar_usuario(
+            email="doador@elo.test",
+            nome="Doador Elo",
+            perfil=Usuario.Perfil.DOADOR,
         )
         self.administrador = self.criar_usuario(
             email="admin@elo.test",
@@ -61,29 +57,49 @@ class PedidoSangueTests(TestCase):
 
     def dados_validos(self, **alteracoes):
         dados = {
-            "para_quem": "OUTRA_PESSOA",
+            "para_quem": PedidoSangue.ParaQuem.OUTRA_PESSOA,
+            "hemocentro_destino": self.hemocentro.pk,
+            "titulo": "Doacao para paciente internado",
             "tipo_sanguineo": "O-",
-            "hemocentro": self.hemocentro.pk,
-            "urgencia": "CRITICO",
+            "urgencia": PedidoSangue.Urgencia.BAIXA,
+            "cidade": "Muzambinho",
             "nome_paciente": "Paciente de exemplo",
             "descricao": (
-                "Precisamos de doadores para auxiliar um paciente em atendimento."
+                "Precisamos de doadores para auxiliar um paciente internado."
             ),
+            "justificativa_urgencia": "",
         }
         dados.update(alteracoes)
         return dados
 
-    def test_formulario_pergunta_para_quem_e_lista_apenas_hemocentros_aprovados(self):
+    def test_formulario_lista_apenas_hemocentros_aprovados(self):
         form = PedidoSangueForm()
 
         self.assertIn("para_quem", form.fields)
+        self.assertIn("nome_paciente", form.fields)
         self.assertEqual(
-            list(form.fields["hemocentro"].queryset),
+            list(form.fields["hemocentro_destino"].queryset),
             [self.hemocentro],
         )
-        self.assertNotIn("cidade", form.fields)
 
-    def test_doador_publica_para_outra_pessoa_e_salva_pendente(self):
+    def test_receptor_cria_pedido_pendente(self):
+        self.client.force_login(self.receptor)
+
+        resposta = self.client.post(
+            reverse("accounts:pedido_publicar"),
+            self.dados_validos(),
+        )
+
+        self.assertRedirects(resposta, reverse("accounts:consultar_pedidos"))
+        pedido = PedidoSangue.objects.get()
+        self.assertEqual(pedido.solicitante, self.receptor)
+        self.assertEqual(pedido.hemocentro_destino, self.hemocentro)
+        self.assertEqual(
+            pedido.status,
+            PedidoSangue.Status.PENDENTE_VALIDACAO,
+        )
+
+    def test_doador_nao_pode_criar_pedido(self):
         self.client.force_login(self.doador)
 
         resposta = self.client.post(
@@ -91,57 +107,7 @@ class PedidoSangueTests(TestCase):
             self.dados_validos(),
         )
 
-        pedido = PedidoSangue.objects.get()
-        self.assertRedirects(
-            resposta,
-            reverse(
-                "accounts:pedido_detalhe",
-                kwargs={"id_pedido": pedido.pk},
-            ),
-        )
-        self.assertEqual(pedido.solicitante, self.doador)
-        self.assertEqual(pedido.para_quem, PedidoSangue.ParaQuem.OUTRA_PESSOA)
-        self.assertEqual(pedido.hemocentro, self.hemocentro)
-        self.assertEqual(pedido.cidade, "Muzambinho")
-        self.assertEqual(pedido.status, PedidoSangue.Status.PENDENTE)
-
-    def test_receptor_pode_publicar_para_si(self):
-        self.client.force_login(self.receptor)
-
-        resposta = self.client.post(
-            reverse("accounts:pedido_publicar"),
-            self.dados_validos(
-                para_quem="MIM",
-                nome_paciente="",
-            ),
-        )
-
-        self.assertEqual(resposta.status_code, 302)
-        pedido = PedidoSangue.objects.get()
-        self.assertEqual(pedido.solicitante, self.receptor)
-        self.assertEqual(pedido.para_quem, PedidoSangue.ParaQuem.MIM)
-
-    def test_observador_pode_publicar_como_familiar_ou_solicitante(self):
-        self.client.force_login(self.observador)
-
-        resposta = self.client.post(
-            reverse("accounts:pedido_publicar"),
-            self.dados_validos(),
-        )
-
-        self.assertEqual(resposta.status_code, 302)
-        self.assertEqual(
-            PedidoSangue.objects.get().solicitante,
-            self.observador,
-        )
-
-    def test_administrador_pode_acessar_publicacao_de_pedido(self):
-        self.client.force_login(self.administrador)
-
-        resposta = self.client.get(reverse("accounts:pedido_publicar"))
-
-        self.assertEqual(resposta.status_code, 200)
-        self.assertContains(resposta, "Publicar pedido de sangue")
+        self.assertRedirects(resposta, reverse("accounts:dashboard"))
         self.assertFalse(PedidoSangue.objects.exists())
 
     def test_visitante_precisa_entrar(self):
@@ -158,31 +124,45 @@ class PedidoSangueTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("descricao", form.errors)
 
-    def test_pedido_pendente_nao_pode_ser_escolhido_como_destino(self):
+    def test_formulario_rejeita_hemocentro_pendente(self):
         form = PedidoSangueForm(
-            self.dados_validos(hemocentro=self.hemocentro_pendente.pk)
-        )
-
-        self.assertFalse(form.is_valid())
-        self.assertIn("hemocentro", form.errors)
-
-    def test_detalhe_so_pode_ser_visto_pelo_solicitante(self):
-        pedido = PedidoSangue.objects.create(
-            solicitante=self.doador,
-            para_quem=PedidoSangue.ParaQuem.OUTRA_PESSOA,
-            hemocentro=self.hemocentro,
-            tipo_sanguineo="O-",
-            cidade="Muzambinho",
-            urgencia=PedidoSangue.Urgencia.NORMAL,
-            descricao="Descrição suficiente para o pedido de sangue.",
-        )
-        self.client.force_login(self.receptor)
-
-        resposta = self.client.get(
-            reverse(
-                "accounts:pedido_detalhe",
-                kwargs={"id_pedido": pedido.pk},
+            self.dados_validos(
+                hemocentro_destino=self.hemocentro_pendente.pk,
             )
         )
 
-        self.assertEqual(resposta.status_code, 404)
+        self.assertFalse(form.is_valid())
+        self.assertIn("hemocentro_destino", form.errors)
+
+    def test_urgencia_critica_exige_justificativa(self):
+        form = PedidoSangueForm(
+            self.dados_validos(
+                urgencia=PedidoSangue.Urgencia.CRITICA,
+                justificativa_urgencia="Curta",
+            )
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("justificativa_urgencia", form.errors)
+
+    def test_administrador_aprova_pedido_e_registra_historico(self):
+        self.client.force_login(self.receptor)
+        self.client.post(
+            reverse("accounts:pedido_publicar"),
+            self.dados_validos(),
+        )
+        pedido = PedidoSangue.objects.get()
+
+        validacao = aprovar_pedido(
+            pedido=pedido,
+            moderador=self.administrador,
+            motivo="Dados conferidos pelo administrador.",
+        )
+
+        pedido.refresh_from_db()
+        self.assertEqual(pedido.status, PedidoSangue.Status.ATIVO)
+        self.assertEqual(
+            validacao.status_validacao,
+            ValidacaoPedido.StatusValidacao.APROVADO,
+        )
+        self.assertEqual(pedido.validacoes.count(), 1)

@@ -95,8 +95,6 @@ from .triagem_servico import (
 
 from .triagem_forms import FormularioPergunta as FormularioPerguntaTriagem
 
-from .pedidos import pode_publicar_pedido, publicar_pedido
-
 from .validacao_pedido import (
     aprovar_pedido as aprovar_pedido_servico,
     recusar_pedido as recusar_pedido_servico,
@@ -773,58 +771,6 @@ def dashboard(request):
 
 
 @login_required
-def pedido_publicar(request):
-    """Exibe e processa o formulário de publicação de pedido."""
-
-    if not pode_publicar_pedido(request.user):
-        raise PermissionDenied(
-            "Este perfil não pode publicar pedidos."
-        )
-
-    if request.method == "POST":
-        form = PedidoSangueForm(request.POST)
-
-        if form.is_valid():
-            pedido = publicar_pedido(request.user, form)
-
-            messages.success(
-                request,
-                "Seu pedido de sangue foi registrado e está aguardando validação.",
-            )
-
-            return redirect(
-                "accounts:pedido_detalhe",
-                id_pedido=pedido.pk,
-            )
-
-    else:
-        form = PedidoSangueForm()
-
-    return render(
-        request,
-        "accounts/pedido_publicar.html",
-        {"form": form},
-    )
-
-
-@login_required
-def pedido_detalhe(request, id_pedido):
-    """Exibe a confirmação somente para quem publicou o pedido."""
-
-    pedido = get_object_or_404(
-        PedidoSangue,
-        pk=id_pedido,
-        solicitante=request.user,
-    )
-
-    return render(
-        request,
-        "accounts/pedido_detalhe.html",
-        {"pedido": pedido},
-    )
-
-
-@login_required
 def painel_aprovacao_hemocentros(request):
     """Mostra a tela administrativa de aprovacao de Hemocentros."""
 
@@ -1471,10 +1417,9 @@ def criar_pedido_sangue(request):
 
         if form.is_valid():
             try:
-                pedido = registrar_pedido_com_validacao(
+                pedido = criar_pedido_pendente(
                     dados=form.cleaned_data,
                     solicitante=request.user,
-                    request=request,
                 )
 
                 if pedido.status == PedidoSangue.Status.SUSPEITO:
@@ -1499,7 +1444,7 @@ def criar_pedido_sangue(request):
 
     return render(
         request,
-        "accounts/pedido_form.html",
+        "accounts/pedido_publicar.html",
         {
             "form": form,
         },

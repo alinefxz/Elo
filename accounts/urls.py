@@ -70,14 +70,8 @@ urlpatterns = [
     # Publicacao de pedidos de sangue.
     path(
         "pedidos/publicar/",
-        views.pedido_publicar,
+        views.criar_pedido_sangue,
         name="pedido_publicar",
-    ),
-
-    path(
-        "pedidos/<int:id_pedido>/",
-        views.pedido_detalhe,
-        name="pedido_detalhe",
     ),
 
     path(
@@ -147,40 +141,6 @@ urlpatterns = [
         "triagens/historico/",
         views.triagem_historico,
         name="triagem_historico",
-    ),
-
-    # ==========================================================
-    # VALIDACAO DE HEMOCENTROS
-    # ==========================================================
-
-    path(
-        "hemocentros/validacao/pendentes/",
-        views.hemocentros_pendentes,
-        name="hemocentros_pendentes",
-    ),
-
-    path(
-        "hemocentros/<int:id_hemocentro>/aprovar/",
-        views.aprovar_hemocentro,
-        name="aprovar_hemocentro",
-    ),
-
-    path(
-        "hemocentros/<int:id_hemocentro>/recusar/",
-        views.recusar_hemocentro,
-        name="recusar_hemocentro",
-    ),
-
-    path(
-        "hemocentros/<int:id_hemocentro>/solicitar-correcao/",
-        views.solicitar_correcao_hemocentro,
-        name="solicitar_correcao_hemocentro",
-    ),
-
-    path(
-        "hemocentros/validacao/",
-        views.painel_aprovacao_hemocentros,
-        name="painel_aprovacao_hemocentros",
     ),
 
     # ==========================================================

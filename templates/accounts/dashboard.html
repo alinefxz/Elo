@@ -366,33 +366,6 @@ Mostra o link para a tela de aprovação quando o usuário é administrador.
 Administrador nao e tratado como Hemocentro.
 {% endcomment %}
 
-{% if visibilidade.pode_aprovar_hemocentros %}
-
-    <section>
-
-        <h2>Gestão de Hemocentros</h2>
-
-        <p>
-            Analise os cadastros institucionais que aguardam aprovação.
-        </p>
-
-        <p>
-            <a href="{% url 'accounts:painel_aprovacao_hemocentros' %}">
-                Acessar aprovação de Hemocentros
-            </a>
-        </p>
-
-        <p>
-            <a href="/admin/">
-                Acessar painel administrativo
-            </a>
-        </p>
-
-    </section>
-
-{% endif %}
-
-
 {% endblock %}
 <section>
     <h2>Gestao de Pedidos</h2>

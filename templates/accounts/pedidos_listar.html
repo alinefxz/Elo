@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% comment %}
+Lista publica de pedidos de sangue que ja foram aprovados.
+
+A view envia o formulario de filtros em form e os pedidos ativos em pedidos.
+Pedidos pendentes, suspeitos ou recusados nao aparecem nesta pagina.
+{% endcomment %}
+
+{% block title %}Pedidos de sangue | Elo{% endblock %}
+
+{% block content %}
+<h1>Pedidos de sangue ativos</h1>
+
+<form method="get">
+    {{ form.as_p }}
+    <button type="submit">Filtrar</button>
+</form>
+
+{% for pedido in pedidos %}
+    <section>
+        <h2>{{ pedido.titulo }}</h2>
+
+        <p><strong>Tipo sanguineo:</strong> {{ pedido.tipo_sanguineo }}</p>
+        <p><strong>Urgencia:</strong> {{ pedido.get_urgencia_display }}</p>
+        <p><strong>Cidade:</strong> {{ pedido.cidade }}</p>
+        <p><strong>Hemocentro:</strong> {{ pedido.hemocentro_destino.nome }}</p>
+        <p><strong>Descricao:</strong> {{ pedido.descricao }}</p>
+        <p><strong>Publicado em:</strong> {{ pedido.data_criacao }}</p>
+    </section>
+{% empty %}
+    <p>Nenhum pedido ativo encontrado.</p>
+{% endfor %}
+
+{% if user.is_authenticated and user.perfil == "RECEPTOR" %}
+    <p>
+        <a href="{% url 'accounts:criar_pedido_sangue' %}">
+            Criar novo pedido
+        </a>
+    </p>
+{% endif %}
+{% endblock %}

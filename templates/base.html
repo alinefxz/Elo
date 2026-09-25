@@ -54,10 +54,6 @@ A navegacao tambem respeita a particularizacao por perfil:
 
             <!-- Administrador valida Hemocentros e pode acessar o admin Django. -->
             {% if user.is_staff or user.is_superuser or user.perfil == "ADMINISTRADOR" %}
-                <a href="{% url 'accounts:painel_aprovacao_hemocentros' %}">
-                    Aprovar Hemocentros
-                </a>
-
                 <a href="/admin/">
                     Admin
                 </a>

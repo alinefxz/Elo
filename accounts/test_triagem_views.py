@@ -56,7 +56,7 @@ class TriagemViewsTests(TestCase):
         """Preenche respostas neutras para testar a conclusão pela view."""
 
         preferencias = (
-            "NAO", "NENHUMA", "NENHUM", "NUNCA", "SIM", "18_60",
+            "NAO", "NAO_SEI", "NENHUMA", "NENHUM", "NUNCA", "SIM", "18_60",
             "56_129_9", "MASCULINO", "ORIGINAL", "DESCANSADO",
             "LEVE", "NAO_MEDI",
         )

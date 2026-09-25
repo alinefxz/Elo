@@ -302,70 +302,6 @@ class LoginUsuarioForm(AuthenticationForm):
     )
 
 
-class PedidoSangueForm(forms.ModelForm):
-    """Formulario para registrar um pedido, sem decidir sua validade."""
-
-    class Meta:
-        model = PedidoSangue
-
-        fields = [
-            "para_quem",
-            "tipo_sanguineo",
-            "hemocentro",
-            "urgencia",
-            "nome_paciente",
-            "descricao",
-        ]
-
-        labels = {
-            "para_quem": "Para quem é este pedido?",
-            "tipo_sanguineo": "Tipo sanguíneo necessário",
-            "hemocentro": "Hemocentro de destino",
-            "urgencia": "Urgência",
-            "nome_paciente": "Nome da pessoa (opcional)",
-            "descricao": "Descrição do pedido",
-        }
-
-        help_texts = {
-            "hemocentro": (
-                "A cidade será preenchida automaticamente a partir do hemocentro."
-            ),
-            "descricao": "Explique a necessidade em poucas palavras.",
-        }
-
-        widgets = {
-            "para_quem": forms.RadioSelect,
-            "tipo_sanguineo": forms.RadioSelect,
-            "urgencia": forms.RadioSelect,
-            "descricao": forms.Textarea(attrs={"rows": 5}),
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.fields["hemocentro"].queryset = (
-            Usuario.objects
-            .filter(
-                perfil=Usuario.Perfil.HEMOCENTRO,
-                status_validacao=Usuario.StatusValidacaoHemocentro.APROVADO,
-            )
-            .order_by("nome")
-        )
-
-    def clean_nome_paciente(self):
-        return (self.cleaned_data.get("nome_paciente") or "").strip()
-
-    def clean_descricao(self):
-        descricao = (self.cleaned_data.get("descricao") or "").strip()
-
-        if len(descricao) < 10:
-            raise forms.ValidationError(
-                "Descreva a necessidade com pelo menos 10 caracteres."
-            )
-
-        return descricao
-
-
 class TriagemExtensaForm(forms.Form):
     """
     Formulário inicial da triagem extensa.
@@ -627,23 +563,35 @@ class PedidoSangueForm(forms.ModelForm):
         model = PedidoSangue
 
         fields = [
+            "para_quem",
             "hemocentro_destino",
             "titulo",
             "tipo_sanguineo",
             "urgencia",
             "cidade",
+            "nome_paciente",
             "descricao",
             "justificativa_urgencia",
         ]
 
         labels = {
+            "para_quem": "Para quem e este pedido?",
             "hemocentro_destino": "Hemocentro de destino",
             "titulo": "Titulo do pedido",
             "tipo_sanguineo": "Tipo sanguineo",
             "urgencia": "Urgencia",
             "cidade": "Cidade",
+            "nome_paciente": "Nome da pessoa (opcional)",
             "descricao": "Descricao",
             "justificativa_urgencia": "Justificativa da urgencia",
+        }
+
+        widgets = {
+            "para_quem": forms.RadioSelect,
+            "tipo_sanguineo": forms.RadioSelect,
+            "urgencia": forms.RadioSelect,
+            "descricao": forms.Textarea(attrs={"rows": 5}),
+            "justificativa_urgencia": forms.Textarea(attrs={"rows": 4}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -651,9 +599,25 @@ class PedidoSangueForm(forms.ModelForm):
 
         self.fields["hemocentro_destino"].queryset = (
             Usuario.objects
-            .filter(perfil=Usuario.Perfil.HEMOCENTRO)
+            .filter(
+                perfil=Usuario.Perfil.HEMOCENTRO,
+                status_validacao=Usuario.StatusValidacaoHemocentro.APROVADO,
+            )
             .order_by("nome")
         )
+
+    def clean_nome_paciente(self):
+        return (self.cleaned_data.get("nome_paciente") or "").strip()
+
+    def clean_descricao(self):
+        descricao = (self.cleaned_data.get("descricao") or "").strip()
+
+        if len(descricao) < 10:
+            raise forms.ValidationError(
+                "Descreva a necessidade com pelo menos 10 caracteres."
+            )
+
+        return descricao
 
     def clean(self):
         dados = super().clean()

@@ -308,118 +308,6 @@ class ValidacaoHemocentro(models.Model):
         )
 
 
-class PedidoSangue(models.Model):
-    """Pedido de sangue criado por uma conta autenticada."""
-
-    class ParaQuem(models.TextChoices):
-        MIM = "MIM", "Para mim"
-        OUTRA_PESSOA = "OUTRA_PESSOA", "Para outra pessoa"
-
-    class Urgencia(models.TextChoices):
-        NORMAL = "NORMAL", "Normal"
-        URGENTE = "URGENTE", "Urgente"
-        CRITICO = "CRITICO", "Crítico"
-
-    class Status(models.TextChoices):
-        PENDENTE = "PENDENTE", "Pendente"
-        ATIVO = "ATIVO", "Ativo"
-        RECUSADO = "RECUSADO", "Recusado"
-        ATENDIDO = "ATENDIDO", "Atendido"
-        EXPIRADO = "EXPIRADO", "Expirado"
-
-    id_pedido = models.BigAutoField(primary_key=True)
-
-    solicitante = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="pedidos_publicados",
-        db_column="id_solicitante",
-    )
-
-    hemocentro = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="pedidos_de_destino",
-        db_column="id_hemocentro",
-        limit_choices_to={"perfil": Usuario.Perfil.HEMOCENTRO},
-    )
-
-    para_quem = models.CharField(
-        max_length=20,
-        choices=ParaQuem.choices,
-    )
-
-    tipo_sanguineo = models.CharField(
-        max_length=3,
-        choices=[(tipo, tipo) for tipo in TIPOS_SANGUINEOS],
-    )
-
-    cidade = models.CharField(max_length=100)
-
-    urgencia = models.CharField(
-        max_length=10,
-        choices=Urgencia.choices,
-    )
-
-    nome_paciente = models.CharField(
-        max_length=150,
-        blank=True,
-        default="",
-    )
-
-    descricao = models.TextField(max_length=500)
-
-    status = models.CharField(
-        max_length=10,
-        choices=Status.choices,
-        default=Status.PENDENTE,
-    )
-
-    data_criacao = models.DateTimeField(auto_now_add=True)
-    data_fechamento = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        db_table = "pedidos_sangue"
-        ordering = ["-data_criacao"]
-
-        indexes = [
-            models.Index(
-                fields=["status", "-data_criacao"],
-                name="pedido_sangue_status_idx",
-            ),
-            models.Index(
-                fields=["cidade", "tipo_sanguineo"],
-                name="pedido_sangue_busca_idx",
-            ),
-        ]
-
-        verbose_name = "pedido de sangue"
-        verbose_name_plural = "pedidos de sangue"
-
-    def clean(self):
-        """Garante que o destino escolhido seja uma conta de Hemocentro."""
-
-        super().clean()
-
-        if (
-            self.hemocentro_id
-            and self.hemocentro.perfil != Usuario.Perfil.HEMOCENTRO
-        ):
-            raise ValidationError(
-                {
-                    "hemocentro": (
-                        "O destino deve ser uma conta com perfil Hemocentro."
-                    )
-                }
-            )
-
-    def __str__(self):
-        return (
-            f"Pedido {self.id_pedido} - {self.tipo_sanguineo} - "
-            f"{self.get_status_display()}"
-        )
-
-
 class ConsentimentoLGPD(models.Model):
     """
     Guarda a prova de cada aceite de termo.
@@ -1040,6 +928,10 @@ class PedidoSangue(models.Model):
     recusado ou encerrado.
     """
 
+    class ParaQuem(models.TextChoices):
+        MIM = "MIM", "Para mim"
+        OUTRA_PESSOA = "OUTRA_PESSOA", "Para outra pessoa"
+
     class Urgencia(models.TextChoices):
         BAIXA = "BAIXA", "Baixa"
         MEDIA = "MEDIA", "Media"
@@ -1070,7 +962,15 @@ class PedidoSangue(models.Model):
         limit_choices_to={"perfil": "HEMOCENTRO"},
     )
 
-    titulo = models.CharField(max_length=150)
+    para_quem = models.CharField(
+        max_length=20,
+        choices=ParaQuem.choices,
+    )
+
+    titulo = models.CharField(
+        max_length=150,
+        default="Pedido de sangue",
+    )
 
     tipo_sanguineo = models.CharField(
         max_length=3,
@@ -1083,6 +983,11 @@ class PedidoSangue(models.Model):
     )
 
     cidade = models.CharField(max_length=100)
+    nome_paciente = models.CharField(
+        max_length=150,
+        blank=True,
+        default="",
+    )
     descricao = models.TextField()
     justificativa_urgencia = models.TextField(blank=True, default="")
 
@@ -1094,10 +999,13 @@ class PedidoSangue(models.Model):
 
     data_criacao = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
+    data_fechamento = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "pedidos_sangue"
         ordering = ["-data_criacao"]
+        verbose_name = "pedido de sangue"
+        verbose_name_plural = "pedidos de sangue"
 
         indexes = [
             models.Index(
