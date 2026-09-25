@@ -2,6 +2,7 @@
 Formularios de cadastro e login do sistema Elo.
 
 O formulario de cadastro:
+
 - valida e-mail;
 - valida CPF e CNPJ;
 - exige CPF para Doador/Receptor;
@@ -12,14 +13,13 @@ O formulario de cadastro:
 """
 
 import re
+from datetime import date
 
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 
 from .compatibilidade import TIPOS_SANGUINEOS
 from .models import EstoqueMovimentacao, PedidoSangue, Usuario
-
-from datetime import date
 
 
 def apenas_digitos(valor):
@@ -238,6 +238,7 @@ class CadastroUsuarioForm(UserCreationForm):
         Faz as validacoes que dependem do tipo de perfil.
 
         Regras:
+
         - Hemocentro -> CNPJ obrigatorio.
         - Doador/Receptor -> CPF e data de nascimento obrigatorios.
         - Observador -> pode ficar sem CPF/CNPJ.
@@ -302,10 +303,11 @@ class LoginUsuarioForm(AuthenticationForm):
 
 
 class PedidoSangueForm(forms.ModelForm):
-    """Formulário para registrar um pedido, sem decidir sua validade."""
+    """Formulario para registrar um pedido, sem decidir sua validade."""
 
     class Meta:
         model = PedidoSangue
+
         fields = [
             "para_quem",
             "tipo_sanguineo",
@@ -314,6 +316,7 @@ class PedidoSangueForm(forms.ModelForm):
             "nome_paciente",
             "descricao",
         ]
+
         labels = {
             "para_quem": "Para quem é este pedido?",
             "tipo_sanguineo": "Tipo sanguíneo necessário",
@@ -322,12 +325,14 @@ class PedidoSangueForm(forms.ModelForm):
             "nome_paciente": "Nome da pessoa (opcional)",
             "descricao": "Descrição do pedido",
         }
+
         help_texts = {
             "hemocentro": (
                 "A cidade será preenchida automaticamente a partir do hemocentro."
             ),
             "descricao": "Explique a necessidade em poucas palavras.",
         }
+
         widgets = {
             "para_quem": forms.RadioSelect,
             "tipo_sanguineo": forms.RadioSelect,
@@ -337,6 +342,7 @@ class PedidoSangueForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         self.fields["hemocentro"].queryset = (
             Usuario.objects
             .filter(
@@ -454,7 +460,6 @@ class TriagemExtensaForm(forms.Form):
         Exige data e quantidade de doações quando o usuário
         informa que já doou sangue.
         """
-
         dados = super().clean()
 
         ja_doou = dados.get("ja_doou")
@@ -507,13 +512,17 @@ class CadastrarEstoqueForm(forms.Form):
     nivel_minimo = forms.IntegerField(
         label="Nível mínimo",
         min_value=0,
-        help_text="A partir de quantas bolsas o tipo passa a ser considerado baixo.",
+        help_text=(
+            "A partir de quantas bolsas o tipo passa a ser considerado baixo."
+        ),
     )
 
     nivel_critico = forms.IntegerField(
         label="Nível crítico",
         min_value=0,
-        help_text="A partir de quantas bolsas o tipo passa a ser considerado crítico.",
+        help_text=(
+            "A partir de quantas bolsas o tipo passa a ser considerado crítico."
+        ),
     )
 
     def clean(self):
@@ -543,8 +552,10 @@ class MovimentarEstoqueForm(forms.Form):
     saída ou ajuste de bolsas em um estoque já cadastrado.
 
     O campo "quantidade" muda de sentido conforme o tipo de movimento:
+
     - Entrada/Saída: quantas bolsas somar ou subtrair;
     - Ajuste: qual é a nova quantidade total de bolsas.
+
     O texto de ajuda é atualizado no navegador via JavaScript simples no
     template, mas a validação real acontece aqui e na camada de serviço.
     """
@@ -569,7 +580,10 @@ class MovimentarEstoqueForm(forms.Form):
         required=False,
         max_length=255,
         widget=forms.Textarea(attrs={"rows": 3}),
-        help_text="Opcional. Ex.: doação recebida, transfusão realizada, contagem física.",
+        help_text=(
+            "Opcional. Ex.: doação recebida, transfusão realizada, "
+            "contagem física."
+        ),
     )
 
     def clean(self):
@@ -600,6 +614,7 @@ class MovimentarEstoqueForm(forms.Form):
 
         return dados
 
+
 class PedidoSangueForm(forms.ModelForm):
     """
     Formulario para Receptor/Solicitante criar pedido de sangue.
@@ -610,6 +625,7 @@ class PedidoSangueForm(forms.ModelForm):
 
     class Meta:
         model = PedidoSangue
+
         fields = [
             "hemocentro_destino",
             "titulo",
@@ -619,6 +635,7 @@ class PedidoSangueForm(forms.ModelForm):
             "descricao",
             "justificativa_urgencia",
         ]
+
         labels = {
             "hemocentro_destino": "Hemocentro de destino",
             "titulo": "Titulo do pedido",
@@ -642,7 +659,9 @@ class PedidoSangueForm(forms.ModelForm):
         dados = super().clean()
 
         urgencia = dados.get("urgencia")
-        justificativa = (dados.get("justificativa_urgencia") or "").strip()
+        justificativa = (
+            dados.get("justificativa_urgencia") or ""
+        ).strip()
 
         if urgencia in [
             PedidoSangue.Urgencia.ALTA,
@@ -665,6 +684,7 @@ class FiltroPedidoSangueForm(forms.Form):
     RF - Visualizar e filtrar pedidos.
 
     Filtros:
+
     - tipo sanguineo;
     - urgencia;
     - cidade;

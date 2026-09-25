@@ -1,26 +1,41 @@
 """
+
 Views do aplicativo accounts.
 
 As views recebem requisicoes do navegador, executam a regra da pagina
+
 e devolvem uma resposta.
 
 Fluxo do cadastro:
+
 GET  -> mostra formulario vazio.
+
 POST -> valida -> grava usuario + consentimento -> cria sessao -> dashboard.
 
 O cadastro usa uma transacao para impedir que apenas metade da operacao
+
 seja salva. O dashboard usa login_required para bloquear visitantes.
+
 """
 
 from django import forms
+
 from django.contrib import messages
+
 from django.contrib.auth import login
+
 from django.contrib.auth.decorators import login_required
+
 from django.core.exceptions import PermissionDenied, ValidationError
+
 from django.db import transaction
+
 from django.http import Http404, JsonResponse
+
 from django.shortcuts import get_object_or_404, redirect, render
+
 from django.views.decorators.http import require_POST
+
 from django.db.models import Case, IntegerField, Value, When
 
 from .forms import (
@@ -30,8 +45,8 @@ from .forms import (
     PedidoSangueForm,
     TriagemExtensaForm,
     FiltroPedidoSangueForm,
-    PedidoSangueForm,
 )
+
 from .models import (
     ConsentimentoLGPD,
     Estoque,
@@ -40,7 +55,6 @@ from .models import (
     Triagem,
     Usuario,
     ValidacaoHemocentro,
-    PedidoSangue,
     ValidacaoPedido,
 )
 
@@ -57,12 +71,14 @@ from .validacao_hemocentro import (
     solicitar_correcao_hemocentro as solicitar_correcao_hemocentro_servico,
     usuario_e_administrador,
 )
+
 from .compatibilidade import (
     TIPOS_SANGUINEOS,
     doadores_compativeis_para,
     tabela_de_compatibilidade,
     tipos_que_recebem_de,
 )
+
 from .triagem_servico import (
     TriagemConcluida,
     TriagemExtensaNecessaria,
@@ -76,13 +92,16 @@ from .triagem_servico import (
     salvar_resposta,
     voltar_pergunta,
 )
+
 from .triagem_forms import FormularioPergunta as FormularioPerguntaTriagem
+
 from .pedidos import pode_publicar_pedido, publicar_pedido
 
 from .validacao_pedido import (
     aprovar_pedido as aprovar_pedido_servico,
     recusar_pedido as recusar_pedido_servico,
-    registrar_pedido_com_validacao,
+    marcar_pedido_suspeito as marcar_pedido_suspeito_servico,
+    criar_pedido_pendente,
 )
 
 
@@ -99,18 +118,21 @@ class FormularioPergunta(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.pergunta = pergunta
+
         texto = (
             pergunta.get("texto")
             or pergunta.get("pergunta")
             or pergunta.get("label")
             or "Resposta"
         )
+
         ajuda = (
             pergunta.get("explicacao")
             or pergunta.get("ajuda")
             or pergunta.get("help_text")
             or ""
         )
+
         obrigatoria = pergunta.get("obrigatoria", True)
 
         tipo = str(
@@ -212,6 +234,7 @@ class FormularioPergunta(forms.Form):
         for chave in chaves:
             if chave in dados and dados[chave] is not None:
                 return dados[chave]
+
         return None
 
     @classmethod
@@ -220,9 +243,13 @@ class FormularioPergunta(forms.Form):
         Converte opcoes em pares (valor, rotulo).
 
         Aceita:
+
         - lista de dicionarios;
+
         - lista de tuplas;
+
         - lista de textos;
+
         - dicionario no formato codigo -> rotulo.
         """
 
@@ -247,6 +274,7 @@ class FormularioPergunta(forms.Form):
                         "chave",
                     ),
                 )
+
                 rotulo = cls._primeiro_valor(
                     opcao,
                     (
@@ -456,6 +484,8 @@ PAINEIS_POR_PERFIL = {
         "mostra_postos": False,
     },
 }
+
+
 def montar_visibilidade_dashboard(usuario, painel):
     """
     Centraliza a particularizacao do dashboard por perfil.
@@ -482,6 +512,7 @@ def montar_visibilidade_dashboard(usuario, painel):
         "pode_gerenciar_estoque": hemocentro_aprovado,
         "pode_aprovar_hemocentros": administrador,
     }
+
 
 def obter_ip(request):
     """Extrai o IP usado no registro do consentimento LGPD."""
@@ -560,10 +591,15 @@ def cadastro(request):
     Exibe e processa o cadastro de usuarios.
 
     Hemocentro:
+
     - cria a conta;
+
     - fica com status PENDENTE;
+
     - registra consentimento LGPD;
+
     - entra no sistema;
+
     - recebe a mensagem de aguardando aprovacao.
     """
 
@@ -575,7 +611,6 @@ def cadastro(request):
 
         if form.is_valid():
             with transaction.atomic():
-
                 usuario = form.save()
 
                 # Todo Hemocentro novo deve comecar como PENDENTE.
@@ -610,6 +645,7 @@ def cadastro(request):
                         "a aprovacao de um administrador."
                     ),
                 )
+
             else:
                 messages.success(
                     request,
@@ -642,6 +678,7 @@ def compatibilidade_sanguinea(request):
     """Exibe a tabela e a consulta de compatibilidade sanguinea."""
 
     tipo_selecionado = request.GET.get("tipo", "")
+
     compatibilidade_selecionada = None
     tipo_invalido = False
 
@@ -700,10 +737,14 @@ def dashboard(request):
     # O resumo usa apenas registros do usuário autenticado. As respostas
     # detalhadas não são expostas no painel geral.
     ultima_triagem = None
+
     if pode_responder(request.user):
         ultima_triagem = request.user.triagens.order_by("-iniciada_em").first()
 
-    visibilidade = montar_visibilidade_dashboard(request.user, painel)
+    visibilidade = montar_visibilidade_dashboard(
+        request.user,
+        painel,
+    )
 
     notificacoes_dashboard = (
         request.user.notificacoes
@@ -711,7 +752,7 @@ def dashboard(request):
         .filter(lida=False)
         .order_by("-criada_em")[:5]
     )
-    
+
     contexto = {
         "painel": painel,
         "visibilidade": visibilidade,
@@ -737,21 +778,25 @@ def pedido_publicar(request):
 
     if not pode_publicar_pedido(request.user):
         raise PermissionDenied(
-            "Este perfil não pode publicar pedidos de sangue."
+            "Este perfil não pode publicar pedidos."
         )
 
     if request.method == "POST":
         form = PedidoSangueForm(request.POST)
+
         if form.is_valid():
             pedido = publicar_pedido(request.user, form)
+
             messages.success(
                 request,
                 "Seu pedido de sangue foi registrado e está aguardando validação.",
             )
+
             return redirect(
                 "accounts:pedido_detalhe",
                 id_pedido=pedido.pk,
             )
+
     else:
         form = PedidoSangueForm()
 
@@ -934,6 +979,7 @@ def triagem_apresentacao(request):
     Exibe a apresentação pública da triagem.
 
     Somente usuários com perfil permitido podem iniciar a triagem.
+
     A modalidade simplificada é liberada quando existe uma triagem
     extensa concluída que possa ser utilizada como base.
     """
@@ -987,7 +1033,7 @@ def triagem_historico(request):
     Lista somente as triagens pertencentes ao usuario autenticado.
 
     O historico mostra tanto triagens em andamento quanto concluidas e
-    canceladas, permitindo que o template ofereca continuar ou consultar
+    canceladas, permitindo que o template ofereça continuar ou consultar
     o resultado conforme o status.
     """
 
@@ -996,6 +1042,7 @@ def triagem_historico(request):
             request,
             "A triagem de doacao nao esta disponivel para este perfil.",
         )
+
         return redirect("accounts:dashboard")
 
     triagens = (
@@ -1012,6 +1059,7 @@ def triagem_historico(request):
         },
     )
 
+
 @login_required
 @require_POST
 def triagem_iniciar(request, modalidade):
@@ -1021,6 +1069,7 @@ def triagem_iniciar(request, modalidade):
         "extensa": Triagem.Modalidade.EXTENSA,
         "simplificada": Triagem.Modalidade.SIMPLIFICADA,
     }
+
     if modalidade not in modalidades:
         raise Http404("Modalidade de triagem inexistente.")
 
@@ -1030,14 +1079,19 @@ def triagem_iniciar(request, modalidade):
             modalidades[modalidade],
             ip=obter_ip(request),
         )
+
     except TriagemSimplificadaIndisponivel:
         messages.info(
             request,
             "Conclua primeiro a triagem extensa para usar a versão simplificada.",
         )
+
         return redirect("accounts:triagem_apresentacao")
 
-    return redirect("accounts:triagem_pergunta", id_triagem=triagem.pk)
+    return redirect(
+        "accounts:triagem_pergunta",
+        id_triagem=triagem.pk,
+    )
 
 
 def _triagem_do_usuario_ou_404(request, id_triagem):
@@ -1054,30 +1108,54 @@ def _triagem_do_usuario_ou_404(request, id_triagem):
 def triagem_pergunta(request, id_triagem):
     """Mostra, valida e salva uma única pergunta por página."""
 
-    triagem = _triagem_do_usuario_ou_404(request, id_triagem)
+    triagem = _triagem_do_usuario_ou_404(
+        request,
+        id_triagem,
+    )
+
     if triagem.status == Triagem.Status.CONCLUIDA:
-        return redirect("accounts:triagem_resultado", id_triagem=triagem.pk)
+        return redirect(
+            "accounts:triagem_resultado",
+            id_triagem=triagem.pk,
+        )
+
     if triagem.status == Triagem.Status.CANCELADA:
         return redirect("accounts:triagem_apresentacao")
 
     # O botão anterior muda apenas o cursor e não valida campos da página.
     if request.method == "POST" and request.POST.get("acao") == "anterior":
         voltar_pergunta(triagem)
-        return redirect("accounts:triagem_pergunta", id_triagem=triagem.pk)
+
+        return redirect(
+            "accounts:triagem_pergunta",
+            id_triagem=triagem.pk,
+        )
 
     pergunta = obter_pergunta_atual(triagem)
+
     if pergunta is None:
         try:
             triagem = concluir_triagem(triagem)
+
         except TriagemIncompleta:
-            messages.error(request, "Ainda existem perguntas sem resposta.")
+            messages.error(
+                request,
+                "Ainda existem perguntas sem resposta.",
+            )
+
             return redirect("accounts:triagem_historico")
-        return redirect("accounts:triagem_resultado", id_triagem=triagem.pk)
+
+        return redirect(
+            "accounts:triagem_resultado",
+            id_triagem=triagem.pk,
+        )
 
     resposta_anterior = triagem.respostas.filter(
         id_pergunta=pergunta["id"]
     ).first()
+
     valor_inicial = resposta_anterior.valor if resposta_anterior else None
+
     form = FormularioPerguntaTriagem(
         pergunta,
         request.POST or None,
@@ -1086,7 +1164,12 @@ def triagem_pergunta(request, id_triagem):
 
     if request.method == "POST" and form.is_valid():
         try:
-            salvar_resposta(triagem, pergunta["id"], form.cleaned_data["valor"])
+            salvar_resposta(
+                triagem,
+                pergunta["id"],
+                form.cleaned_data["valor"],
+            )
+
         except TriagemExtensaNecessaria:
             # O serviço já cancelou a rápida antes de solicitar a troca.
             nova_extensa = iniciar_triagem(
@@ -1094,10 +1177,12 @@ def triagem_pergunta(request, id_triagem):
                 Triagem.Modalidade.EXTENSA,
                 ip=obter_ip(request),
             )
+
             messages.info(
                 request,
                 "Como o resumo mudou, continue pela triagem extensa.",
             )
+
             return redirect(
                 "accounts:triagem_pergunta",
                 id_triagem=nova_extensa.pk,
@@ -1105,6 +1190,7 @@ def triagem_pergunta(request, id_triagem):
 
         if request.POST.get("acao") == "salvar":
             messages.success(request, "Andamento da triagem salvo.")
+
             return redirect("accounts:triagem_historico")
 
         # O serviço mantém o cursor na explicação quando a pessoa não entendeu
@@ -1112,15 +1198,20 @@ def triagem_pergunta(request, id_triagem):
         if triagem.pergunta_atual >= len(triagem.fluxo_perguntas):
             try:
                 triagem = concluir_triagem(triagem)
+
             except (TriagemConcluida, TriagemIncompleta) as erro:
                 messages.error(request, str(erro))
+
             else:
                 return redirect(
                     "accounts:triagem_resultado",
                     id_triagem=triagem.pk,
                 )
 
-        return redirect("accounts:triagem_pergunta", id_triagem=triagem.pk)
+        return redirect(
+            "accounts:triagem_pergunta",
+            id_triagem=triagem.pk,
+        )
 
     return render(
         request,
@@ -1139,9 +1230,17 @@ def triagem_pergunta(request, id_triagem):
 def triagem_resultado(request, id_triagem):
     """Mostra a orientação concluída somente ao dono da triagem."""
 
-    triagem = _triagem_do_usuario_ou_404(request, id_triagem)
+    triagem = _triagem_do_usuario_ou_404(
+        request,
+        id_triagem,
+    )
+
     if triagem.status == Triagem.Status.EM_ANDAMENTO:
-        return redirect("accounts:triagem_pergunta", id_triagem=triagem.pk)
+        return redirect(
+            "accounts:triagem_pergunta",
+            id_triagem=triagem.pk,
+        )
+
     if triagem.status == Triagem.Status.CANCELADA:
         return redirect("accounts:triagem_historico")
 
@@ -1232,13 +1331,18 @@ def estoque_hemocentro(request):
     tipos_cadastrados = set(
         estoques.values_list("tipo_sanguineo", flat=True)
     )
+
     tipos_disponiveis = [
-        tipo for tipo in TIPOS_SANGUINEOS if tipo not in tipos_cadastrados
+        tipo
+        for tipo in TIPOS_SANGUINEOS
+        if tipo not in tipos_cadastrados
     ]
 
     form_cadastro = CadastrarEstoqueForm()
+
     form_cadastro.fields["tipo_sanguineo"].choices = [
-        (tipo, tipo) for tipo in tipos_disponiveis
+        (tipo, tipo)
+        for tipo in tipos_disponiveis
     ]
 
     return render(
@@ -1271,10 +1375,19 @@ def cadastrar_estoque_view(request):
                 nivel_critico=form.cleaned_data["nivel_critico"],
                 request=request,
             )
+
         except ValidationError as erro:
-            messages.error(request, _formatar_erro_validacao(erro))
+            messages.error(
+                request,
+                _formatar_erro_validacao(erro),
+            )
+
         else:
-            messages.success(request, "Estoque cadastrado com sucesso.")
+            messages.success(
+                request,
+                "Estoque cadastrado com sucesso.",
+            )
+
     else:
         messages.error(
             request,
@@ -1290,7 +1403,11 @@ def cadastrar_estoque_view(request):
 def atualizar_estoque_view(request, id_estoque):
     """UC_30 - Registra uma entrada, saida ou ajuste em um estoque existente."""
 
-    estoque = get_object_or_404(Estoque, pk=id_estoque)
+    estoque = get_object_or_404(
+        Estoque,
+        pk=id_estoque,
+    )
+
     form = MovimentarEstoqueForm(request.POST)
 
     if form.is_valid():
@@ -1303,12 +1420,25 @@ def atualizar_estoque_view(request, id_estoque):
                 motivo=form.cleaned_data["motivo"],
                 request=request,
             )
+
         except PermissionDenied as erro:
-            messages.error(request, str(erro))
+            messages.error(
+                request,
+                str(erro),
+            )
+
         except ValidationError as erro:
-            messages.error(request, _formatar_erro_validacao(erro))
+            messages.error(
+                request,
+                _formatar_erro_validacao(erro),
+            )
+
         else:
-            messages.success(request, "Estoque atualizado com sucesso.")
+            messages.success(
+                request,
+                "Estoque atualizado com sucesso.",
+            )
+
     else:
         messages.error(
             request,
@@ -1317,12 +1447,14 @@ def atualizar_estoque_view(request, id_estoque):
 
     return redirect("accounts:estoque_hemocentro")
 
+
 @login_required
 def criar_pedido_sangue(request):
     """
     RF - Criar pedido de sangue.
 
     Apenas usuario Receptor/Solicitante pode publicar pedido.
+
     Ao salvar, o pedido passa pela validacao automatica.
     """
 
@@ -1331,6 +1463,7 @@ def criar_pedido_sangue(request):
             request,
             "Somente Receptor/Solicitante pode criar pedido de sangue.",
         )
+
         return redirect("accounts:dashboard")
 
     if request.method == "POST":
@@ -1349,6 +1482,7 @@ def criar_pedido_sangue(request):
                         request,
                         "Pedido registrado, mas sinalizado para moderacao.",
                     )
+
                 else:
                     messages.success(
                         request,
@@ -1434,7 +1568,9 @@ def consultar_pedidos(request):
         output_field=IntegerField(),
     )
 
-    pedidos = pedidos.annotate(prioridade=prioridade).order_by(
+    pedidos = pedidos.annotate(
+        prioridade=prioridade
+    ).order_by(
         "prioridade",
         "-data_criacao",
     )
@@ -1487,7 +1623,10 @@ def aprovar_pedido(request, id_pedido):
 
     exigir_administrador(request.user)
 
-    pedido = get_object_or_404(PedidoSangue, pk=id_pedido)
+    pedido = get_object_or_404(
+        PedidoSangue,
+        pk=id_pedido,
+    )
 
     aprovar_pedido_servico(
         pedido=pedido,
@@ -1496,7 +1635,11 @@ def aprovar_pedido(request, id_pedido):
         request=request,
     )
 
-    messages.success(request, "Pedido aprovado com sucesso.")
+    messages.success(
+        request,
+        "Pedido aprovado com sucesso.",
+    )
+
     return redirect("accounts:painel_validacao_pedidos")
 
 
@@ -1507,7 +1650,10 @@ def recusar_pedido(request, id_pedido):
 
     exigir_administrador(request.user)
 
-    pedido = get_object_or_404(PedidoSangue, pk=id_pedido)
+    pedido = get_object_or_404(
+        PedidoSangue,
+        pk=id_pedido,
+    )
 
     recusar_pedido_servico(
         pedido=pedido,
@@ -1516,5 +1662,9 @@ def recusar_pedido(request, id_pedido):
         request=request,
     )
 
-    messages.success(request, "Pedido recusado com sucesso.")
+    messages.success(
+        request,
+        "Pedido recusado com sucesso.",
+    )
+
     return redirect("accounts:painel_validacao_pedidos")
