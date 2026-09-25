@@ -211,6 +211,16 @@ class ValidacaoHemocentroTests(TestCase):
         self.assertNotContains(resposta, "Gestão de Hemocentros")
         self.assertNotContains(resposta, "Acessar aprovação de Hemocentros")
 
+    def test_dashboard_admin_mostra_publicacao_de_pedido(self):
+        """Administrador tambem deve ter acesso ao atalho de publicar pedido."""
+
+        self.client.force_login(self.admin)
+
+        resposta = self.client.get(reverse("accounts:dashboard"))
+
+        self.assertContains(resposta, "Pedidos ativos")
+        self.assertContains(resposta, "Publicar pedido de sangue")
+
     def test_urls_comuns_de_validacao_foram_removidas(self):
         """Links diretos antigos de validacao nao devem funcionar no site comum."""
 
