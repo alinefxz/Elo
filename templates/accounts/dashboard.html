@@ -394,3 +394,34 @@ Administrador nao e tratado como Hemocentro.
 
 
 {% endblock %}
+<section>
+    <h2>Gestao de Pedidos</h2>
+
+    <p>
+        Analise pedidos suspeitos ou pendentes de validacao.
+    </p>
+
+    <p>
+        <a href="{% url 'accounts:painel_validacao_pedidos' %}">
+            Acessar validacao de pedidos
+        </a>
+    </p>
+</section>
+
+{% if request.user.perfil == "RECEPTOR" %}
+    <section>
+        <h2>Pedidos de sangue</h2>
+
+        <p>
+            <a href="{% url 'accounts:criar_pedido_sangue' %}">
+                Criar novo pedido
+            </a>
+        </p>
+
+        <p>
+            <a href="{% url 'accounts:consultar_pedidos' %}">
+                Consultar pedidos ativos
+            </a>
+        </p>
+    </section>
+{% endif %}

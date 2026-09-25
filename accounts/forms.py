@@ -599,3 +599,105 @@ class MovimentarEstoqueForm(forms.Form):
             )
 
         return dados
+
+class PedidoSangueForm(forms.ModelForm):
+    """
+    Formulario para Receptor/Solicitante criar pedido de sangue.
+
+    As validacoes mais sensiveis ficam em validacao_pedido.py.
+    Aqui ficam as validacoes de formulario.
+    """
+
+    class Meta:
+        model = PedidoSangue
+        fields = [
+            "hemocentro_destino",
+            "titulo",
+            "tipo_sanguineo",
+            "urgencia",
+            "cidade",
+            "descricao",
+            "justificativa_urgencia",
+        ]
+        labels = {
+            "hemocentro_destino": "Hemocentro de destino",
+            "titulo": "Titulo do pedido",
+            "tipo_sanguineo": "Tipo sanguineo",
+            "urgencia": "Urgencia",
+            "cidade": "Cidade",
+            "descricao": "Descricao",
+            "justificativa_urgencia": "Justificativa da urgencia",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields["hemocentro_destino"].queryset = (
+            Usuario.objects
+            .filter(perfil=Usuario.Perfil.HEMOCENTRO)
+            .order_by("nome")
+        )
+
+    def clean(self):
+        dados = super().clean()
+
+        urgencia = dados.get("urgencia")
+        justificativa = (dados.get("justificativa_urgencia") or "").strip()
+
+        if urgencia in [
+            PedidoSangue.Urgencia.ALTA,
+            PedidoSangue.Urgencia.CRITICA,
+        ]:
+            if len(justificativa) < 20:
+                self.add_error(
+                    "justificativa_urgencia",
+                    (
+                        "Pedidos de urgencia alta ou critica precisam "
+                        "de justificativa com pelo menos 20 caracteres."
+                    ),
+                )
+
+        return dados
+
+
+class FiltroPedidoSangueForm(forms.Form):
+    """
+    RF - Visualizar e filtrar pedidos.
+
+    Filtros:
+    - tipo sanguineo;
+    - urgencia;
+    - cidade;
+    - hemocentro;
+    - data.
+    """
+
+    tipo_sanguineo = forms.ChoiceField(
+        label="Tipo sanguineo",
+        required=False,
+        choices=[
+            ("", "Todos")
+        ] + [(tipo, tipo) for tipo in TIPOS_SANGUINEOS],
+    )
+
+    urgencia = forms.ChoiceField(
+        label="Urgencia",
+        required=False,
+        choices=[("", "Todas")] + list(PedidoSangue.Urgencia.choices),
+    )
+
+    cidade = forms.CharField(
+        label="Cidade",
+        required=False,
+    )
+
+    hemocentro = forms.CharField(
+        label="Hemocentro",
+        required=False,
+    )
+
+    data = forms.DateField(
+        label="Data",
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )

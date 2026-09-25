@@ -23,7 +23,10 @@ from .models import (
     Estoque,
     EstoqueMovimentacao,
     Notificacao,
+    PedidoSangue,
+    ValidacaoPedido,
 )
+
 from .validacao_hemocentro import (
     aprovar_hemocentro,
     recusar_hemocentro,
@@ -643,3 +646,120 @@ class NotificacaoAdmin(admin.ModelAdmin):
         "lida_em",
     )
     ordering = ("-criada_em",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+@admin.register(PedidoSangue)
+class PedidoSangueAdmin(admin.ModelAdmin):
+    """
+    Consulta administrativa dos pedidos de sangue.
+
+    A validacao deve acontecer pela camada de servico e pelo painel de
+    validacao, nao editando status manualmente no admin.
+    """
+
+    list_display = (
+        "id_pedido",
+        "titulo",
+        "solicitante",
+        "hemocentro_destino",
+        "tipo_sanguineo",
+        "urgencia",
+        "cidade",
+        "status",
+        "data_criacao",
+    )
+
+    list_filter = (
+        "status",
+        "urgencia",
+        "tipo_sanguineo",
+        "data_criacao",
+    )
+
+    search_fields = (
+        "titulo",
+        "cidade",
+        "solicitante__email",
+        "solicitante__nome",
+        "hemocentro_destino__email",
+        "hemocentro_destino__nome",
+    )
+
+    readonly_fields = (
+        "id_pedido",
+        "status",
+        "data_criacao",
+        "atualizado_em",
+    )
+
+    date_hierarchy = "data_criacao"
+    ordering = ("-data_criacao",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ValidacaoPedido)
+class ValidacaoPedidoAdmin(admin.ModelAdmin):
+    """Historico somente leitura das validacoes de pedidos."""
+
+    list_display = (
+        "data_validacao",
+        "pedido",
+        "status_validacao",
+        "moderador",
+        "motivo_resumido",
+    )
+
+    list_filter = ("status_validacao", "data_validacao")
+
+    search_fields = (
+        "pedido__titulo",
+        "pedido__cidade",
+        "moderador__email",
+        "moderador__nome",
+        "motivo",
+    )
+
+    readonly_fields = (
+        "id_validacao",
+        "pedido",
+        "status_validacao",
+        "motivo",
+        "moderador",
+        "data_validacao",
+    )
+
+    date_hierarchy = "data_validacao"
+    ordering = ("-data_validacao",)
+
+    def motivo_resumido(self, obj):
+        if len(obj.motivo) <= 80:
+            return obj.motivo
+
+        return f"{obj.motivo[:77]}..."
+
+    motivo_resumido.short_description = "Motivo"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

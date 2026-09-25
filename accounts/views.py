@@ -21,6 +21,7 @@ from django.db import transaction
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
+from django.db.models import Case, IntegerField, Value, When
 
 from .forms import (
     CadastrarEstoqueForm,
@@ -28,11 +29,8 @@ from .forms import (
     MovimentarEstoqueForm,
     PedidoSangueForm,
     TriagemExtensaForm,
-)
-from .estoque import (
-    cadastrar_estoque,
-    obter_estoques_publicos,
-    registrar_movimentacao_estoque,
+    FiltroPedidoSangueForm,
+    PedidoSangueForm,
 )
 from .models import (
     ConsentimentoLGPD,
@@ -42,7 +40,16 @@ from .models import (
     Triagem,
     Usuario,
     ValidacaoHemocentro,
+    PedidoSangue,
+    ValidacaoPedido,
 )
+
+from .estoque import (
+    cadastrar_estoque,
+    obter_estoques_publicos,
+    registrar_movimentacao_estoque,
+)
+
 from .validacao_hemocentro import (
     aprovar_hemocentro as aprovar_hemocentro_servico,
     exigir_hemocentro_aprovado,
@@ -71,6 +78,12 @@ from .triagem_servico import (
 )
 from .triagem_forms import FormularioPergunta as FormularioPerguntaTriagem
 from .pedidos import pode_publicar_pedido, publicar_pedido
+
+from .validacao_pedido import (
+    aprovar_pedido as aprovar_pedido_servico,
+    recusar_pedido as recusar_pedido_servico,
+    registrar_pedido_com_validacao,
+)
 
 
 class FormularioPergunta(forms.Form):
@@ -1303,3 +1316,205 @@ def atualizar_estoque_view(request, id_estoque):
         )
 
     return redirect("accounts:estoque_hemocentro")
+
+@login_required
+def criar_pedido_sangue(request):
+    """
+    RF - Criar pedido de sangue.
+
+    Apenas usuario Receptor/Solicitante pode publicar pedido.
+    Ao salvar, o pedido passa pela validacao automatica.
+    """
+
+    if request.user.perfil != Usuario.Perfil.RECEPTOR:
+        messages.error(
+            request,
+            "Somente Receptor/Solicitante pode criar pedido de sangue.",
+        )
+        return redirect("accounts:dashboard")
+
+    if request.method == "POST":
+        form = PedidoSangueForm(request.POST)
+
+        if form.is_valid():
+            try:
+                pedido = registrar_pedido_com_validacao(
+                    dados=form.cleaned_data,
+                    solicitante=request.user,
+                    request=request,
+                )
+
+                if pedido.status == PedidoSangue.Status.SUSPEITO:
+                    messages.warning(
+                        request,
+                        "Pedido registrado, mas sinalizado para moderacao.",
+                    )
+                else:
+                    messages.success(
+                        request,
+                        "Pedido registrado com sucesso.",
+                    )
+
+                return redirect("accounts:consultar_pedidos")
+
+            except ValidationError as erro:
+                form.add_error(None, erro)
+
+    else:
+        form = PedidoSangueForm()
+
+    return render(
+        request,
+        "accounts/pedido_form.html",
+        {
+            "form": form,
+        },
+    )
+
+
+def consultar_pedidos(request):
+    """
+    UC_18 - Consultar Pedidos.
+
+    Exibe apenas pedidos ativos e aplica filtros por tipo sanguineo,
+    urgencia, cidade, hemocentro e data. A ordenacao prioriza urgencia
+    e depois os mais recentes.
+    """
+
+    form = FiltroPedidoSangueForm(request.GET or None)
+
+    pedidos = (
+        PedidoSangue.objects
+        .select_related("hemocentro_destino")
+        .filter(status=PedidoSangue.Status.ATIVO)
+    )
+
+    if form.is_valid():
+        tipo = form.cleaned_data.get("tipo_sanguineo")
+        urgencia = form.cleaned_data.get("urgencia")
+        cidade = form.cleaned_data.get("cidade")
+        hemocentro = form.cleaned_data.get("hemocentro")
+        data = form.cleaned_data.get("data")
+
+        if tipo:
+            pedidos = pedidos.filter(tipo_sanguineo=tipo)
+
+        if urgencia:
+            pedidos = pedidos.filter(urgencia=urgencia)
+
+        if cidade:
+            pedidos = pedidos.filter(cidade__icontains=cidade)
+
+        if hemocentro:
+            pedidos = pedidos.filter(
+                hemocentro_destino__nome__icontains=hemocentro
+            )
+
+        if data:
+            pedidos = pedidos.filter(data_criacao__date=data)
+
+    prioridade = Case(
+        When(
+            urgencia=PedidoSangue.Urgencia.CRITICA,
+            then=Value(1),
+        ),
+        When(
+            urgencia=PedidoSangue.Urgencia.ALTA,
+            then=Value(2),
+        ),
+        When(
+            urgencia=PedidoSangue.Urgencia.MEDIA,
+            then=Value(3),
+        ),
+        When(
+            urgencia=PedidoSangue.Urgencia.BAIXA,
+            then=Value(4),
+        ),
+        default=Value(5),
+        output_field=IntegerField(),
+    )
+
+    pedidos = pedidos.annotate(prioridade=prioridade).order_by(
+        "prioridade",
+        "-data_criacao",
+    )
+
+    return render(
+        request,
+        "accounts/pedidos_listar.html",
+        {
+            "form": form,
+            "pedidos": pedidos,
+        },
+    )
+
+
+@login_required
+def painel_validacao_pedidos(request):
+    """
+    UC_17 - Painel administrativo para validar pedidos suspeitos.
+
+    Administrador visualiza pedidos pendentes ou suspeitos.
+    """
+
+    exigir_administrador(request.user)
+
+    pedidos = (
+        PedidoSangue.objects
+        .select_related("solicitante", "hemocentro_destino")
+        .filter(
+            status__in=[
+                PedidoSangue.Status.SUSPEITO,
+                PedidoSangue.Status.PENDENTE_VALIDACAO,
+            ]
+        )
+        .order_by("-data_criacao")
+    )
+
+    return render(
+        request,
+        "accounts/painel_validacao_pedidos.html",
+        {
+            "pedidos": pedidos,
+        },
+    )
+
+
+@login_required
+@require_POST
+def aprovar_pedido(request, id_pedido):
+    """Aprova manualmente um pedido suspeito ou pendente."""
+
+    exigir_administrador(request.user)
+
+    pedido = get_object_or_404(PedidoSangue, pk=id_pedido)
+
+    aprovar_pedido_servico(
+        pedido=pedido,
+        moderador=request.user,
+        motivo=request.POST.get("motivo", ""),
+        request=request,
+    )
+
+    messages.success(request, "Pedido aprovado com sucesso.")
+    return redirect("accounts:painel_validacao_pedidos")
+
+
+@login_required
+@require_POST
+def recusar_pedido(request, id_pedido):
+    """Recusa manualmente um pedido suspeito ou pendente."""
+
+    exigir_administrador(request.user)
+
+    pedido = get_object_or_404(PedidoSangue, pk=id_pedido)
+
+    recusar_pedido_servico(
+        pedido=pedido,
+        moderador=request.user,
+        motivo=request.POST.get("motivo", ""),
+        request=request,
+    )
+
+    messages.success(request, "Pedido recusado com sucesso.")
+    return redirect("accounts:painel_validacao_pedidos")

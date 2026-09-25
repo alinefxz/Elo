@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Validacao de pedidos | Elo{% endblock %}
+
+{% block content %}
+<h1>Validacao de pedidos de sangue</h1>
+
+{% for pedido in pedidos %}
+    <section>
+        <h2>{{ pedido.titulo }}</h2>
+
+        <p><strong>Solicitante:</strong> {{ pedido.solicitante.nome }}</p>
+        <p><strong>Tipo sanguineo:</strong> {{ pedido.tipo_sanguineo }}</p>
+        <p><strong>Urgencia:</strong> {{ pedido.get_urgencia_display }}</p>
+        <p><strong>Cidade:</strong> {{ pedido.cidade }}</p>
+        <p><strong>Hemocentro:</strong> {{ pedido.hemocentro_destino.nome }}</p>
+        <p><strong>Status:</strong> {{ pedido.get_status_display }}</p>
+        <p><strong>Descricao:</strong> {{ pedido.descricao }}</p>
+
+        {% if pedido.justificativa_urgencia %}
+            <p>
+                <strong>Justificativa:</strong>
+                {{ pedido.justificativa_urgencia }}
+            </p>
+        {% endif %}
+
+        <form method="post" action="{% url 'accounts:aprovar_pedido' pedido.id_pedido %}">
+            {% csrf_token %}
+
+            <p>
+                <label>Motivo da aprovacao</label><br>
+                <textarea name="motivo" rows="3"></textarea>
+            </p>
+
+            <button type="submit">Aprovar</button>
+        </form>
+
+        <form method="post" action="{% url 'accounts:recusar_pedido' pedido.id_pedido %}">
+            {% csrf_token %}
+
+            <p>
+                <label>Motivo da recusa</label><br>
+                <textarea name="motivo" rows="3"></textarea>
+            </p>
+
+            <button type="submit">Recusar</button>
+        </form>
+    </section>
+{% empty %}
+    <p>Nenhum pedido aguardando validacao.</p>
+{% endfor %}
+
+{% endblock %}

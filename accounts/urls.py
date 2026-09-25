@@ -174,4 +174,35 @@ urlpatterns = [
         views.atualizar_estoque_view,
         name="atualizar_estoque",
     ),
+
+    path(
+    "pedidos/",
+    views.consultar_pedidos,
+    name="consultar_pedidos",
+    ),
+
+    path(
+    "pedidos/novo/",
+    views.criar_pedido_sangue,
+    name="criar_pedido_sangue",
+    ),
+
+    path(
+    "pedidos/validacao/",
+    views.painel_validacao_pedidos,
+    name="painel_validacao_pedidos",
+    ),
+
+    path(
+    "pedidos/<int:id_pedido>/aprovar/",
+    views.aprovar_pedido,
+    name="aprovar_pedido",
+    ),
+
+    path(
+    "pedidos/<int:id_pedido>/recusar/",
+    views.recusar_pedido,
+    name="recusar_pedido",
+    ),
+
 ]

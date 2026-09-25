@@ -1095,3 +1095,147 @@ class Notificacao(models.Model):
         """Texto usado no admin e no terminal."""
 
         return f"{self.usuario.nome} - {self.titulo}"
+
+class PedidoSangue(models.Model):
+    """
+    RF - Pedido de Sangue.
+
+    Guarda pedidos publicados por Receptor/Solicitante.
+    O status permite que o pedido fique pendente, ativo, suspeito,
+    recusado ou encerrado.
+    """
+
+    class Urgencia(models.TextChoices):
+        BAIXA = "BAIXA", "Baixa"
+        MEDIA = "MEDIA", "Media"
+        ALTA = "ALTA", "Alta"
+        CRITICA = "CRITICA", "Critica"
+
+    class Status(models.TextChoices):
+        PENDENTE_VALIDACAO = "PENDENTE_VALIDACAO", "Pendente de validacao"
+        ATIVO = "ATIVO", "Ativo"
+        SUSPEITO = "SUSPEITO", "Suspeito"
+        RECUSADO = "RECUSADO", "Recusado"
+        ENCERRADO = "ENCERRADO", "Encerrado"
+
+    id_pedido = models.BigAutoField(primary_key=True)
+
+    solicitante = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="pedidos_sangue",
+        db_column="id_solicitante",
+    )
+
+    hemocentro_destino = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="pedidos_recebidos",
+        db_column="id_hemocentro_destino",
+        limit_choices_to={"perfil": "HEMOCENTRO"},
+    )
+
+    titulo = models.CharField(max_length=150)
+    tipo_sanguineo = models.CharField(
+        max_length=3,
+        choices=[(tipo, tipo) for tipo in TIPOS_SANGUINEOS],
+    )
+    urgencia = models.CharField(max_length=10, choices=Urgencia.choices)
+    cidade = models.CharField(max_length=100)
+    descricao = models.TextField()
+    justificativa_urgencia = models.TextField(blank=True, default="")
+
+    status = models.CharField(
+        max_length=30,
+        choices=Status.choices,
+        default=Status.PENDENTE_VALIDACAO,
+    )
+
+    data_criacao = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "pedidos_sangue"
+        ordering = ["-data_criacao"]
+        indexes = [
+            models.Index(
+                fields=["status", "-data_criacao"],
+                name="pedido_status_data_idx",
+            ),
+            models.Index(
+                fields=["tipo_sanguineo", "urgencia"],
+                name="pedido_tipo_urg_idx",
+            ),
+            models.Index(
+                fields=["cidade"],
+                name="pedido_cidade_idx",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+
+        if (
+            self.hemocentro_destino_id
+            and self.hemocentro_destino.perfil != Usuario.Perfil.HEMOCENTRO
+        ):
+            raise ValidationError(
+                {
+                    "hemocentro_destino": (
+                        "O destino precisa ser um Hemocentro cadastrado."
+                    )
+                }
+            )
+
+    def __str__(self):
+        return (
+            f"{self.titulo} - {self.tipo_sanguineo} - "
+            f"{self.get_status_display()}"
+        )
+
+
+class ValidacaoPedido(models.Model):
+    """
+    UC_17 - Validar Pedido.
+
+    Guarda o historico das validacoes feitas automaticamente ou por moderador.
+    """
+
+    class StatusValidacao(models.TextChoices):
+        APROVADO = "APROVADO", "Aprovado"
+        SUSPEITO = "SUSPEITO", "Suspeito"
+        RECUSADO = "RECUSADO", "Recusado"
+
+    id_validacao = models.BigAutoField(primary_key=True)
+
+    pedido = models.ForeignKey(
+        PedidoSangue,
+        on_delete=models.CASCADE,
+        related_name="validacoes",
+        db_column="id_pedido",
+    )
+
+    status_validacao = models.CharField(
+        max_length=20,
+        choices=StatusValidacao.choices,
+    )
+
+    motivo = models.TextField(blank=True, default="")
+
+    moderador = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="validacoes_pedido_realizadas",
+        db_column="id_moderador",
+    )
+
+    data_validacao = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "validacoes_pedido"
+        ordering = ["-data_validacao"]
+
+    def __str__(self):
+        return f"Pedido {self.pedido_id} - {self.get_status_validacao_display()}"
