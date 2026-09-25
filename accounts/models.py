@@ -1,12 +1,16 @@
 """
-RESUMO DO ARQUIVO
+Resumo Do Arquivo
 =================
+
 Este arquivo descreve os dados que o Django guarda no PostgreSQL.
 
 - Usuario: guarda a conta, os dados basicos, o tipo de perfil escolhido e o
   status atual de validacao quando a conta e de Hemocentro.
+
 - ValidacaoHemocentro: guarda o historico de analises feitas por administradores.
+
 - ConsentimentoLGPD: guarda quando a pessoa aceitou cada termo.
+
 - AuditoriaAcaoCritica: registra eventos sensiveis para rastreabilidade.
 
 O usuario herda de AbstractUser para aproveitar senha segura, login, sessao,
@@ -24,9 +28,11 @@ from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import models
+
 # Reaproveita a mesma lista de tipos sanguineos usada em compatibilidade.py,
 # para nao correr o risco de duas listas divergentes no projeto.
 from .compatibilidade import TIPOS_SANGUINEOS
+
 
 class UsuarioManager(BaseUserManager):
     """
@@ -37,7 +43,6 @@ class UsuarioManager(BaseUserManager):
     e-mail corretamente tanto para contas comuns quanto para administradores.
     """
 
-    # Permite que o Django conheca este manager durante as migrations.
     use_in_migrations = True
 
     def create_user(self, email, password=None, **extra_fields):
@@ -50,24 +55,15 @@ class UsuarioManager(BaseUserManager):
         # Exemplo: MARIA@EXAMPLE.COM e maria@example.com viram o mesmo padrao.
         email = self.normalize_email(email).lower()
 
-        # self.model representa Usuario. extra_fields carrega os outros dados,
-        # como nome, perfil e documento, sem repetir todos os parametros aqui.
         usuario = self.model(email=email, **extra_fields)
-
-        # Gera o hash da senha. A senha original nunca vai para o banco.
         usuario.set_password(password)
-
-        # Executa o INSERT no banco configurado em settings.py. self._db deixa
-        # o metodo compativel caso o projeto use mais de um banco no futuro.
         usuario.save(using=self._db)
+
         return usuario
 
     def create_superuser(self, email, password=None, **extra_fields):
         """Cria a conta tecnica que pode acessar o painel /admin/."""
 
-        # setdefault preenche o valor somente quando ele nao foi informado.
-        # is_staff permite entrar no admin. is_superuser libera todas as
-        # permissoes internas do Django. perfil registra a classificacao do Elo.
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_active", True)
@@ -75,6 +71,7 @@ class UsuarioManager(BaseUserManager):
 
         if extra_fields.get("is_staff") is not True:
             raise ValueError("O superusuario precisa ter is_staff=True.")
+
         if extra_fields.get("is_superuser") is not True:
             raise ValueError("O superusuario precisa ter is_superuser=True.")
 
@@ -116,95 +113,66 @@ class Usuario(AbstractUser):
         RECUSADO = "RECUSADO", "Recusado"
         CORRECAO = "CORRECAO", "Correcao necessaria"
 
-    # O Elo usa um nome completo e e-mail. Por isso, estes tres campos do
-    # usuario original do Django sao retirados. Escrever None diz ao ORM que
-    # eles nao devem virar colunas da tabela usuarios.
     username = None
     first_name = None
     last_name = None
 
-    # Chave primaria: numero unico de cada usuario.
     id_usuario = models.BigAutoField(primary_key=True)
 
-    # Dados principais da conta.
     nome = models.CharField(max_length=150)
     email = models.EmailField(unique=True)
-
-    # No Python o campo continua chamado password, como o Django espera.
-    # No PostgreSQL a coluna se chama senha_hash, como definido no documento.
     password = models.CharField(max_length=128, db_column="senha_hash")
 
-    # CPF e CNPJ podem ficar vazios, pois o formulario escolhe quando exigir:
-    # Doador e Receptor/Solicitante usam CPF; Hemocentro usa CNPJ; Observador
-    # tem um cadastro simples e pode ficar sem documento nesta etapa.
-    # null=True grava NULL quando vazio. Isso permite varias contas sem CNPJ,
-    # enquanto unique=True ainda impede repetir um documento preenchido.
     cpf = models.CharField(max_length=11, unique=True, null=True, blank=True)
     cnpj = models.CharField(max_length=14, unique=True, null=True, blank=True)
 
-    # Dados adicionais do cadastro. blank=True aceita o campo vazio durante a
-    # validacao do model. O formulario publico pode ser mais exigente: nele a
-    # data de nascimento e obrigatoria.
     telefone = models.CharField(max_length=20, blank=True, default="")
     data_nascimento = models.DateField(null=True, blank=True)
+
     sexo = models.CharField(
         max_length=1,
         choices=Sexo.choices,
         blank=True,
         default="",
     )
+
     tipo_sanguineo = models.CharField(
         max_length=3,
         choices=[(tipo, tipo) for tipo in TIPOS_SANGUINEOS],
         blank=True,
         default="",
     )
+
     cidade = models.CharField(max_length=100, blank=True, default="")
     estado = models.CharField(max_length=2, blank=True, default="")
 
-    # Guarda a classificacao inicial. choices limita os valores aceitos e cria
-    # get_perfil_display(), usado no dashboard para mostrar um nome amigavel.
-    # O valor padrao OBSERVADOR tambem protege criacoes internas que nao enviem
-    # explicitamente um perfil.
     perfil = models.CharField(
         max_length=20,
         choices=Perfil.choices,
         default=Perfil.OBSERVADOR,
     )
 
-    # Para contas de Hemocentro, este campo guarda a situacao atual analisada
-    # pelo administrador. O historico completo fica em ValidacaoHemocentro.
     status_validacao = models.CharField(
         max_length=20,
         choices=StatusValidacaoHemocentro.choices,
         default=StatusValidacaoHemocentro.PENDENTE,
     )
 
-    # Conta inativa permanece no banco, mas nao consegue fazer login.
     is_active = models.BooleanField(default=True, db_column="ativo")
-
-    # O envio do e-mail de verificacao ainda sera implementado.
     email_verificado = models.BooleanField(default=False)
 
-    # date_joined e preenchido uma vez na criacao. atualizado_em muda sempre
-    # que save() atualiza o usuario.
     date_joined = models.DateTimeField(
         auto_now_add=True,
         db_column="data_cadastro",
     )
-    atualizado_em = models.DateTimeField(auto_now=True)
 
-    # Usa o manager personalizado definido acima.
+    atualizado_em = models.DateTimeField(auto_now=True)
     objects = UsuarioManager()
 
-    # Define o e-mail como identificador de login.
     USERNAME_FIELD = "email"
-
-    # O comando createsuperuser tambem perguntara o nome.
     REQUIRED_FIELDS = ["nome"]
 
     class Meta:
-        # Sem db_table, o nome automatico seria accounts_usuario.
         db_table = "usuarios"
         verbose_name = "usuario"
         verbose_name_plural = "usuarios"
@@ -213,8 +181,8 @@ class Usuario(AbstractUser):
     def clean(self):
         """Padroniza o e-mail quando o model e validado."""
 
-        # Mantem primeiro as validacoes herdadas de AbstractUser.
         super().clean()
+
         if self.email:
             self.email = self.__class__.objects.normalize_email(self.email).lower()
 
@@ -265,6 +233,7 @@ class ValidacaoHemocentro(models.Model):
         related_name="validacoes_hemocentro",
         db_column="id_hemocentro",
     )
+
     admin = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -273,10 +242,12 @@ class ValidacaoHemocentro(models.Model):
         related_name="validacoes_hemocentro_realizadas",
         db_column="id_admin",
     )
+
     status = models.CharField(
         max_length=20,
         choices=Usuario.StatusValidacaoHemocentro.choices,
     )
+
     parecer = models.TextField(blank=True, default="")
     data_analise = models.DateTimeField(auto_now_add=True)
 
@@ -285,6 +256,7 @@ class ValidacaoHemocentro(models.Model):
         verbose_name = "validacao de hemocentro"
         verbose_name_plural = "validacoes de hemocentros"
         ordering = ["-data_analise"]
+
         indexes = [
             models.Index(
                 fields=["hemocentro", "-data_analise"],
@@ -305,6 +277,7 @@ class ValidacaoHemocentro(models.Model):
             self.hemocentro_id
             and self.hemocentro.perfil != Usuario.Perfil.HEMOCENTRO
         )
+
         if hemocentro_nao_eh_valido:
             raise ValidationError(
                 {
@@ -322,6 +295,7 @@ class ValidacaoHemocentro(models.Model):
                 or self.admin.perfil == Usuario.Perfil.ADMINISTRADOR
             )
         )
+
         if self.admin_id and not admin_eh_valido:
             raise ValidationError(
                 {"admin": "A validacao deve ser registrada por um administrador."}
@@ -361,6 +335,7 @@ class PedidoSangue(models.Model):
         related_name="pedidos_publicados",
         db_column="id_solicitante",
     )
+
     hemocentro = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -368,36 +343,45 @@ class PedidoSangue(models.Model):
         db_column="id_hemocentro",
         limit_choices_to={"perfil": Usuario.Perfil.HEMOCENTRO},
     )
+
     para_quem = models.CharField(
         max_length=20,
         choices=ParaQuem.choices,
     )
+
     tipo_sanguineo = models.CharField(
         max_length=3,
         choices=[(tipo, tipo) for tipo in TIPOS_SANGUINEOS],
     )
+
     cidade = models.CharField(max_length=100)
+
     urgencia = models.CharField(
         max_length=10,
         choices=Urgencia.choices,
     )
+
     nome_paciente = models.CharField(
         max_length=150,
         blank=True,
         default="",
     )
+
     descricao = models.TextField(max_length=500)
+
     status = models.CharField(
         max_length=10,
         choices=Status.choices,
         default=Status.PENDENTE,
     )
+
     data_criacao = models.DateTimeField(auto_now_add=True)
     data_fechamento = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "pedidos_sangue"
         ordering = ["-data_criacao"]
+
         indexes = [
             models.Index(
                 fields=["status", "-data_criacao"],
@@ -408,6 +392,7 @@ class PedidoSangue(models.Model):
                 name="pedido_sangue_busca_idx",
             ),
         ]
+
         verbose_name = "pedido de sangue"
         verbose_name_plural = "pedidos de sangue"
 
@@ -440,7 +425,7 @@ class ConsentimentoLGPD(models.Model):
     Guarda a prova de cada aceite de termo.
 
     O consentimento fica separado de Usuario porque precisa guardar sua propria
-    versao, data e IP. Quando o texto do termo mudar, uma nova versao podera ser
+    versao, data e Ip. Quando o texto do termo mudar, uma nova versao podera ser
     aceita sem apagar o registro da versao anterior.
     """
 
@@ -451,9 +436,6 @@ class ConsentimentoLGPD(models.Model):
 
     id_consentimento = models.BigAutoField(primary_key=True)
 
-    # ForeignKey liga muitos consentimentos a um usuario. related_name permite
-    # consultar no sentido contrario com usuario.consentimentos_lgpd.all().
-    # CASCADE remove esses registros se a conta for removida.
     usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -466,16 +448,11 @@ class ConsentimentoLGPD(models.Model):
         choices=TipoTermo.choices,
         default=TipoTermo.GERAL,
     )
+
     versao_termo = models.CharField(max_length=20, default="1.0")
     aceito = models.BooleanField(default=False)
-
-    # auto_now_add preenche a data uma unica vez, no momento da criacao.
     data_aceite = models.DateTimeField(auto_now_add=True)
-
-    # O IP pode ficar vazio em testes ou tarefas internas.
     ip = models.GenericIPAddressField(null=True, blank=True)
-
-    # Fica vazio enquanto o consentimento continuar valido.
     revogado_em = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -484,9 +461,6 @@ class ConsentimentoLGPD(models.Model):
         verbose_name_plural = "consentimentos LGPD"
         ordering = ["-data_aceite"]
 
-        # Esta regra tambem existe no PostgreSQL. Assim, mesmo que outro codigo
-        # esqueca de validar, o banco nao aceita a mesma versao do mesmo termo
-        # duas vezes para o mesmo usuario. Uma versao nova continua permitida.
         constraints = [
             models.UniqueConstraint(
                 fields=["usuario", "tipo_termo", "versao_termo"],
@@ -536,7 +510,9 @@ class AuditoriaAcaoCritica(models.Model):
         related_name="auditorias_acoes_criticas",
         db_column="id_usuario",
     )
+
     acao = models.CharField(max_length=40, choices=Acao.choices)
+
     resultado = models.CharField(
         max_length=20,
         choices=Resultado.choices,
@@ -546,7 +522,6 @@ class AuditoriaAcaoCritica(models.Model):
     alvo_tipo = models.CharField(max_length=80, blank=True, default="")
     alvo_id = models.CharField(max_length=80, blank=True, default="")
     descricao = models.CharField(max_length=255, blank=True, default="")
-
     ip = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.TextField(blank=True, default="")
     metadados = models.JSONField(blank=True, default=dict)
@@ -557,18 +532,24 @@ class AuditoriaAcaoCritica(models.Model):
         verbose_name = "auditoria de acao critica"
         verbose_name_plural = "auditorias de acoes criticas"
         ordering = ["-criado_em"]
+
         indexes = [
-            models.Index(fields=["acao", "criado_em"], name="auditoria_acao_data_idx"),
+            models.Index(
+                fields=["acao", "criado_em"],
+                name="auditoria_acao_data_idx",
+            ),
             models.Index(
                 fields=["usuario", "criado_em"],
                 name="auditoria_usuario_data_idx",
             ),
-            models.Index(fields=["ip", "criado_em"], name="auditoria_ip_data_idx"),
+            models.Index(
+                fields=["ip", "criado_em"],
+                name="auditoria_ip_data_idx",
+            ),
         ]
 
     def __str__(self):
         return f"{self.get_acao_display()} - {self.get_resultado_display()}"
-
 
 
 class Triagem(models.Model):
@@ -612,10 +593,8 @@ class Triagem(models.Model):
             "Documentação especial",
         )
 
-    # Identificador da triagem.
     id_triagem = models.BigAutoField(primary_key=True)
 
-    # Usuário que respondeu à triagem.
     usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -623,25 +602,21 @@ class Triagem(models.Model):
         db_column="id_usuario",
     )
 
-    # Informa se é extensa ou simplificada.
     modalidade = models.CharField(
         max_length=20,
         choices=Modalidade.choices,
         default=Modalidade.EXTENSA,
     )
 
-    # Permite salvar e retomar o questionário antes do resultado final.
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
         default=Status.EM_ANDAMENTO,
     )
 
-    # Guarda a posição e a ordem efetiva, inclusive ramificações.
     pergunta_atual = models.PositiveIntegerField(default=0)
     fluxo_perguntas = models.JSONField(default=list, blank=True)
 
-    # A versão rápida sempre registra qual triagem extensa foi reutilizada.
     triagem_base = models.ForeignKey(
         "self",
         on_delete=models.SET_NULL,
@@ -650,13 +625,11 @@ class Triagem(models.Model):
         related_name="verificacoes_simplificadas",
     )
 
-    # Versão das regras utilizadas no cálculo.
     regra_version = models.CharField(
         max_length=40,
         default="HEMOMINAS_2026_08",
     )
 
-    # Resultado final calculado pelo sistema.
     resultado = models.CharField(
         max_length=30,
         choices=Resultado.choices,
@@ -664,37 +637,34 @@ class Triagem(models.Model):
         default="",
     )
 
-    # Explicação apresentada ao usuário.
     mensagem_resultado = models.TextField(
         blank=True,
         default="",
     )
 
-    # Data orientativa para liberação, quando existir.
     data_liberacao = models.DateField(
         null=True,
         blank=True,
     )
 
-    # Guarda todos os achados sem apagar respostas anteriores.
     achados = models.JSONField(
         default=list,
         blank=True,
     )
 
-    # Datas do ciclo da triagem.
     iniciada_em = models.DateTimeField(auto_now_add=True)
+
     finalizada_em = models.DateTimeField(
         null=True,
         blank=True,
     )
 
-    # Atualiza automaticamente sempre que o andamento for salvo.
     atualizada_em = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "triagens"
         ordering = ["-iniciada_em"]
+
         indexes = [
             models.Index(
                 fields=["usuario", "-iniciada_em"],
@@ -705,6 +675,7 @@ class Triagem(models.Model):
                 name="triagem_resultado_data_idx",
             ),
         ]
+
         verbose_name = "Triagem"
         verbose_name_plural = "Triagens"
 
@@ -724,10 +695,8 @@ class RespostaTriagem(models.Model):
     revisão das regras e futuras versões do questionário.
     """
 
-    # Identificador da resposta.
     id_resposta = models.BigAutoField(primary_key=True)
 
-    # Triagem à qual a resposta pertence.
     triagem = models.ForeignKey(
         Triagem,
         on_delete=models.CASCADE,
@@ -735,66 +704,57 @@ class RespostaTriagem(models.Model):
         db_column="id_triagem",
     )
 
-    # Código da pergunta, como EXT-01 ou EXT-05A.
     id_pergunta = models.CharField(max_length=20)
-
-    # Código interno da resposta.
     codigo_resposta = models.CharField(max_length=80)
-
-    # Texto apresentado ao usuário.
     resposta_label = models.CharField(max_length=255)
 
-    # Data associada ao evento, quando existir.
     data_evento = models.DateField(
         db_column="event_date",
         null=True,
         blank=True,
     )
 
-    # Informações complementares da resposta.
     metadata = models.JSONField(
         default=dict,
         blank=True,
     )
 
-    # Reúne códigos, data e complemento sem perder os campos legados acima.
     valor = models.JSONField(
         default=dict,
         blank=True,
     )
 
-    # Versão das regras usada na resposta.
     rule_version = models.CharField(
         max_length=40,
         default="HEMOMINAS_2026_08",
     )
 
-    # Referência da especificação utilizada.
     source_ref = models.CharField(
         max_length=255,
         blank=True,
         default="",
     )
 
-    # Momento em que a resposta foi salva.
     respondido_em = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "respostas_triagem"
         ordering = ["id_resposta"]
+
         constraints = [
-            # Voltar e corrigir deve substituir, não duplicar, a resposta.
             models.UniqueConstraint(
                 fields=["triagem", "id_pergunta"],
                 name="resposta_unica_por_pergunta",
             ),
         ]
+
         indexes = [
             models.Index(
                 fields=["triagem", "id_pergunta"],
                 name="resposta_triagem_pergunta_idx",
             ),
         ]
+
         verbose_name = "Resposta triagem"
         verbose_name_plural = "Respostas triagem"
 
@@ -808,7 +768,7 @@ class RespostaTriagem(models.Model):
 
 class Estoque(models.Model):
     """
-    UC_29 - Cadastrar Estoque.
+    Uc_29 - Cadastrar Estoque.
 
     Guarda a estrutura de estoque de um Hemocentro para um unico tipo
     sanguineo: quantidade atual de bolsas, os niveis de alerta definidos
@@ -837,9 +797,6 @@ class Estoque(models.Model):
 
     id_estoque = models.BigAutoField(primary_key=True)
 
-    # Somente contas com perfil Hemocentro podem ter um Estoque. A
-    # validacao completa (inclusive "esta aprovado?") fica em clean() e na
-    # camada de servico; limit_choices_to so ajuda a limpar o admin.
     hemocentro = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -848,23 +805,13 @@ class Estoque(models.Model):
         limit_choices_to={"perfil": "HEMOCENTRO"},
     )
 
-    # As opcoes vem de TIPOS_SANGUINEOS (compatibilidade.py), entao um
-    # tipo invalido como "C+" nunca passa nem pela validacao do form nem
-    # pela validacao do model.
     tipo_sanguineo = models.CharField(
         max_length=3,
         choices=[(tipo, tipo) for tipo in TIPOS_SANGUINEOS],
     )
 
-    # Quantidade atual de bolsas. PositiveIntegerField ja impede valores
-    # negativos no nivel do banco (CHECK constraint) e do Python.
     quantidade_bolsas = models.PositiveIntegerField(default=0)
-
-    # A partir de qual quantidade o hemocentro considera o tipo "baixo".
     nivel_minimo = models.PositiveIntegerField()
-
-    # A partir de qual quantidade o hemocentro considera o tipo "critico".
-    # Precisa ser menor ou igual ao nivel_minimo (validado em clean()).
     nivel_critico = models.PositiveIntegerField()
 
     status_calculado = models.CharField(
@@ -873,8 +820,6 @@ class Estoque(models.Model):
         default=StatusCalculado.ESTAVEL,
     )
 
-    # auto_now grava a data automaticamente a cada save(), inclusive nas
-    # atualizacoes feitas pelas movimentacoes de estoque.
     data_atualizacao = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -882,15 +827,14 @@ class Estoque(models.Model):
         verbose_name = "estoque"
         verbose_name_plural = "estoques"
         ordering = ["hemocentro__nome", "tipo_sanguineo"]
+
         constraints = [
-            # Impede dois registros de estoque para o mesmo tipo sanguineo
-            # no mesmo hemocentro, mesmo se dois cadastros chegarem quase
-            # ao mesmo tempo (a regra tambem existe no PostgreSQL).
             models.UniqueConstraint(
                 fields=["hemocentro", "tipo_sanguineo"],
                 name="estoque_unico_por_hemocentro_tipo",
             ),
         ]
+
         indexes = [
             models.Index(
                 fields=["hemocentro", "tipo_sanguineo"],
@@ -941,21 +885,19 @@ class Estoque(models.Model):
 
 class EstoqueMovimentacao(models.Model):
     """
-    UC_30 - Atualizar Estoque.
+    Uc_30 - Atualizar Estoque.
 
     Historico imutavel de cada entrada, saida ou ajuste feito em um
     Estoque. Uma linha nunca e alterada ou apagada depois de criada: para
-    corrigir um valor, registra-se uma nova movimentacao (do tipo AJUSTE).
+    corrigir um valor, registra-se uma nova movimentacao (do tipo Ajuste).
+
     Isso preserva o rastro completo exigido pela regra "toda alteracao
     deve gerar historico com responsavel".
     """
 
     class TipoMovimento(models.TextChoices):
-        # Entrada de bolsas (doacao recebida, transferencia recebida etc).
         ENTRADA = "ENTRADA", "Entrada"
-        # Saida de bolsas (transfusao, transferencia enviada, descarte).
         SAIDA = "SAIDA", "Saída"
-        # Correcao direta da quantidade (ex.: apos uma contagem fisica).
         AJUSTE = "AJUSTE", "Ajuste"
 
     id_mov = models.BigAutoField(primary_key=True)
@@ -967,8 +909,6 @@ class EstoqueMovimentacao(models.Model):
         db_column="id_estoque",
     )
 
-    # SET_NULL preserva a movimentacao mesmo se a conta do responsavel for
-    # removida futuramente; o historico de quantidades continua correto.
     usuario_resp = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -983,24 +923,16 @@ class EstoqueMovimentacao(models.Model):
         choices=TipoMovimento.choices,
     )
 
-    # Quantidade de bolsas antes da movimentacao (copia da foto do
-    # Estoque no momento em que a movimentacao foi registrada).
     quantidade_anterior = models.PositiveIntegerField()
-
-    # Para ENTRADA/SAIDA: quantidade informada pelo usuario (sempre >= 1).
-    # Para AJUSTE: diferenca entre quantidade_nova e quantidade_anterior,
-    # podendo ser negativa quando o ajuste reduz o estoque.
     quantidade_movimentada = models.IntegerField()
-
-    # Quantidade de bolsas depois da movimentacao. Sempre
-    # quantidade_anterior +/- quantidade_movimentada, calculado pela
-    # camada de servico, nunca digitado pelo usuario.
     quantidade_nova = models.PositiveIntegerField()
 
-    motivo = models.CharField(max_length=255, blank=True, default="")
+    motivo = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+    )
 
-    # auto_now_add preenche uma unica vez, no momento da criacao. Como a
-    # linha e imutavel, esta data representa o momento real do evento.
     data_hora = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -1008,6 +940,7 @@ class EstoqueMovimentacao(models.Model):
         verbose_name = "movimentacao de estoque"
         verbose_name_plural = "movimentacoes de estoque"
         ordering = ["-data_hora"]
+
         indexes = [
             models.Index(
                 fields=["estoque", "-data_hora"],
@@ -1028,12 +961,11 @@ class EstoqueMovimentacao(models.Model):
 
 
 class Notificacao(models.Model):
-
     """
     Guarda avisos internos exibidos no dashboard do usuario.
 
     Nesta etapa, a notificacao sera usada para avisar doadores compativeis
-    quando um estoque atualizado por Hemocentro ficar em nivel BAIXO ou CRITICO.
+    quando um estoque atualizado por Hemocentro ficar em nivel Baixo ou Critico.
     Futuramente a mesma tabela tambem pode receber outros avisos do sistema.
     """
 
@@ -1080,6 +1012,7 @@ class Notificacao(models.Model):
         verbose_name = "notificacao"
         verbose_name_plural = "notificacoes"
         ordering = ["-criada_em"]
+
         indexes = [
             models.Index(
                 fields=["usuario", "lida", "-criada_em"],
@@ -1096,11 +1029,13 @@ class Notificacao(models.Model):
 
         return f"{self.usuario.nome} - {self.titulo}"
 
+
 class PedidoSangue(models.Model):
     """
-    RF - Pedido de Sangue.
+    Rf - Pedido de Sangue.
 
     Guarda pedidos publicados por Receptor/Solicitante.
+
     O status permite que o pedido fique pendente, ativo, suspeito,
     recusado ou encerrado.
     """
@@ -1136,11 +1071,17 @@ class PedidoSangue(models.Model):
     )
 
     titulo = models.CharField(max_length=150)
+
     tipo_sanguineo = models.CharField(
         max_length=3,
         choices=[(tipo, tipo) for tipo in TIPOS_SANGUINEOS],
     )
-    urgencia = models.CharField(max_length=10, choices=Urgencia.choices)
+
+    urgencia = models.CharField(
+        max_length=10,
+        choices=Urgencia.choices,
+    )
+
     cidade = models.CharField(max_length=100)
     descricao = models.TextField()
     justificativa_urgencia = models.TextField(blank=True, default="")
@@ -1157,6 +1098,7 @@ class PedidoSangue(models.Model):
     class Meta:
         db_table = "pedidos_sangue"
         ordering = ["-data_criacao"]
+
         indexes = [
             models.Index(
                 fields=["status", "-data_criacao"],
@@ -1196,7 +1138,7 @@ class PedidoSangue(models.Model):
 
 class ValidacaoPedido(models.Model):
     """
-    UC_17 - Validar Pedido.
+    Uc_17 - Validar Pedido.
 
     Guarda o historico das validacoes feitas automaticamente ou por moderador.
     """

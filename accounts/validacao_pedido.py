@@ -163,6 +163,7 @@ def registrar_decisao_validacao_pedido(
             )
 
     pedido.status = novo_status
+
     pedido.save(
         update_fields=[
             "status",

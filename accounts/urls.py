@@ -1,6 +1,7 @@
 """
 RESUMO DO ARQUIVO
 =================
+
 Este arquivo associa cada endereco do app a uma view.
 
 Exemplo: quando o navegador pede /cadastro/, o Django procura esta lista e
@@ -19,11 +20,23 @@ app_name = "accounts"
 
 
 urlpatterns = [
-    # Acesso publico.
-    path("", views.inicio, name="inicio"),
+
+    # ==========================================================
+    # ACESSO PUBLICO
+    # ==========================================================
+
+    path(
+        "",
+        views.inicio,
+        name="inicio",
+    ),
 
     # Cadastro.
-    path("cadastro/", views.cadastro, name="cadastro"),
+    path(
+        "cadastro/",
+        views.cadastro,
+        name="cadastro",
+    ),
 
     # Login.
     path(
@@ -50,16 +63,51 @@ urlpatterns = [
         name="dashboard",
     ),
 
-    # Publicação de pedidos de sangue.
+    # ==========================================================
+    # PEDIDOS DE SANGUE
+    # ==========================================================
+
+    # Publicacao de pedidos de sangue.
     path(
         "pedidos/publicar/",
         views.pedido_publicar,
         name="pedido_publicar",
     ),
+
     path(
         "pedidos/<int:id_pedido>/",
         views.pedido_detalhe,
         name="pedido_detalhe",
+    ),
+
+    path(
+        "pedidos/",
+        views.consultar_pedidos,
+        name="consultar_pedidos",
+    ),
+
+    path(
+        "pedidos/novo/",
+        views.criar_pedido_sangue,
+        name="criar_pedido_sangue",
+    ),
+
+    path(
+        "pedidos/validacao/",
+        views.painel_validacao_pedidos,
+        name="painel_validacao_pedidos",
+    ),
+
+    path(
+        "pedidos/<int:id_pedido>/aprovar/",
+        views.aprovar_pedido,
+        name="aprovar_pedido",
+    ),
+
+    path(
+        "pedidos/<int:id_pedido>/recusar/",
+        views.recusar_pedido,
+        name="recusar_pedido",
     ),
 
     # ==========================================================
@@ -174,35 +222,4 @@ urlpatterns = [
         views.atualizar_estoque_view,
         name="atualizar_estoque",
     ),
-
-    path(
-    "pedidos/",
-    views.consultar_pedidos,
-    name="consultar_pedidos",
-    ),
-
-    path(
-    "pedidos/novo/",
-    views.criar_pedido_sangue,
-    name="criar_pedido_sangue",
-    ),
-
-    path(
-    "pedidos/validacao/",
-    views.painel_validacao_pedidos,
-    name="painel_validacao_pedidos",
-    ),
-
-    path(
-    "pedidos/<int:id_pedido>/aprovar/",
-    views.aprovar_pedido,
-    name="aprovar_pedido",
-    ),
-
-    path(
-    "pedidos/<int:id_pedido>/recusar/",
-    views.recusar_pedido,
-    name="recusar_pedido",
-    ),
-
 ]

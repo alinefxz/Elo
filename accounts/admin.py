@@ -1,6 +1,7 @@
 """
 RESUMO DO ARQUIVO
 =================
+
 Configura como Usuario, ConsentimentoLGPD e auditorias aparecem no /admin/.
 
 O admin e uma ferramenta interna para pessoas autorizadas. Ele nao substitui
@@ -33,11 +34,13 @@ from .validacao_hemocentro import (
     solicitar_correcao_hemocentro,
 )
 
+
 class UsuarioAdminCreationForm(UserCreationForm):
     """Formulario usado quando o admin cria uma conta."""
 
     class Meta:
         model = Usuario
+
         # Estes sao os dados minimos pedidos na tela de criacao do admin.
         # Os outros dados podem ser completados depois na tela de edicao.
         fields = ("email", "nome", "perfil")
@@ -82,8 +85,10 @@ class UsuarioAdmin(UserAdmin):
         "email_verificado",
         "is_staff",
     )
+
     search_fields = ("email", "nome", "cpf", "cnpj")
     ordering = ("nome",)
+
     actions = (
         "aprovar_hemocentros_selecionados",
         "recusar_hemocentros_selecionados",
@@ -100,7 +105,15 @@ class UsuarioAdmin(UserAdmin):
 
     # fieldsets organiza a tela de EDICAO de uma conta existente.
     fieldsets = (
-        (None, {"fields": ("email", "password")}),
+        (
+            None,
+            {
+                "fields": (
+                    "email",
+                    "password",
+                )
+            },
+        ),
         (
             "Dados da conta",
             {
@@ -132,7 +145,16 @@ class UsuarioAdmin(UserAdmin):
                 )
             },
         ),
-        ("Datas", {"fields": ("last_login", "date_joined", "atualizado_em")}),
+        (
+            "Datas",
+            {
+                "fields": (
+                    "last_login",
+                    "date_joined",
+                    "atualizado_em",
+                )
+            },
+        ),
     )
 
     # add_fieldsets organiza a tela de CRIACAO de uma conta no admin.
@@ -164,7 +186,12 @@ class UsuarioAdmin(UserAdmin):
             "is_superuser",
             "email_verificado",
         ]
-        alteracoes = campos_sensiveis_alterados(obj, campos_auditados) if change else {}
+
+        alteracoes = (
+            campos_sensiveis_alterados(obj, campos_auditados)
+            if change
+            else {}
+        )
 
         super().save_model(request, obj, form, change)
 
@@ -178,11 +205,23 @@ class UsuarioAdmin(UserAdmin):
                 metadados={"alteracoes": alteracoes},
             )
 
-    def _executar_acao_validacao(self, request, queryset, funcao, parecer):
+    def _executar_acao_validacao(
+        self,
+        request,
+        queryset,
+        funcao,
+        parecer,
+    ):
         """Aplica uma decisao de validacao aos Hemocentros selecionados."""
 
-        hemocentros = queryset.filter(perfil=Usuario.Perfil.HEMOCENTRO)
-        ignorados = queryset.exclude(perfil=Usuario.Perfil.HEMOCENTRO).count()
+        hemocentros = queryset.filter(
+            perfil=Usuario.Perfil.HEMOCENTRO
+        )
+
+        ignorados = queryset.exclude(
+            perfil=Usuario.Perfil.HEMOCENTRO
+        ).count()
+
         total = 0
 
         for hemocentro in hemocentros:
@@ -200,6 +239,7 @@ class UsuarioAdmin(UserAdmin):
                 f"{total} Hemocentro(s) atualizado(s) com sucesso.",
                 level=messages.SUCCESS,
             )
+
         if ignorados:
             self.message_user(
                 request,
@@ -229,8 +269,14 @@ class UsuarioAdmin(UserAdmin):
             "Hemocentro recusado pelo painel administrativo.",
         )
 
-    @admin.action(description="Solicitar correcao dos Hemocentros selecionados")
-    def solicitar_correcao_hemocentros_selecionados(self, request, queryset):
+    @admin.action(
+        description="Solicitar correcao dos Hemocentros selecionados"
+    )
+    def solicitar_correcao_hemocentros_selecionados(
+        self,
+        request,
+        queryset,
+    ):
         """Acao em lote que solicita correcao cadastral e registra historico."""
 
         self._executar_acao_validacao(
@@ -244,34 +290,59 @@ class UsuarioAdmin(UserAdmin):
         """Audita mudancas em grupos e permissoes diretas do usuario."""
 
         obj = form.instance
+
         grupos_antes = set()
         permissoes_antes = set()
 
         if change and obj.pk:
             usuario_atual = Usuario.objects.get(pk=obj.pk)
+
             grupos_antes = set(
-                usuario_atual.groups.values_list("name", flat=True)
-            )
-            permissoes_antes = set(
-                usuario_atual.user_permissions.values_list("codename", flat=True)
+                usuario_atual.groups.values_list(
+                    "name",
+                    flat=True,
+                )
             )
 
-        super().save_related(request, form, formsets, change)
+            permissoes_antes = set(
+                usuario_atual.user_permissions.values_list(
+                    "codename",
+                    flat=True,
+                )
+            )
+
+        super().save_related(
+            request,
+            form,
+            formsets,
+            change,
+        )
 
         if not change:
             return
 
-        grupos_depois = set(obj.groups.values_list("name", flat=True))
+        grupos_depois = set(
+            obj.groups.values_list(
+                "name",
+                flat=True,
+            )
+        )
+
         permissoes_depois = set(
-            obj.user_permissions.values_list("codename", flat=True)
+            obj.user_permissions.values_list(
+                "codename",
+                flat=True,
+            )
         )
 
         alteracoes = {}
+
         if grupos_antes != grupos_depois:
             alteracoes["groups"] = {
                 "antes": sorted(grupos_antes),
                 "depois": sorted(grupos_depois),
             }
+
         if permissoes_antes != permissoes_depois:
             alteracoes["user_permissions"] = {
                 "antes": sorted(permissoes_antes),
@@ -300,7 +371,12 @@ class ValidacaoHemocentroAdmin(admin.ModelAdmin):
         "admin",
         "parecer_resumido",
     )
-    list_filter = ("status", "data_analise")
+
+    list_filter = (
+        "status",
+        "data_analise",
+    )
+
     search_fields = (
         "hemocentro__email",
         "hemocentro__nome",
@@ -309,6 +385,7 @@ class ValidacaoHemocentroAdmin(admin.ModelAdmin):
         "admin__nome",
         "parecer",
     )
+
     readonly_fields = (
         "id_validacao",
         "hemocentro",
@@ -317,6 +394,7 @@ class ValidacaoHemocentroAdmin(admin.ModelAdmin):
         "parecer",
         "data_analise",
     )
+
     date_hierarchy = "data_analise"
     ordering = ("-data_analise",)
 
@@ -325,6 +403,7 @@ class ValidacaoHemocentroAdmin(admin.ModelAdmin):
 
         if len(obj.parecer) <= 80:
             return obj.parecer
+
         return f"{obj.parecer[:77]}..."
 
     parecer_resumido.short_description = "Parecer"
@@ -350,11 +429,22 @@ class ConsentimentoLGPDAdmin(admin.ModelAdmin):
         "aceito",
         "data_aceite",
     )
-    list_filter = ("tipo_termo", "aceito", "versao_termo")
-    search_fields = ("usuario__email", "usuario__nome")
+
+    list_filter = (
+        "tipo_termo",
+        "aceito",
+        "versao_termo",
+    )
+
+    search_fields = (
+        "usuario__email",
+        "usuario__nome",
+    )
 
     # A data representa um evento real e nao deve ser alterada pelo formulario.
-    readonly_fields = ("data_aceite",)
+    readonly_fields = (
+        "data_aceite",
+    )
 
 
 @admin.register(AuditoriaAcaoCritica)
@@ -370,7 +460,13 @@ class AuditoriaAcaoCriticaAdmin(admin.ModelAdmin):
         "alvo_id",
         "ip",
     )
-    list_filter = ("acao", "resultado", "criado_em")
+
+    list_filter = (
+        "acao",
+        "resultado",
+        "criado_em",
+    )
+
     search_fields = (
         "usuario__email",
         "usuario__nome",
@@ -379,6 +475,7 @@ class AuditoriaAcaoCriticaAdmin(admin.ModelAdmin):
         "alvo_id",
         "ip",
     )
+
     readonly_fields = (
         "id_auditoria",
         "usuario",
@@ -392,6 +489,7 @@ class AuditoriaAcaoCriticaAdmin(admin.ModelAdmin):
         "metadados",
         "criado_em",
     )
+
     date_hierarchy = "criado_em"
     ordering = ("-criado_em",)
 
@@ -403,6 +501,7 @@ class AuditoriaAcaoCriticaAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
 
 @admin.register(Estoque)
 class EstoqueAdmin(admin.ModelAdmin):
@@ -423,10 +522,26 @@ class EstoqueAdmin(admin.ModelAdmin):
         "status_calculado",
         "data_atualizacao",
     )
-    list_filter = ("status_calculado", "tipo_sanguineo")
-    search_fields = ("hemocentro__email", "hemocentro__nome")
-    ordering = ("hemocentro__nome", "tipo_sanguineo")
-    readonly_fields = ("status_calculado", "data_atualizacao")
+
+    list_filter = (
+        "status_calculado",
+        "tipo_sanguineo",
+    )
+
+    search_fields = (
+        "hemocentro__email",
+        "hemocentro__nome",
+    )
+
+    ordering = (
+        "hemocentro__nome",
+        "tipo_sanguineo",
+    )
+
+    readonly_fields = (
+        "status_calculado",
+        "data_atualizacao",
+    )
 
 
 @admin.register(EstoqueMovimentacao)
@@ -449,7 +564,12 @@ class EstoqueMovimentacaoAdmin(admin.ModelAdmin):
         "quantidade_nova",
         "usuario_resp",
     )
-    list_filter = ("tipo_movimento", "data_hora")
+
+    list_filter = (
+        "tipo_movimento",
+        "data_hora",
+    )
+
     search_fields = (
         "estoque__hemocentro__email",
         "estoque__hemocentro__nome",
@@ -457,6 +577,7 @@ class EstoqueMovimentacaoAdmin(admin.ModelAdmin):
         "usuario_resp__nome",
         "motivo",
     )
+
     readonly_fields = (
         "id_mov",
         "estoque",
@@ -468,6 +589,7 @@ class EstoqueMovimentacaoAdmin(admin.ModelAdmin):
         "motivo",
         "data_hora",
     )
+
     date_hierarchy = "data_hora"
     ordering = ("-data_hora",)
 
@@ -619,6 +741,7 @@ class RespostaTriagemAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
+
 @admin.register(Notificacao)
 class NotificacaoAdmin(admin.ModelAdmin):
     """Permite consultar os avisos internos enviados aos usuarios."""
@@ -630,21 +753,25 @@ class NotificacaoAdmin(admin.ModelAdmin):
         "lida",
         "criada_em",
     )
+
     list_filter = (
         "tipo",
         "lida",
         "criada_em",
     )
+
     search_fields = (
         "usuario__email",
         "usuario__nome",
         "titulo",
         "mensagem",
     )
+
     readonly_fields = (
         "criada_em",
         "lida_em",
     )
+
     ordering = ("-criada_em",)
 
     def has_add_permission(self, request):
@@ -655,6 +782,7 @@ class NotificacaoAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
 
 @admin.register(PedidoSangue)
 class PedidoSangueAdmin(admin.ModelAdmin):
@@ -725,7 +853,10 @@ class ValidacaoPedidoAdmin(admin.ModelAdmin):
         "motivo_resumido",
     )
 
-    list_filter = ("status_validacao", "data_validacao")
+    list_filter = (
+        "status_validacao",
+        "data_validacao",
+    )
 
     search_fields = (
         "pedido__titulo",
