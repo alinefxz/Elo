@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Consultar pedidos de sangue | Elo{% endblock %}
+
+{% block content %}
+
+<h1>Consultar pedidos de sangue</h1>
+
+<p>
+    Utilize os filtros abaixo para encontrar pedidos de sangue ativos.
+</p>
+
+<form method="get">
+
+    {{ form.non_field_errors }}
+
+    <p>
+        {{ form.tipo_sanguineo.label_tag }}
+        {{ form.tipo_sanguineo }}
+    </p>
+
+    <p>
+        {{ form.urgencia.label_tag }}
+        {{ form.urgencia }}
+    </p>
+
+    <p>
+        {{ form.cidade.label_tag }}
+        {{ form.cidade }}
+    </p>
+
+    <p>
+        {{ form.hemocentro.label_tag }}
+        {{ form.hemocentro }}
+    </p>
+
+    <p>
+        {{ form.data.label_tag }}
+        {{ form.data }}
+    </p>
+
+    <button type="submit">Filtrar pedidos</button>
+
+    <a href="{% url 'accounts:consultar_pedidos' %}">
+        Limpar filtros
+    </a>
+
+</form>
+
+<hr>
+
+<h2>Pedidos encontrados</h2>
+
+{% if pedidos %}
+
+    {% for pedido in pedidos %}
+
+        <div>
+            <h3>{{ pedido }}</h3>
+
+            <p>
+                <strong>Tipo sanguíneo:</strong>
+                {{ pedido.tipo_sanguineo }}
+            </p>
+
+            <p>
+                <strong>Urgência:</strong>
+                {{ pedido.urgencia }}
+            </p>
+
+            <p>
+                <strong>Cidade:</strong>
+                {{ pedido.cidade }}
+            </p>
+
+            <p>
+                <strong>Hemocentro:</strong>
+                {{ pedido.hemocentro_destino }}
+            </p>
+
+            <p>
+                <strong>Data:</strong>
+                {{ pedido.data_criacao|date:"d/m/Y H:i" }}
+            </p>
+
+            <hr>
+        </div>
+
+    {% endfor %}
+
+{% else %}
+
+    <p>
+        Nenhum pedido de sangue encontrado.
+    </p>
+
+{% endif %}
+
+<p>
+    <a href="{% url 'accounts:dashboard' %}">
+        Voltar ao painel
+    </a>
+</p>
+
+{% endblock %}
