@@ -4,7 +4,7 @@ from django.urls import reverse
 from .forms import PedidoSangueForm
 from .models import PedidoSangue, Usuario, ValidacaoPedido
 from .validacao_hemocentro import aprovar_hemocentro
-from .validacao_pedido import aprovar_pedido
+from .validacao_pedido import aprovar_pedido, criar_pedido_pendente
 
 
 class PedidoSangueTests(TestCase):
@@ -181,3 +181,50 @@ class PedidoSangueTests(TestCase):
             ValidacaoPedido.StatusValidacao.APROVADO,
         )
         self.assertEqual(pedido.validacoes.count(), 1)
+
+    def test_admin_moderar_pedido_nao_publica(self):
+        pedido = criar_pedido_pendente(
+            dados=self.dados_validos(),
+            solicitante=self.receptor,
+        )
+
+        self.client.force_login(self.administrador)
+
+        resposta = self.client.get(
+            reverse("accounts:painel_validacao_pedidos")
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, str(pedido.pk))
+
+        resposta = self.client.post(
+            reverse(
+                "accounts:marcar_pedido_suspeito",
+                kwargs={"id_pedido": pedido.pk},
+            ),
+            {"motivo": "Há solicitação semelhante para o mesmo destino."},
+        )
+
+        self.assertRedirects(
+            resposta,
+            reverse("accounts:painel_validacao_pedidos"),
+        )
+        pedido.refresh_from_db()
+        self.assertEqual(
+            pedido.status,
+            PedidoSangue.Status.EM_ANALISE,
+        )
+        self.assertFalse(pedido.publicado_por_id)
+        self.assertEqual(
+            pedido.validacoes.latest("data_validacao").status_validacao,
+            ValidacaoPedido.StatusValidacao.SUSPEITO,
+        )
+
+    def test_hemocentro_nao_acessa_moderacao_administrativa(self):
+        self.client.force_login(self.hemocentro)
+
+        resposta = self.client.get(
+            reverse("accounts:painel_validacao_pedidos")
+        )
+
+        self.assertEqual(resposta.status_code, 403)

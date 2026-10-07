@@ -5,6 +5,19 @@
 {% block content %}
 <h1>Minhas solicitações de divulgação</h1>
 
+<form method="get">
+    <label for="status">Filtrar por status:</label>
+    <select id="status" name="status">
+        <option value="">Todos</option>
+        {% for codigo, nome in status_opcoes %}
+            <option value="{{ codigo }}" {% if status_atual == codigo %}selected{% endif %}>
+                {{ nome }}
+            </option>
+        {% endfor %}
+    </select>
+    <button type="submit">Filtrar</button>
+</form>
+
 {% for solicitacao in solicitacoes %}
     <section>
         <h2>{{ solicitacao.titulo }}</h2>
@@ -13,7 +26,19 @@
         <p><strong>Cidade:</strong> {{ solicitacao.cidade }}</p>
         <p><strong>Hemocentro:</strong> {{ solicitacao.hemocentro_destino.nome }}</p>
         <p><strong>Status:</strong> {{ solicitacao.get_status_display }}</p>
-        <p><strong>Enviada em:</strong> {{ solicitacao.data_criacao|date:"d/m/Y H:i" }}</p>
+       <p><strong>Enviada em:</strong> {{ solicitacao.data_criacao|date:"d/m/Y H:i" }}</p>
+
+        {% with ultima_validacao=solicitacao.validacoes.all.0 %}
+            {% if ultima_validacao %}
+                <p>
+                    <strong>Última análise:</strong>
+                    {{ ultima_validacao.get_status_validacao_display }}
+                </p>
+                {% if ultima_validacao.motivo %}
+                    <p><strong>Orientação:</strong> {{ ultima_validacao.motivo }}</p>
+                {% endif %}
+            {% endif %}
+        {% endwith %}
     </section>
 {% empty %}
     <p>Você ainda não enviou uma solicitação.</p>

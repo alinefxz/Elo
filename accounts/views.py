@@ -98,6 +98,7 @@ from .triagem_catalogo import obter_pergunta
 
 from .validacao_pedido import (
     aprovar_pedido as aprovar_pedido_servico,
+    marcar_pedido_suspeito as marcar_pedido_suspeito_servico,
     recusar_pedido as recusar_pedido_servico,
     solicitar_correcao_pedido as solicitar_correcao_pedido_servico,
     criar_pedido_pendente,
@@ -495,6 +496,7 @@ def montar_visibilidade_dashboard(usuario, painel):
         "pode_gerenciar_estoque": hemocentro_aprovado,
         "pode_analisar_pedidos": hemocentro_aprovado,
         "pode_aprovar_hemocentros": administrador,
+        "pode_moderar_pedidos": administrador,
     }
 
 
@@ -1503,13 +1505,28 @@ def minhas_solicitacoes(request):
     solicitacoes = (
         PedidoSangue.objects
         .select_related("hemocentro_destino")
+        .prefetch_related(
+            Prefetch(
+                "validacoes",
+                queryset=ValidacaoPedido.objects.select_related("moderador"),
+            )
+        )
         .filter(solicitante=request.user)
         .order_by("-data_criacao")
     )
+
+    status = request.GET.get("status")
+    if status in dict(PedidoSangue.Status.choices):
+        solicitacoes = solicitacoes.filter(status=status)
+
     return render(
         request,
         "accounts/minhas_solicitacoes.html",
-        {"solicitacoes": solicitacoes},
+        {
+            "solicitacoes": solicitacoes,
+            "status_opcoes": PedidoSangue.Status.choices,
+            "status_atual": status or "",
+        },
     )
 
 
@@ -1537,7 +1554,10 @@ def painel_pedidos_hemocentro(request):
     return render(
         request,
         "accounts/painel_validacao_pedidos.html",
-        {"solicitacoes": solicitacoes},
+        {
+            "solicitacoes": solicitacoes,
+            "status_opcoes": PedidoSangue.Status.choices,
+        },
     )
 
 
@@ -1628,10 +1648,43 @@ def consultar_pedidos(request):
 
 @login_required
 def painel_validacao_pedidos(request):
-    """Rota antiga mantida como alias do painel do Hemocentro."""
+    """Painel de moderação do Administrador, sem publicar pedidos."""
 
-    exigir_hemocentro_aprovado(request.user)
-    return painel_pedidos_hemocentro(request)
+    exigir_administrador(request.user)
+
+    pedidos = (
+        PedidoSangue.objects
+        .select_related("solicitante", "hemocentro_destino")
+        .prefetch_related(
+            Prefetch(
+                "validacoes",
+                queryset=ValidacaoPedido.objects.select_related("moderador"),
+            )
+        )
+        .filter(
+            status__in=[
+                PedidoSangue.Status.ENVIADA,
+                PedidoSangue.Status.EM_ANALISE,
+                PedidoSangue.Status.CORRECAO_SOLICITADA,
+                PedidoSangue.Status.PUBLICADA,
+            ]
+        )
+        .order_by("-duplicidade_suspeita", "-data_criacao")
+    )
+
+    status = request.GET.get("status")
+    if status in dict(PedidoSangue.Status.choices):
+        pedidos = pedidos.filter(status=status)
+
+    return render(
+        request,
+        "accounts/painel_moderacao_pedidos.html",
+        {
+            "pedidos": pedidos,
+            "status_opcoes": PedidoSangue.Status.choices,
+            "status_atual": status or "",
+        },
+    )
 
 
 @login_required
@@ -1658,7 +1711,7 @@ def aprovar_pedido(request, id_pedido):
         "Pedido aprovado com sucesso.",
     )
 
-    return redirect("accounts:painel_validacao_pedidos")
+    return redirect("accounts:painel_pedidos_hemocentro")
 
 
 @login_required
@@ -1685,7 +1738,7 @@ def recusar_pedido(request, id_pedido):
         "Pedido recusado com sucesso.",
     )
 
-    return redirect("accounts:painel_validacao_pedidos")
+    return redirect("accounts:painel_pedidos_hemocentro")
 
 
 @login_required
@@ -1700,4 +1753,23 @@ def solicitar_correcao_pedido(request, id_pedido):
         request=request,
     )
     messages.success(request, "Correção solicitada ao responsável.")
-    return redirect("accounts:painel_validacao_pedidos")
+    return redirect("accounts:painel_pedidos_hemocentro")
+
+
+@login_required
+@require_POST
+def marcar_pedido_suspeito(request, id_pedido):
+    """Registra uma suspeita para moderação, sem publicar o pedido."""
+
+    pedido = get_object_or_404(PedidoSangue, pk=id_pedido)
+    marcar_pedido_suspeito_servico(
+        pedido=pedido,
+        moderador=request.user,
+        motivo=request.POST.get("motivo", ""),
+        request=request,
+    )
+    messages.success(request, "Pedido marcado para moderação como suspeito.")
+
+    if usuario_e_administrador(request.user):
+        return redirect("accounts:painel_validacao_pedidos")
+    return redirect("accounts:painel_pedidos_hemocentro")

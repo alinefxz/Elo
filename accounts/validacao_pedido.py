@@ -12,7 +12,7 @@ from .models import (
     Usuario,
     ValidacaoPedido,
 )
-from .validacao_hemocentro import hemocentro_aprovado
+from .validacao_hemocentro import hemocentro_aprovado, usuario_e_administrador
 
 
 def validar_dados_pedido(pedido):
@@ -157,16 +157,6 @@ def registrar_decisao_validacao_pedido(
     o status do pedido.
     """
 
-    if not hemocentro_aprovado(moderador):
-        raise PermissionDenied(
-            "Somente Hemocentro aprovado pode analisar pedidos."
-        )
-
-    if pedido.hemocentro_destino_id != moderador.pk:
-        raise PermissionDenied(
-            "O Hemocentro só pode analisar solicitações destinadas a ele."
-        )
-
     motivo = (motivo or "").strip()
 
     if status_validacao not in [
@@ -179,15 +169,36 @@ def registrar_decisao_validacao_pedido(
             "Status de validação inválido."
         )
 
-    pedido = (
-        PedidoSangue.objects
-        .select_for_update()
-        .select_related(
-            "solicitante",
-            "hemocentro_destino",
-        )
-        .get(pk=pedido.pk)
+    # A publicação, a recusa e a solicitação de correção pertencem somente
+    # ao Hemocentro aprovado de destino. O Administrador apenas pode
+    # registrar uma suspeita para fins de moderação/auditoria.
+    administrador = usuario_e_administrador(moderador)
+    hemocentro_do_destino = (
+        hemocentro_aprovado(moderador)
+        and pedido.hemocentro_destino_id == moderador.pk
     )
+
+    if status_validacao == ValidacaoPedido.StatusValidacao.SUSPEITO:
+        if not administrador and not hemocentro_do_destino:
+            raise PermissionDenied(
+                "Somente o administrador ou o Hemocentro aprovado de destino "
+                "pode marcar um pedido como suspeito."
+            )
+    elif not hemocentro_do_destino:
+        raise PermissionDenied(
+            "Somente o Hemocentro aprovado de destino pode analisar e publicar "
+            "pedidos."
+        )
+
+    # Não use select_related junto com select_for_update aqui. Como
+    # solicitante é uma FK anulável, o Django gera LEFT OUTER JOIN e o
+    # PostgreSQL não permite aplicar FOR UPDATE ao lado opcional da junção.
+    # O bloqueio deve atingir somente a linha do pedido; as relações são
+    # carregadas sob demanda quando as notificações forem criadas.
+    pedido = PedidoSangue.objects.select_for_update().get(pk=pedido.pk)
+
+    if pedido.status == PedidoSangue.Status.ENCERRADA:
+        raise ValidationError("Não é possível validar um pedido encerrado.")
 
     if status_validacao == (
         ValidacaoPedido.StatusValidacao.APROVADO
@@ -196,7 +207,7 @@ def registrar_decisao_validacao_pedido(
 
         if not motivo:
             motivo = (
-                "Pedido aprovado pelo administrador."
+                "Pedido aprovado pelo Hemocentro de destino."
             )
 
     elif status_validacao == (
@@ -206,7 +217,7 @@ def registrar_decisao_validacao_pedido(
 
         if not motivo:
             motivo = (
-                "Pedido recusado pelo administrador."
+                "Pedido recusado pelo Hemocentro de destino."
             )
 
     elif status_validacao == ValidacaoPedido.StatusValidacao.CORRECAO_SOLICITADA:

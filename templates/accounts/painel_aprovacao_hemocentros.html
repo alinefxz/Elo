@@ -13,6 +13,13 @@
     </p>
 
     <p>
+        <a href="{% url 'accounts:dashboard' %}">Voltar ao painel</a>
+        · <a href="{% url 'accounts:inicio' %}">Página inicial</a>
+        · <a href="{% url 'accounts:estoque_publico' %}">Estoques públicos</a>
+        · <a href="{% url 'accounts:painel_validacao_pedidos' %}">Moderar pedidos</a>
+    </p>
+
+    <p>
         Hemocentros pendentes:
         <strong>{{ hemocentros|length }}</strong>
     </p>

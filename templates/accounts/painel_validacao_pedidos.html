@@ -6,7 +6,24 @@
 <h1>Solicitações recebidas</h1>
 <p>Somente após sua análise uma necessidade será publicada oficialmente.</p>
 
+<form method="get">
+    <label for="status">Filtrar por status:</label>
+    <select id="status" name="status">
+        <option value="">Todos</option>
+        {% for codigo, nome in status_opcoes %}
+            <option value="{{ codigo }}">{{ nome }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit">Filtrar</button>
+</form>
+
+<p>
+    <a href="{% url 'accounts:dashboard' %}">Voltar ao painel</a>
+    · <a href="{% url 'accounts:estoque_hemocentro' %}">Meu estoque</a>
+</p>
+
 {% for pedido in solicitacoes %}
+
     <section>
         <h2>{{ pedido.titulo }}</h2>
 
@@ -42,6 +59,11 @@
                 {% csrf_token %}
                 <textarea name="motivo" rows="2" placeholder="Motivo da recusa"></textarea>
                 <button type="submit">Recusar</button>
+  </form>
+            <form method="post" action="{% url 'accounts:marcar_pedido_suspeito' pedido.id_pedido %}">
+                {% csrf_token %}
+                <textarea name="motivo" rows="2" required placeholder="Explique por que o pedido parece suspeito"></textarea>
+                <button type="submit">Marcar como suspeito</button>
             </form>
         {% endif %}
     </section>

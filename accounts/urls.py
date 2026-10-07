@@ -151,6 +151,12 @@ urlpatterns = [
         name="solicitar_correcao_pedido",
     ),
 
+    path(
+        "pedidos/<int:id_pedido>/suspeito/",
+        views.marcar_pedido_suspeito,
+        name="marcar_pedido_suspeito",
+    ),
+
     # ==========================================================
     # TRIAGEM
     # ==========================================================
