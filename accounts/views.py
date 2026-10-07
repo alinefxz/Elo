@@ -42,6 +42,7 @@ from .forms import (
     CadastrarEstoqueForm,
     CadastroUsuarioForm,
     MovimentarEstoqueForm,
+    FiltroEstoquePublicoForm,
     PedidoSangueForm,
     FiltroPedidoSangueForm,
 )
@@ -1243,42 +1244,69 @@ def visualizacao_publica_estoque(request):
     exibicao publica, sem expor os limites internos usados pelo Hemocentro.
     """
 
+    parametros = request.GET.copy()
+    # Mantém compatibilidade com os parâmetros antigos da tela (q e tipo).
+    if "q" in parametros and "busca" not in parametros:
+        parametros["busca"] = parametros.get("q", "")
+    if "tipo" in parametros and "tipo_sanguineo" not in parametros:
+        parametros["tipo_sanguineo"] = parametros.get("tipo", "")
+    if "status" in parametros and "situacao" not in parametros:
+        parametros["situacao"] = parametros.get("status", "")
+
+    form = FiltroEstoquePublicoForm(parametros or None)
     estoques = obter_estoques_publicos()
 
-    consulta = (request.GET.get("q") or "").strip().lower()
-    tipo = (request.GET.get("tipo") or "").strip().upper()
+    if form.is_valid():
+        tipo = form.cleaned_data.get("tipo_sanguineo")
+        cidade = (form.cleaned_data.get("cidade") or "").strip().lower()
+        hemocentro = (form.cleaned_data.get("hemocentro") or "").strip().lower()
+        situacao = form.cleaned_data.get("situacao")
+        busca = (form.cleaned_data.get("busca") or "").strip().lower()
 
-    if consulta:
-        estoques = [
-            estoque
-            for estoque in estoques
-            if consulta
-            in " ".join(
-                [
-                    estoque.get("nome", ""),
-                    estoque.get("cidade", ""),
-                    estoque.get("estado", ""),
-                    estoque.get("tipo_sanguineo", ""),
-                    estoque.get("status", ""),
-                ]
-            ).lower()
-        ]
+        if tipo:
+            estoques = [
+                estoque for estoque in estoques
+                if estoque["tipo_sanguineo"] == tipo
+            ]
 
-    if tipo:
-        estoques = [
-            estoque
-            for estoque in estoques
-            if estoque.get("tipo_sanguineo") == tipo
-        ]
+        if cidade:
+            estoques = [
+                estoque for estoque in estoques
+                if cidade in estoque["cidade"].lower()
+            ]
+
+        if hemocentro:
+            estoques = [
+                estoque for estoque in estoques
+                if hemocentro in estoque["nome"].lower()
+            ]
+
+        if situacao:
+            estoques = [
+                estoque for estoque in estoques
+                if estoque["status_codigo"] == situacao
+            ]
+
+        if busca:
+            estoques = [
+                estoque for estoque in estoques
+                if busca in " ".join(
+                    [
+                        estoque["nome"],
+                        estoque["cidade"],
+                        estoque["estado"],
+                        estoque["tipo_sanguineo"],
+                        estoque["status_label"],
+                    ]
+                ).lower()
+            ]
 
     return render(
         request,
         "accounts/estoque_publico.html",
         {
             "estoques": estoques,
-            "consulta": request.GET.get("q", ""),
-            "tipo_selecionado": tipo,
-            "tipos_sanguineos": TIPOS_SANGUINEOS,
+            "form": form,
         },
     )
 
@@ -1575,7 +1603,13 @@ def consultar_pedidos(request):
     pedidos = (
         PedidoSangue.objects
         .select_related("hemocentro_destino")
-        .filter(status=PedidoSangue.Status.ATIVO)
+        .filter(
+            status=PedidoSangue.Status.PUBLICADA,
+            hemocentro_destino__perfil=Usuario.Perfil.HEMOCENTRO,
+            hemocentro_destino__status_validacao=(
+                Usuario.StatusValidacaoHemocentro.APROVADO
+            ),
+        )
     )
 
     if form.is_valid():

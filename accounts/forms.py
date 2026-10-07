@@ -732,3 +732,45 @@ class FiltroPedidoSangueForm(forms.Form):
         required=False,
         choices=[("", "Todos")] + list(PedidoSangue.Status.choices),
     )
+
+
+class FiltroEstoquePublicoForm(forms.Form):
+    """Filtros da consulta pública de estoques.
+
+    A situação usa os códigos calculados pelo sistema. Os níveis mínimo e
+    crítico continuam ocultos, pois são parâmetros internos do Hemocentro.
+    """
+
+    tipo_sanguineo = forms.ChoiceField(
+        label="Tipo sanguíneo",
+        required=False,
+        choices=[("", "Todos")] + [(tipo, tipo) for tipo in TIPOS_SANGUINEOS],
+    )
+
+    cidade = forms.CharField(
+        label="Cidade",
+        required=False,
+    )
+
+    hemocentro = forms.CharField(
+        label="Hemocentro",
+        required=False,
+    )
+
+    situacao = forms.ChoiceField(
+        label="Situação do estoque",
+        required=False,
+        choices=[
+            ("", "Todas"),
+            ("CRITICO", "Crítico"),
+            ("BAIXO", "Baixo"),
+            ("ADEQUADO", "Adequado"),
+            ("ALTO", "Alto"),
+        ],
+    )
+
+    busca = forms.CharField(
+        label="Busca",
+        required=False,
+        help_text="Nome do Hemocentro, cidade, UF ou tipo sanguíneo.",
+    )

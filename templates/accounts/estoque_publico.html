@@ -34,7 +34,18 @@ Não são exibidos dados internos, como:
     Consulte a situação dos estoques disponíveis nos Hemocentros cadastrados e aprovados no Elo.
 </p>
 
-<!-- Legenda dos indicadores -->
+<form method="get">
+    {{ form.as_p }}
+
+    <button type="submit">
+        Filtrar estoque
+    </button>
+
+    <a href="{% url 'accounts:estoque_publico' %}">
+        Limpar filtros
+    </a>
+</form>
+
 <section>
     <h2>Indicadores</h2>
 
@@ -42,26 +53,30 @@ Não são exibidos dados internos, como:
         <li>
             <strong>Crítico</strong> - estoque em situação crítica.
         </li>
+
         <li>
             <strong>Baixo</strong> - estoque abaixo do nível esperado.
         </li>
+
         <li>
             <strong>Adequado</strong> - estoque dentro da faixa esperada.
         </li>
+
         <li>
             <strong>Alto</strong> - estoque acima da faixa adequada.
         </li>
     </ul>
 </section>
 
-<!-- Listagem dos estoques -->
 <section>
     <h2>Estoques por Hemocentro</h2>
 
     {% if estoques %}
+
         {% regroup estoques by nome as hemocentros %}
 
         {% for hemocentro in hemocentros %}
+
             <article>
                 <h3>{{ hemocentro.grouper }}</h3>
 
@@ -79,7 +94,9 @@ Não são exibidos dados internos, como:
                         {% for item in hemocentro.list %}
                             <tr>
                                 <td>
-                                    <strong>{{ item.tipo_sanguineo }}</strong>
+                                    <strong>
+                                        {{ item.tipo_sanguineo }}
+                                    </strong>
                                 </td>
 
                                 <td>
@@ -87,23 +104,7 @@ Não são exibidos dados internos, como:
                                 </td>
 
                                 <td>
-                                    {% if item.status_codigo == "CRITICO" %}
-                                        <span>
-                                            <strong>Crítico</strong>
-                                        </span>
-                                    {% elif item.status_codigo == "BAIXO" %}
-                                        <span>
-                                            <strong>Baixo</strong>
-                                        </span>
-                                    {% elif item.status_codigo == "ADEQUADO" %}
-                                        <span>
-                                            <strong>Adequado</strong>
-                                        </span>
-                                    {% elif item.status_codigo == "ALTO" %}
-                                        <span>
-                                            <strong>Alto</strong>
-                                        </span>
-                                    {% endif %}
+                                    {{ item.status_label }}
                                 </td>
 
                                 <td>
@@ -121,18 +122,25 @@ Não são exibidos dados internos, como:
             </article>
 
             <hr>
+
         {% endfor %}
+
     {% else %}
-        <p>Nenhum estoque público disponível no momento.</p>
+
+        <p>
+            Nenhum estoque público disponível no momento.
+        </p>
+
     {% endif %}
 </section>
 
 <section>
     <p>
         <strong>Importante:</strong>
-        os dados apresentados têm finalidade informativa. A disponibilidade real das bolsas deve ser confirmada diretamente com o Hemocentro.
+        os dados apresentados têm finalidade informativa.
+        A disponibilidade real das bolsas deve ser confirmada diretamente
+        com o Hemocentro.
     </p>
 </section>
 
 {% endblock %}
-

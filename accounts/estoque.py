@@ -355,6 +355,14 @@ def calcular_status_publico(quantidade_bolsas, nivel_minimo, nivel_critico):
     return "ADEQUADO"
 
 
+STATUS_PUBLICO_LABEL = {
+    "CRITICO": "Crítico",
+    "BAIXO": "Baixo",
+    "ADEQUADO": "Adequado",
+    "ALTO": "Alto",
+}
+
+
 def obter_estoques_publicos():
     """
     Busca os estoques dos Hemocentros aprovados e retorna somente
@@ -380,6 +388,11 @@ def obter_estoques_publicos():
     resultado = []
 
     for estoque in estoques:
+        status_codigo = calcular_status_publico(
+            estoque.quantidade_bolsas,
+            estoque.nivel_minimo,
+            estoque.nivel_critico,
+        )
         resultado.append(
             {
                 "nome": estoque.hemocentro.nome,
@@ -387,11 +400,12 @@ def obter_estoques_publicos():
                 "estado": estoque.hemocentro.estado,
                 "tipo_sanguineo": estoque.tipo_sanguineo,
                 "quantidade_bolsas": estoque.quantidade_bolsas,
-                "status": calcular_status_publico(
-                    estoque.quantidade_bolsas,
-                    estoque.nivel_minimo,
-                    estoque.nivel_critico,
-                ),
+                # ``status`` permanece como código para compatibilidade com
+                # integrações; os campos abaixo facilitam a exibição e os
+                # filtros sem expor níveis internos.
+                "status": status_codigo,
+                "status_codigo": status_codigo,
+                "status_label": STATUS_PUBLICO_LABEL[status_codigo],
                 "data_atualizacao": estoque.data_atualizacao,
             }
         )

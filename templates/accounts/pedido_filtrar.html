@@ -17,29 +17,42 @@
     <p>
         {{ form.tipo_sanguineo.label_tag }}
         {{ form.tipo_sanguineo }}
+        {{ form.tipo_sanguineo.errors }}
     </p>
 
     <p>
         {{ form.urgencia.label_tag }}
         {{ form.urgencia }}
+        {{ form.urgencia.errors }}
     </p>
 
     <p>
         {{ form.cidade.label_tag }}
         {{ form.cidade }}
+        {{ form.cidade.errors }}
     </p>
 
     <p>
         {{ form.hemocentro.label_tag }}
         {{ form.hemocentro }}
+        {{ form.hemocentro.errors }}
     </p>
 
     <p>
         {{ form.data.label_tag }}
         {{ form.data }}
+        {{ form.data.errors }}
     </p>
 
-    <button type="submit">Filtrar pedidos</button>
+    <p>
+        {{ form.status.label_tag }}
+        {{ form.status }}
+        {{ form.status.errors }}
+    </p>
+
+    <button type="submit">
+        Filtrar pedidos
+    </button>
 
     <a href="{% url 'accounts:consultar_pedidos' %}">
         Limpar filtros
@@ -55,8 +68,8 @@
 
     {% for pedido in pedidos %}
 
-        <div>
-            <h3>{{ pedido }}</h3>
+        <article>
+            <h3>{{ pedido.titulo }}</h3>
 
             <p>
                 <strong>Tipo sanguíneo:</strong>
@@ -65,7 +78,7 @@
 
             <p>
                 <strong>Urgência:</strong>
-                {{ pedido.urgencia }}
+                {{ pedido.get_urgencia_display }}
             </p>
 
             <p>
@@ -75,16 +88,26 @@
 
             <p>
                 <strong>Hemocentro:</strong>
-                {{ pedido.hemocentro_destino }}
+                {{ pedido.hemocentro_destino.nome }}
             </p>
 
             <p>
-                <strong>Data:</strong>
-                {{ pedido.data_criacao|date:"d/m/Y H:i" }}
+                <strong>Status:</strong>
+                {{ pedido.get_status_display }}
             </p>
 
-            <hr>
-        </div>
+            <p>
+                <strong>Publicado em:</strong>
+                {{ pedido.publicado_em|default:pedido.data_criacao|date:"d/m/Y H:i" }}
+            </p>
+
+            <p>
+                <strong>Descrição:</strong>
+                {{ pedido.descricao }}
+            </p>
+        </article>
+
+        <hr>
 
     {% endfor %}
 
