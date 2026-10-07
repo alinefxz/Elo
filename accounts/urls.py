@@ -189,13 +189,6 @@ urlpatterns = [
     ),
 
     # Privadas do Hemocentro. O acesso e protegido dentro das views.
-
-    path(
-        "estoque/",
-        views.visualizacao_publica_estoque,
-        name="estoque_publico",
-    ),
-
     path(
         "estoque/hemocentro/",
         views.estoque_hemocentro,

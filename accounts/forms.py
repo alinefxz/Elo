@@ -449,35 +449,31 @@ class TriagemExtensaForm(forms.Form):
 
 class CadastrarEstoqueForm(forms.Form):
     """
-    Formulário para criação de um novo estoque.
+    UC_29 - Formulario usado pelo Hemocentro para cadastrar a estrutura
+    de estoque de um tipo sanguineo.
 
-    A autorização do usuário e a verificação de duplicidade
-    permanecem na camada de serviço.
+    A validacao de "ja existe estoque para este tipo" e de "hemocentro
+    aprovado" fica na camada de servico (accounts/estoque.py), porque
+    depende do usuario logado, que o form nao conhece sozinho.
     """
 
     tipo_sanguineo = forms.ChoiceField(
         label="Tipo sanguíneo",
-        choices=[
-            (tipo, tipo)
-            for tipo in TIPOS_SANGUINEOS
-        ],
+        choices=[(tipo, tipo) for tipo in TIPOS_SANGUINEOS],
     )
 
     quantidade_bolsas = forms.IntegerField(
         label="Quantidade atual de bolsas",
         min_value=0,
         initial=0,
-        help_text=(
-            "Quantidade de bolsas já disponíveis."
-        ),
+        help_text="Quantidade de bolsas já disponíveis, se houver.",
     )
 
     nivel_minimo = forms.IntegerField(
         label="Nível mínimo",
         min_value=0,
         help_text=(
-            "Abaixo ou igual a este valor, o estoque "
-            "será considerado baixo."
+            "A partir de quantas bolsas o tipo passa a ser considerado baixo."
         ),
     )
 
@@ -485,12 +481,13 @@ class CadastrarEstoqueForm(forms.Form):
         label="Nível crítico",
         min_value=0,
         help_text=(
-            "Abaixo ou igual a este valor, o estoque "
-            "será considerado crítico."
+            "A partir de quantas bolsas o tipo passa a ser considerado crítico."
         ),
     )
 
     def clean(self):
+        """Garante que o nível crítico nunca seja maior que o mínimo."""
+
         dados = super().clean()
 
         nivel_minimo = dados.get("nivel_minimo")
@@ -503,13 +500,11 @@ class CadastrarEstoqueForm(forms.Form):
         ):
             self.add_error(
                 "nivel_critico",
-                (
-                    "O nível crítico deve ser menor "
-                    "ou igual ao nível mínimo."
-                ),
+                "O nível crítico deve ser menor ou igual ao nível mínimo.",
             )
 
         return dados
+
 
 class MovimentarEstoqueForm(forms.Form):
     """
