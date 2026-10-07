@@ -240,6 +240,22 @@ def registrar_movimentacao_estoque(
             {"quantidade": "A quantidade ajustada nao pode ser negativa."}
         )
 
+    motivo_limpo = (motivo or "").strip()
+    if not motivo_limpo:
+        raise ValidationError(
+            {"motivo": "Informe o motivo da movimentacao de estoque."}
+        )
+
+    motivo_limpo = (motivo or "").strip()
+
+    if not motivo_limpo:
+        raise ValidationError(
+            {
+                "motivo": (
+                    "Informe o motivo da movimentacao de estoque."
+                )
+            }
+        )
     with transaction.atomic():
         estoque_atual = Estoque.objects.select_for_update().get(pk=estoque.pk)
 
@@ -290,8 +306,8 @@ def registrar_movimentacao_estoque(
             quantidade_anterior=quantidade_anterior,
             quantidade_movimentada=quantidade_movimentada,
             quantidade_nova=quantidade_nova,
-            motivo=(motivo or "").strip(),
-        )
+            motivo=motivo_limpo,
+    )
 
         notificacoes_geradas = criar_notificacoes_para_doadores_compativeis(
             estoque=estoque_atual,

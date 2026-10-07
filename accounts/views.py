@@ -36,7 +36,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from django.views.decorators.http import require_POST
 
-from django.db.models import Case, IntegerField, Value, When
+from django.db.models import Case, IntegerField, Prefetch, Value, When
 
 from .forms import (
     CadastrarEstoqueForm,
@@ -49,6 +49,7 @@ from .forms import (
 from .models import (
     ConsentimentoLGPD,
     Estoque,
+    EstoqueMovimentacao,
     PedidoSangue,
     Triagem,
     Usuario,
@@ -1304,6 +1305,14 @@ def estoque_hemocentro(request):
     estoques = (
         Estoque.objects
         .filter(hemocentro=request.user)
+        .prefetch_related(
+            Prefetch(
+                "movimentacoes",
+                queryset=EstoqueMovimentacao.objects.select_related(
+                    "usuario_resp"
+                ).order_by("-data_hora"),
+            )
+        )
         .order_by("tipo_sanguineo")
     )
 

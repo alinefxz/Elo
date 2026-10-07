@@ -508,16 +508,8 @@ class CadastrarEstoqueForm(forms.Form):
 
 class MovimentarEstoqueForm(forms.Form):
     """
-    UC_30 - Formulario usado pelo Hemocentro para registrar entrada,
+    Formulario usado pelo Hemocentro para registrar entrada,
     saída ou ajuste de bolsas em um estoque já cadastrado.
-
-    O campo "quantidade" muda de sentido conforme o tipo de movimento:
-
-    - Entrada/Saída: quantas bolsas somar ou subtrair;
-    - Ajuste: qual é a nova quantidade total de bolsas.
-
-    O texto de ajuda é atualizado no navegador via JavaScript simples no
-    template, mas a validação real acontece aqui e na camada de serviço.
     """
 
     tipo_movimento = forms.ChoiceField(
@@ -537,33 +529,28 @@ class MovimentarEstoqueForm(forms.Form):
 
     motivo = forms.CharField(
         label="Motivo",
-        required=False,
+        required=True,
         max_length=255,
         widget=forms.Textarea(attrs={"rows": 3}),
         help_text=(
-            "Opcional. Ex.: doação recebida, transfusão realizada, "
+            "Obrigatório. Ex.: doação recebida, transfusão realizada, "
             "contagem física."
         ),
     )
 
     def clean(self):
-        """
-        Entrada e saída exigem quantidade maior que zero; ajuste aceita
-        zero (esvaziar o estoque também é um ajuste válido).
-        """
-
         dados = super().clean()
 
         tipo_movimento = dados.get("tipo_movimento")
         quantidade = dados.get("quantidade")
 
-        movimentos_que_exigem_quantidade_positiva = (
+        movimentos_positivos = (
             EstoqueMovimentacao.TipoMovimento.ENTRADA,
             EstoqueMovimentacao.TipoMovimento.SAIDA,
         )
 
         if (
-            tipo_movimento in movimentos_que_exigem_quantidade_positiva
+            tipo_movimento in movimentos_positivos
             and quantidade is not None
             and quantidade <= 0
         ):
@@ -573,7 +560,6 @@ class MovimentarEstoqueForm(forms.Form):
             )
 
         return dados
-
 
 class PedidoSangueForm(forms.ModelForm):
     """

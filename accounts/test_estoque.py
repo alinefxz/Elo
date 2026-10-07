@@ -223,6 +223,7 @@ class RegistrarMovimentacaoEstoqueTests(EstoqueTestsBase):
                 usuario_resp=self.hemocentro,
                 tipo_movimento=EstoqueMovimentacao.TipoMovimento.SAIDA,
                 quantidade=999,
+                motivo="Saída solicitada acima do estoque disponível.",
             )
 
         self.estoque.refresh_from_db()
@@ -247,12 +248,30 @@ class RegistrarMovimentacaoEstoqueTests(EstoqueTestsBase):
         self.assertEqual(movimentacao.quantidade_nova, 3)
         self.assertEqual(self.estoque.quantidade_bolsas, 3)
 
+    def test_motivo_e_obrigatorio_na_movimentacao(self):
+        with self.assertRaises(ValidationError):
+            registrar_movimentacao_estoque(
+                estoque=self.estoque,
+                usuario_resp=self.hemocentro,
+                tipo_movimento=EstoqueMovimentacao.TipoMovimento.ENTRADA,
+                quantidade=2,
+                motivo="   ",
+            )
+
+        self.estoque.refresh_from_db()
+        self.assertEqual(self.estoque.quantidade_bolsas, 10)
+        self.assertEqual(
+            EstoqueMovimentacao.objects.filter(estoque=self.estoque).count(),
+            0,
+        )
+
     def test_movimentacao_gera_historico_e_auditoria(self):
         registrar_movimentacao_estoque(
             estoque=self.estoque,
             usuario_resp=self.hemocentro,
             tipo_movimento=EstoqueMovimentacao.TipoMovimento.ENTRADA,
             quantidade=2,
+            motivo="Reposição do estoque.",
         )
 
         self.assertEqual(
@@ -347,3 +366,7 @@ class EstoqueViewsTests(EstoqueTestsBase):
 
         estoque.refresh_from_db()
         self.assertEqual(estoque.quantidade_bolsas, 10)
+
+        painel = self.client.get(reverse("accounts:estoque_hemocentro"))
+        self.assertContains(painel, "Reposição semanal.")
+        self.assertContains(painel, "Hemocentro Elo")
