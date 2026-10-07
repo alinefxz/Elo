@@ -1,3 +1,38 @@
+# Este módulo controla a criação e a validação dos pedidos de sangue.
+
+# 1. validar_dados_pedido()
+#    Confere título, tipo sanguíneo, urgência, cidade, descrição, solicitante, e-mail de contato e Hemocentro de destino aprovado.
+
+# 2. criar_pedido_pendente()
+#    Cria o pedido com status ENVIADA.
+#    Administradores e Hemocentros não criam solicitações comuns.
+#    O pedido não é publicado automaticamente.
+#    Também verifica pedidos semelhantes nos últimos 7 dias e marca possíveis duplicidades apenas como alerta.
+
+# 3. registrar_decisao_validacao_pedido()
+#    Registra a decisão sobre o pedido dentro de uma transação segura.
+#    Pedidos encerrados não podem ser alterados.
+#    O Hemocentro aprovado de destino pode:
+#    - aprovar e publicar;
+#    - recusar;
+#    - solicitar correção;
+#    - marcar como suspeito.
+#    O Administrador pode apenas marcar o pedido como suspeito para moderação e auditoria.
+
+# 4. Quando o pedido é aprovado:
+#    - seu status muda para PUBLICADA;
+#    - o Hemocentro responsável e a data são registrados;
+#    - notificações compatíveis são criadas;
+#    - a decisão é salva no histórico;
+#    - a ação é registrada na auditoria.
+
+# 5. Funções auxiliares
+#    aprovar_pedido(), recusar_pedido(), solicitar_correcao_pedido() e
+#    marcar_pedido_suspeito() apenas chamam a função principal informando o
+#    status correspondente.
+
+# O formulário valida os dados na interface, este arquivo repete as validações importantes no servidor e o modelo protege a integridade final do banco.
+
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.validators import validate_email
 from datetime import timedelta
