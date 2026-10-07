@@ -43,7 +43,6 @@ from .forms import (
     CadastroUsuarioForm,
     MovimentarEstoqueForm,
     PedidoSangueForm,
-    TriagemExtensaForm,
     FiltroPedidoSangueForm,
 )
 
@@ -51,7 +50,6 @@ from .models import (
     ConsentimentoLGPD,
     Estoque,
     PedidoSangue,
-    RespostaTriagem,
     Triagem,
     Usuario,
     ValidacaoHemocentro,
@@ -80,13 +78,14 @@ from .compatibilidade import (
 )
 
 from .triagem_servico import (
-    TriagemConcluida,
     TriagemExtensaNecessaria,
     TriagemIncompleta,
+    PerguntaInvalida,
     TriagemSimplificadaIndisponivel,
     concluir_triagem,
     iniciar_triagem,
     obter_extensa_base,
+    editar_pergunta,
     obter_pergunta_atual,
     pode_responder,
     salvar_resposta,
@@ -94,11 +93,12 @@ from .triagem_servico import (
 )
 
 from .triagem_forms import FormularioPergunta as FormularioPerguntaTriagem
+from .triagem_catalogo import obter_pergunta
 
 from .validacao_pedido import (
     aprovar_pedido as aprovar_pedido_servico,
     recusar_pedido as recusar_pedido_servico,
-    marcar_pedido_suspeito as marcar_pedido_suspeito_servico,
+    solicitar_correcao_pedido as solicitar_correcao_pedido_servico,
     criar_pedido_pendente,
 )
 
@@ -360,28 +360,6 @@ ESTOQUE_GERAL = [
 ]
 
 
-PEDIDOS_ATIVOS = [
-    {
-        "titulo": "Solicitacao para cirurgia cardiaca",
-        "tipo_sanguineo": "O-",
-        "cidade": "Sao Paulo",
-        "urgencia": "Alta",
-    },
-    {
-        "titulo": "Reposicao de estoque pediatrico",
-        "tipo_sanguineo": "B-",
-        "cidade": "Campinas",
-        "urgencia": "Alta",
-    },
-    {
-        "titulo": "Apoio para tratamento oncologico",
-        "tipo_sanguineo": "A+",
-        "cidade": "Santos",
-        "urgencia": "Media",
-    },
-]
-
-
 CAMPANHAS_ATIVAS = [
     {
         "titulo": "Mutirao de inverno",
@@ -422,7 +400,7 @@ PAINEIS_POR_PERFIL = {
         "acoes": [
             "Ver estoque publico dos Hemocentros.",
             "Consultar pedidos de sangue ativos.",
-            "Publicar pedido de sangue.",
+            "Solicitar divulgação de uma necessidade.",
             "Consultar a compatibilidade sanguinea.",
             "Responder a triagem caso tambem queira doar sangue.",
         ],
@@ -441,6 +419,7 @@ PAINEIS_POR_PERFIL = {
             "Consultar postos de coleta.",
             "Acompanhar pedidos publicos.",
             "Acompanhar campanhas publicas.",
+            "Solicitar divulgação de uma necessidade.",
         ],
         "mostra_triagem": False,
         "mostra_campanhas": True,
@@ -457,7 +436,7 @@ PAINEIS_POR_PERFIL = {
             "Cadastrar estoque quando o cadastro estiver aprovado.",
             "Atualizar estoque quando o cadastro estiver aprovado.",
             "Consultar historico de movimentacoes de estoque.",
-            "Acompanhar pedidos ativos relacionados a doacao.",
+            "Analisar solicitações destinadas ao Hemocentro.",
         ],
         "mostra_triagem": False,
         "mostra_campanhas": False,
@@ -506,8 +485,14 @@ def montar_visibilidade_dashboard(usuario, painel):
         "mostra_pedidos": painel.get("mostra_pedidos", False),
         "mostra_estoque_publico": painel.get("mostra_estoque_publico", False),
         "mostra_postos": painel.get("mostra_postos", False),
+        "pode_solicitar_divulgacao": usuario.perfil in {
+            Usuario.Perfil.DOADOR,
+            Usuario.Perfil.RECEPTOR,
+            Usuario.Perfil.OBSERVADOR,
+        },
         "mostra_status_hemocentro": usuario.perfil == Usuario.Perfil.HEMOCENTRO,
         "pode_gerenciar_estoque": hemocentro_aprovado,
+        "pode_analisar_pedidos": hemocentro_aprovado,
         "pode_aprovar_hemocentros": administrador,
     }
 
@@ -574,7 +559,12 @@ def inicio(request):
         "consulta": consulta,
         "postos": filtrar_postos(consulta),
         "estoque_geral": ESTOQUE_GERAL,
-        "pedidos_ativos": PEDIDOS_ATIVOS,
+        "pedidos_ativos": (
+            PedidoSangue.objects
+            .select_related("hemocentro_destino")
+            .filter(status=PedidoSangue.Status.PUBLICADA)
+            .order_by("-data_criacao")[:10]
+        ),
     }
 
     return render(
@@ -756,7 +746,12 @@ def dashboard(request):
         "visibilidade": visibilidade,
         "postos": POSTOS_COLETA,
         "estoque_geral": ESTOQUE_GERAL,
-        "pedidos_ativos": PEDIDOS_ATIVOS,
+        "pedidos_ativos": (
+            PedidoSangue.objects
+            .select_related("hemocentro_destino")
+            .filter(status=PedidoSangue.Status.PUBLICADA)
+            .order_by("-data_criacao")[:10]
+        ),
         "campanhas_ativas": CAMPANHAS_ATIVAS,
         "validacao_atual": validacao_atual,
         "ultima_triagem": ultima_triagem,
@@ -1019,11 +1014,24 @@ def triagem_iniciar(request, modalidade):
     if modalidade not in modalidades:
         raise Http404("Modalidade de triagem inexistente.")
 
+    if not pode_responder(request.user):
+        raise PermissionDenied(
+            "A triagem está disponível somente para Doador e Receptor."
+        )
+
+    if request.POST.get("aceite_termo") not in {"on", "1", "true"}:
+        messages.error(
+            request,
+            "Leia e confirme o termo da pré-triagem para continuar.",
+        )
+        return redirect("accounts:triagem_apresentacao")
+
     try:
         triagem = iniciar_triagem(
             request.user,
             modalidades[modalidade],
             ip=obter_ip(request),
+            aceite_termo=True,
         )
 
     except TriagemSimplificadaIndisponivel:
@@ -1068,6 +1076,13 @@ def triagem_pergunta(request, id_triagem):
     if triagem.status == Triagem.Status.CANCELADA:
         return redirect("accounts:triagem_apresentacao")
 
+    pergunta_para_editar = request.GET.get("pergunta")
+    if pergunta_para_editar:
+        try:
+            editar_pergunta(triagem, pergunta_para_editar)
+        except PerguntaInvalida as erro:
+            raise Http404("Pergunta de triagem inexistente.") from erro
+
     # O botão anterior muda apenas o cursor e não valida campos da página.
     if request.method == "POST" and request.POST.get("acao") == "anterior":
         voltar_pergunta(triagem)
@@ -1080,21 +1095,7 @@ def triagem_pergunta(request, id_triagem):
     pergunta = obter_pergunta_atual(triagem)
 
     if pergunta is None:
-        try:
-            triagem = concluir_triagem(triagem)
-
-        except TriagemIncompleta:
-            messages.error(
-                request,
-                "Ainda existem perguntas sem resposta.",
-            )
-
-            return redirect("accounts:triagem_historico")
-
-        return redirect(
-            "accounts:triagem_resultado",
-            id_triagem=triagem.pk,
-        )
+        return redirect("accounts:triagem_revisao", id_triagem=triagem.pk)
 
     resposta_anterior = triagem.respostas.filter(
         id_pergunta=pergunta["id"]
@@ -1122,6 +1123,7 @@ def triagem_pergunta(request, id_triagem):
                 request.user,
                 Triagem.Modalidade.EXTENSA,
                 ip=obter_ip(request),
+                aceite_termo=True,
             )
 
             messages.info(
@@ -1142,17 +1144,7 @@ def triagem_pergunta(request, id_triagem):
         # O serviço mantém o cursor na explicação quando a pessoa não entendeu
         # e volta ao início quando ela escolhe revisar a confirmação final.
         if triagem.pergunta_atual >= len(triagem.fluxo_perguntas):
-            try:
-                triagem = concluir_triagem(triagem)
-
-            except (TriagemConcluida, TriagemIncompleta) as erro:
-                messages.error(request, str(erro))
-
-            else:
-                return redirect(
-                    "accounts:triagem_resultado",
-                    id_triagem=triagem.pk,
-                )
+            return redirect("accounts:triagem_revisao", id_triagem=triagem.pk)
 
         return redirect(
             "accounts:triagem_pergunta",
@@ -1173,6 +1165,47 @@ def triagem_pergunta(request, id_triagem):
 
 
 @login_required
+def triagem_revisao(request, id_triagem):
+    """Mostra todas as respostas antes do cálculo final."""
+
+    triagem = _triagem_do_usuario_ou_404(request, id_triagem)
+    if triagem.status == Triagem.Status.CONCLUIDA:
+        return redirect("accounts:triagem_resultado", id_triagem=triagem.pk)
+    if triagem.status == Triagem.Status.CANCELADA:
+        return redirect("accounts:triagem_apresentacao")
+
+    if request.method == "POST" and request.POST.get("acao") == "finalizar":
+        try:
+            triagem = concluir_triagem(triagem)
+        except TriagemIncompleta as erro:
+            messages.error(request, str(erro))
+        else:
+            return redirect("accounts:triagem_resultado", id_triagem=triagem.pk)
+
+    respostas = []
+    registros = triagem.respostas.order_by("id_resposta")
+    for resposta in registros:
+        try:
+            pergunta = obter_pergunta(resposta.id_pergunta)
+        except KeyError:
+            continue
+        respostas.append(
+            {
+                "id": resposta.id_pergunta,
+                "titulo": pergunta["titulo"],
+                "resposta": resposta.resposta_label,
+                "detalhes": (resposta.valor or {}).get("detalhes", ""),
+            }
+        )
+
+    return render(
+        request,
+        "accounts/triagem_revisao.html",
+        {"triagem": triagem, "respostas_revisao": respostas},
+    )
+
+
+@login_required
 def triagem_resultado(request, id_triagem):
     """Mostra a orientação concluída somente ao dono da triagem."""
 
@@ -1183,7 +1216,7 @@ def triagem_resultado(request, id_triagem):
 
     if triagem.status == Triagem.Status.EM_ANDAMENTO:
         return redirect(
-            "accounts:triagem_pergunta",
+            "accounts:triagem_revisao",
             id_triagem=triagem.pk,
         )
 
@@ -1394,20 +1427,23 @@ def atualizar_estoque_view(request, id_estoque):
     return redirect("accounts:estoque_hemocentro")
 
 
-@login_required
 def criar_pedido_sangue(request):
     """
-    RF - Criar pedido de sangue.
+    Recebe uma solicitação de divulgação, sem publicá-la.
 
-    Apenas usuario Receptor/Solicitante pode publicar pedido.
-
-    Ao salvar, o pedido passa pela validacao automatica.
+    O formulário é aberto para Visitantes, Doadores, Receptores e
+    Observadores. A decisão e a publicação acontecem somente no painel do
+    Hemocentro aprovado de destino.
     """
 
-    if request.user.perfil != Usuario.Perfil.RECEPTOR:
+    perfis_bloqueados = {
+        Usuario.Perfil.HEMOCENTRO,
+        Usuario.Perfil.ADMINISTRADOR,
+    }
+    if request.user.is_authenticated and request.user.perfil in perfis_bloqueados:
         messages.error(
             request,
-            "Somente Receptor/Solicitante pode criar pedido de sangue.",
+            "Este perfil não envia solicitações de divulgação.",
         )
 
         return redirect("accounts:dashboard")
@@ -1419,21 +1455,21 @@ def criar_pedido_sangue(request):
             try:
                 pedido = criar_pedido_pendente(
                     dados=form.cleaned_data,
-                    solicitante=request.user,
+                    solicitante=(
+                        request.user if request.user.is_authenticated else None
+                    ),
                 )
 
-                if pedido.status == PedidoSangue.Status.SUSPEITO:
-                    messages.warning(
-                        request,
-                        "Pedido registrado, mas sinalizado para moderacao.",
-                    )
+                mensagem = (
+                    "Solicitação enviada para análise do Hemocentro. "
+                    f"Protocolo {pedido.pk}."
+                )
+                if pedido.duplicidade_suspeita:
+                    mensagem += " Há uma solicitação semelhante; ela será analisada."
+                messages.success(request, mensagem)
 
-                else:
-                    messages.success(
-                        request,
-                        "Pedido registrado com sucesso.",
-                    )
-
+                if request.user.is_authenticated:
+                    return redirect("accounts:minhas_solicitacoes")
                 return redirect("accounts:consultar_pedidos")
 
             except ValidationError as erro:
@@ -1448,6 +1484,51 @@ def criar_pedido_sangue(request):
         {
             "form": form,
         },
+    )
+
+
+@login_required
+def minhas_solicitacoes(request):
+    """Lista somente as solicitações enviadas pelo usuário autenticado."""
+
+    solicitacoes = (
+        PedidoSangue.objects
+        .select_related("hemocentro_destino")
+        .filter(solicitante=request.user)
+        .order_by("-data_criacao")
+    )
+    return render(
+        request,
+        "accounts/minhas_solicitacoes.html",
+        {"solicitacoes": solicitacoes},
+    )
+
+
+@login_required
+@exigir_hemocentro_aprovado
+def painel_pedidos_hemocentro(request):
+    """Fila de solicitações destinadas ao Hemocentro aprovado logado."""
+
+    PedidoSangue.objects.filter(
+        hemocentro_destino=request.user,
+        status=PedidoSangue.Status.ENVIADA,
+    ).update(status=PedidoSangue.Status.EM_ANALISE)
+
+    solicitacoes = (
+        PedidoSangue.objects
+        .select_related("solicitante", "hemocentro_destino")
+        .filter(hemocentro_destino=request.user)
+        .exclude(status=PedidoSangue.Status.ENCERRADA)
+        .order_by("-data_criacao")
+    )
+    status = request.GET.get("status")
+    if status in dict(PedidoSangue.Status.choices):
+        solicitacoes = solicitacoes.filter(status=status)
+
+    return render(
+        request,
+        "accounts/painel_validacao_pedidos.html",
+        {"solicitacoes": solicitacoes},
     )
 
 
@@ -1474,6 +1555,12 @@ def consultar_pedidos(request):
         cidade = form.cleaned_data.get("cidade")
         hemocentro = form.cleaned_data.get("hemocentro")
         data = form.cleaned_data.get("data")
+        status = form.cleaned_data.get("status")
+
+        # A consulta pública nunca pode revelar solicitações em análise,
+        # recusadas ou dados ainda não publicados.
+        if status and status != PedidoSangue.Status.PUBLICADA:
+            pedidos = pedidos.none()
 
         if tipo:
             pedidos = pedidos.filter(tipo_sanguineo=tipo)
@@ -1532,41 +1619,18 @@ def consultar_pedidos(request):
 
 @login_required
 def painel_validacao_pedidos(request):
-    """
-    UC_17 - Painel administrativo para validar pedidos suspeitos.
+    """Rota antiga mantida como alias do painel do Hemocentro."""
 
-    Administrador visualiza pedidos pendentes ou suspeitos.
-    """
-
-    exigir_administrador(request.user)
-
-    pedidos = (
-        PedidoSangue.objects
-        .select_related("solicitante", "hemocentro_destino")
-        .filter(
-            status__in=[
-                PedidoSangue.Status.SUSPEITO,
-                PedidoSangue.Status.PENDENTE_VALIDACAO,
-            ]
-        )
-        .order_by("-data_criacao")
-    )
-
-    return render(
-        request,
-        "accounts/painel_validacao_pedidos.html",
-        {
-            "pedidos": pedidos,
-        },
-    )
+    exigir_hemocentro_aprovado(request.user)
+    return painel_pedidos_hemocentro(request)
 
 
 @login_required
 @require_POST
 def aprovar_pedido(request, id_pedido):
-    """Aprova manualmente um pedido suspeito ou pendente."""
+    """Publica uma solicitação após análise do Hemocentro de destino."""
 
-    exigir_administrador(request.user)
+    exigir_hemocentro_aprovado(request.user)
 
     pedido = get_object_or_404(
         PedidoSangue,
@@ -1591,9 +1655,9 @@ def aprovar_pedido(request, id_pedido):
 @login_required
 @require_POST
 def recusar_pedido(request, id_pedido):
-    """Recusa manualmente um pedido suspeito ou pendente."""
+    """Recusa uma solicitação pelo Hemocentro de destino."""
 
-    exigir_administrador(request.user)
+    exigir_hemocentro_aprovado(request.user)
 
     pedido = get_object_or_404(
         PedidoSangue,
@@ -1612,4 +1676,19 @@ def recusar_pedido(request, id_pedido):
         "Pedido recusado com sucesso.",
     )
 
+    return redirect("accounts:painel_validacao_pedidos")
+
+
+@login_required
+@require_POST
+@exigir_hemocentro_aprovado
+def solicitar_correcao_pedido(request, id_pedido):
+    pedido = get_object_or_404(PedidoSangue, pk=id_pedido)
+    solicitar_correcao_pedido_servico(
+        pedido=pedido,
+        moderador=request.user,
+        motivo=request.POST.get("motivo", ""),
+        request=request,
+    )
+    messages.success(request, "Correção solicitada ao responsável.")
     return redirect("accounts:painel_validacao_pedidos")

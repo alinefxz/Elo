@@ -49,7 +49,8 @@ class TriagemViewsTests(TestCase):
             reverse(
                 "accounts:triagem_iniciar",
                 kwargs={"modalidade": modalidade},
-            )
+            ),
+            {"aceite_termo": "on"},
         )
 
     def _preencher_ate_confirmacao(self, triagem):
@@ -267,10 +268,7 @@ class TriagemViewsTests(TestCase):
 
         self.assertRedirects(
             resposta,
-            reverse(
-                "accounts:triagem_pergunta",
-                kwargs={"id_triagem": triagem.pk},
-            ),
+            reverse("accounts:triagem_revisao", kwargs={"id_triagem": triagem.pk}),
         )
 
     def test_confirmacao_final_conclui_e_mostra_resultado(self):
@@ -291,10 +289,18 @@ class TriagemViewsTests(TestCase):
 
         self.assertRedirects(
             resposta,
-            reverse(
-                "accounts:triagem_resultado",
-                kwargs={"id_triagem": triagem.pk},
-            ),
+            reverse("accounts:triagem_revisao", kwargs={"id_triagem": triagem.pk}),
+        )
+        triagem.refresh_from_db()
+        self.assertEqual(triagem.status, Triagem.Status.EM_ANDAMENTO)
+
+        resposta_final = self.client.post(
+            reverse("accounts:triagem_revisao", kwargs={"id_triagem": triagem.pk}),
+            {"acao": "finalizar"},
+        )
+        self.assertRedirects(
+            resposta_final,
+            reverse("accounts:triagem_resultado", kwargs={"id_triagem": triagem.pk}),
         )
         triagem.refresh_from_db()
         self.assertEqual(triagem.status, Triagem.Status.CONCLUIDA)

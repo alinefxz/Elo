@@ -206,11 +206,18 @@ Administrador nao precisa receber essa lista no painel administrativo.
     <section>
         <h2>Pedidos ativos</h2>
 
-        <p>
-            <a href="{% url 'accounts:pedido_publicar' %}">
-                Publicar pedido de sangue
-            </a>
-        </p>
+        {% if visibilidade.pode_solicitar_divulgacao %}
+            <p>
+                <a href="{% url 'accounts:pedido_publicar' %}">
+                    Solicitar divulgação de necessidade
+                </a>
+            </p>
+            <p>
+                <a href="{% url 'accounts:minhas_solicitacoes' %}">
+                    Acompanhar minhas solicitações
+                </a>
+            </p>
+        {% endif %}
 
         <ul>
             {% for pedido in pedidos_ativos %}
@@ -226,6 +233,18 @@ Administrador nao precisa receber essa lista no painel administrativo.
         </ul>
     </section>
 
+{% endif %}
+
+{% if visibilidade.pode_analisar_pedidos %}
+    <section>
+        <h2>Análise de solicitações</h2>
+        <p>Somente o Hemocentro aprovado pode decidir pela publicação.</p>
+        <p>
+            <a href="{% url 'accounts:painel_pedidos_hemocentro' %}">
+                Analisar solicitações recebidas
+            </a>
+        </p>
+    </section>
 {% endif %}
 
 

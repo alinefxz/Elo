@@ -1,5 +1,8 @@
 from django.core.exceptions import PermissionDenied, ValidationError
+from datetime import timedelta
+
 from django.db import transaction
+from django.utils import timezone
 
 from .auditoria import registrar_auditoria
 from .models import (
@@ -8,7 +11,7 @@ from .models import (
     Usuario,
     ValidacaoPedido,
 )
-from .validacao_hemocentro import usuario_e_administrador
+from .validacao_hemocentro import hemocentro_aprovado
 
 
 def validar_dados_pedido(pedido):
@@ -41,6 +44,12 @@ def validar_dados_pedido(pedido):
             "Informe a descrição do pedido."
         )
 
+    if not pedido.nome_solicitante.strip():
+        raise ValidationError("Informe o nome ou identificação do solicitante.")
+
+    if not pedido.contato.strip():
+        raise ValidationError("Informe um contato para retorno.")
+
     if not pedido.hemocentro_destino_id:
         raise ValidationError(
             "Informe o Hemocentro de destino."
@@ -72,23 +81,58 @@ def criar_pedido_pendente(
     Cria o pedido sem publicá-lo.
     """
 
-    if solicitante.perfil != Usuario.Perfil.RECEPTOR:
+    if getattr(solicitante, "is_authenticated", False) and solicitante.perfil in {
+        Usuario.Perfil.HEMOCENTRO,
+        Usuario.Perfil.ADMINISTRADOR,
+    }:
         raise PermissionDenied(
-            "Somente Receptor/Solicitante pode criar "
-            "pedidos de sangue."
+            "Este perfil não pode enviar solicitação de divulgação."
         )
+
+    if not getattr(solicitante, "is_authenticated", False):
+        solicitante = None
+
+    dados = dict(dados)
+    hemocentro_destino = dados.get("hemocentro_destino")
+    if hemocentro_destino and not hasattr(hemocentro_destino, "pk"):
+        try:
+            dados["hemocentro_destino"] = Usuario.objects.get(
+                pk=hemocentro_destino,
+                perfil=Usuario.Perfil.HEMOCENTRO,
+            )
+        except Usuario.DoesNotExist as erro:
+            raise ValidationError("Hemocentro de destino inválido.") from erro
 
     pedido = PedidoSangue(
         solicitante=solicitante,
-        status=(
-            PedidoSangue.Status.PENDENTE_VALIDACAO
-        ),
+        status=PedidoSangue.Status.ENVIADA,
         **dados,
     )
 
     validar_dados_pedido(pedido)
+    pedido.full_clean()
 
     pedido.save()
+
+    # Semelhança é apenas um alerta para o Hemocentro; nunca bloqueia uma
+    # necessidade legítima automaticamente.
+    limite = timezone.now() - timedelta(days=7)
+    duplicado = PedidoSangue.objects.filter(
+        hemocentro_destino=pedido.hemocentro_destino,
+        tipo_sanguineo=pedido.tipo_sanguineo,
+        cidade__iexact=pedido.cidade,
+        data_criacao__gte=limite,
+    ).exclude(pk=pedido.pk).filter(
+        status__in=[
+            PedidoSangue.Status.ENVIADA,
+            PedidoSangue.Status.EM_ANALISE,
+            PedidoSangue.Status.PUBLICADA,
+            PedidoSangue.Status.CORRECAO_SOLICITADA,
+        ]
+    ).exists()
+    if duplicado:
+        pedido.duplicidade_suspeita = True
+        pedido.save(update_fields=["duplicidade_suspeita", "atualizado_em"])
 
     return pedido
 
@@ -107,15 +151,21 @@ def registrar_decisao_validacao_pedido(
     o status do pedido.
     """
 
-    if not usuario_e_administrador(moderador):
+    if not hemocentro_aprovado(moderador):
         raise PermissionDenied(
-            "Somente administradores podem validar pedidos."
+            "Somente Hemocentro aprovado pode analisar pedidos."
+        )
+
+    if pedido.hemocentro_destino_id != moderador.pk:
+        raise PermissionDenied(
+            "O Hemocentro só pode analisar solicitações destinadas a ele."
         )
 
     motivo = (motivo or "").strip()
 
     if status_validacao not in [
         ValidacaoPedido.StatusValidacao.APROVADO,
+        ValidacaoPedido.StatusValidacao.CORRECAO_SOLICITADA,
         ValidacaoPedido.StatusValidacao.RECUSADO,
         ValidacaoPedido.StatusValidacao.SUSPEITO,
     ]:
@@ -136,7 +186,7 @@ def registrar_decisao_validacao_pedido(
     if status_validacao == (
         ValidacaoPedido.StatusValidacao.APROVADO
     ):
-        novo_status = PedidoSangue.Status.ATIVO
+        novo_status = PedidoSangue.Status.PUBLICADA
 
         if not motivo:
             motivo = (
@@ -146,15 +196,21 @@ def registrar_decisao_validacao_pedido(
     elif status_validacao == (
         ValidacaoPedido.StatusValidacao.RECUSADO
     ):
-        novo_status = PedidoSangue.Status.RECUSADO
+        novo_status = PedidoSangue.Status.RECUSADA
 
         if not motivo:
             motivo = (
                 "Pedido recusado pelo administrador."
             )
 
+    elif status_validacao == ValidacaoPedido.StatusValidacao.CORRECAO_SOLICITADA:
+        novo_status = PedidoSangue.Status.CORRECAO_SOLICITADA
+
+        if not motivo:
+            motivo = "O Hemocentro solicitou correção das informações."
+
     else:
-        novo_status = PedidoSangue.Status.SUSPEITO
+        novo_status = PedidoSangue.Status.EM_ANALISE
 
         if not motivo:
             motivo = (
@@ -164,12 +220,24 @@ def registrar_decisao_validacao_pedido(
 
     pedido.status = novo_status
 
+    if novo_status == PedidoSangue.Status.PUBLICADA:
+        pedido.publicado_por = moderador
+        pedido.publicado_em = timezone.now()
+
     pedido.save(
         update_fields=[
             "status",
             "atualizado_em",
+            "publicado_por",
+            "publicado_em",
         ]
     )
+
+    notificacoes_geradas = 0
+    if novo_status == PedidoSangue.Status.PUBLICADA:
+        from .pedidos import criar_notificacoes_para_pedido
+
+        notificacoes_geradas = criar_notificacoes_para_pedido(pedido=pedido)
 
     validacao = ValidacaoPedido.objects.create(
         pedido=pedido,
@@ -193,6 +261,7 @@ def registrar_decisao_validacao_pedido(
             "status_validacao": status_validacao,
             "status_pedido": novo_status,
             "motivo": motivo,
+            "notificacoes_geradas": notificacoes_geradas,
         },
     )
 
@@ -229,6 +298,24 @@ def recusar_pedido(
         moderador=moderador,
         status_validacao=(
             ValidacaoPedido.StatusValidacao.RECUSADO
+        ),
+        motivo=motivo,
+        request=request,
+    )
+
+
+def solicitar_correcao_pedido(
+    *,
+    pedido,
+    moderador,
+    motivo="",
+    request=None,
+):
+    return registrar_decisao_validacao_pedido(
+        pedido=pedido,
+        moderador=moderador,
+        status_validacao=(
+            ValidacaoPedido.StatusValidacao.CORRECAO_SOLICITADA
         ),
         motivo=motivo,
         request=request,

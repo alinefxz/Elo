@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Minhas solicitações | Elo{% endblock %}
+
+{% block content %}
+<h1>Minhas solicitações de divulgação</h1>
+
+{% for solicitacao in solicitacoes %}
+    <section>
+        <h2>{{ solicitacao.titulo }}</h2>
+        <p><strong>Protocolo:</strong> {{ solicitacao.id_pedido }}</p>
+        <p><strong>Tipo:</strong> {{ solicitacao.tipo_sanguineo }}</p>
+        <p><strong>Cidade:</strong> {{ solicitacao.cidade }}</p>
+        <p><strong>Hemocentro:</strong> {{ solicitacao.hemocentro_destino.nome }}</p>
+        <p><strong>Status:</strong> {{ solicitacao.get_status_display }}</p>
+        <p><strong>Enviada em:</strong> {{ solicitacao.data_criacao|date:"d/m/Y H:i" }}</p>
+    </section>
+{% empty %}
+    <p>Você ainda não enviou uma solicitação.</p>
+{% endfor %}
+
+<p><a href="{% url 'accounts:pedido_publicar' %}">Enviar nova solicitação</a></p>
+<p><a href="{% url 'accounts:dashboard' %}">Voltar ao painel</a></p>
+{% endblock %}

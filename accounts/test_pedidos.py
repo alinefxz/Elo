@@ -57,6 +57,8 @@ class PedidoSangueTests(TestCase):
 
     def dados_validos(self, **alteracoes):
         dados = {
+            "nome_solicitante": "Solicitante de exemplo",
+            "contato": "receptor@elo.test",
             "para_quem": PedidoSangue.ParaQuem.OUTRA_PESSOA,
             "hemocentro_destino": self.hemocentro.pk,
             "titulo": "Doacao para paciente internado",
@@ -68,6 +70,7 @@ class PedidoSangueTests(TestCase):
                 "Precisamos de doadores para auxiliar um paciente internado."
             ),
             "justificativa_urgencia": "",
+            "informacoes_complementares": "Retorno por telefone.",
         }
         dados.update(alteracoes)
         return dados
@@ -82,7 +85,7 @@ class PedidoSangueTests(TestCase):
             [self.hemocentro],
         )
 
-    def test_receptor_cria_pedido_pendente(self):
+    def test_receptor_cria_solicitacao_enviada(self):
         self.client.force_login(self.receptor)
 
         resposta = self.client.post(
@@ -90,16 +93,16 @@ class PedidoSangueTests(TestCase):
             self.dados_validos(),
         )
 
-        self.assertRedirects(resposta, reverse("accounts:consultar_pedidos"))
+        self.assertRedirects(resposta, reverse("accounts:minhas_solicitacoes"))
         pedido = PedidoSangue.objects.get()
         self.assertEqual(pedido.solicitante, self.receptor)
         self.assertEqual(pedido.hemocentro_destino, self.hemocentro)
         self.assertEqual(
             pedido.status,
-            PedidoSangue.Status.PENDENTE_VALIDACAO,
+            PedidoSangue.Status.ENVIADA,
         )
 
-    def test_doador_nao_pode_criar_pedido(self):
+    def test_doador_pode_enviar_solicitacao(self):
         self.client.force_login(self.doador)
 
         resposta = self.client.post(
@@ -107,16 +110,12 @@ class PedidoSangueTests(TestCase):
             self.dados_validos(),
         )
 
-        self.assertRedirects(resposta, reverse("accounts:dashboard"))
-        self.assertFalse(PedidoSangue.objects.exists())
+        self.assertRedirects(resposta, reverse("accounts:minhas_solicitacoes"))
+        self.assertTrue(PedidoSangue.objects.exists())
 
-    def test_visitante_precisa_entrar(self):
+    def test_visitante_pode_enviar_formulario(self):
         resposta = self.client.get(reverse("accounts:pedido_publicar"))
-
-        self.assertRedirects(
-            resposta,
-            f"{reverse('accounts:login')}?next={reverse('accounts:pedido_publicar')}",
-        )
+        self.assertEqual(resposta.status_code, 200)
 
     def test_formulario_rejeita_descricao_curta(self):
         form = PedidoSangueForm(self.dados_validos(descricao="Curto"))
@@ -145,7 +144,7 @@ class PedidoSangueTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("justificativa_urgencia", form.errors)
 
-    def test_administrador_aprova_pedido_e_registra_historico(self):
+    def test_hemocentro_aprova_pedido_e_registra_historico(self):
         self.client.force_login(self.receptor)
         self.client.post(
             reverse("accounts:pedido_publicar"),
@@ -155,12 +154,12 @@ class PedidoSangueTests(TestCase):
 
         validacao = aprovar_pedido(
             pedido=pedido,
-            moderador=self.administrador,
+            moderador=self.hemocentro,
             motivo="Dados conferidos pelo administrador.",
         )
 
         pedido.refresh_from_db()
-        self.assertEqual(pedido.status, PedidoSangue.Status.ATIVO)
+        self.assertEqual(pedido.status, PedidoSangue.Status.PUBLICADA)
         self.assertEqual(
             validacao.status_validacao,
             ValidacaoPedido.StatusValidacao.APROVADO,

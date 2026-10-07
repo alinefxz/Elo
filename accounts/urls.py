@@ -87,6 +87,18 @@ urlpatterns = [
     ),
 
     path(
+        "pedidos/minhas-solicitacoes/",
+        views.minhas_solicitacoes,
+        name="minhas_solicitacoes",
+    ),
+
+    path(
+        "pedidos/hemocentro/",
+        views.painel_pedidos_hemocentro,
+        name="painel_pedidos_hemocentro",
+    ),
+
+    path(
         "pedidos/validacao/",
         views.painel_validacao_pedidos,
         name="painel_validacao_pedidos",
@@ -102,6 +114,12 @@ urlpatterns = [
         "pedidos/<int:id_pedido>/recusar/",
         views.recusar_pedido,
         name="recusar_pedido",
+    ),
+
+    path(
+        "pedidos/<int:id_pedido>/correcao/",
+        views.solicitar_correcao_pedido,
+        name="solicitar_correcao_pedido",
     ),
 
     # ==========================================================
@@ -134,6 +152,12 @@ urlpatterns = [
         "triagem/<int:id_triagem>/resultado/",
         views.triagem_resultado,
         name="triagem_resultado",
+    ),
+
+    path(
+        "triagem/<int:id_triagem>/revisao/",
+        views.triagem_revisao,
+        name="triagem_revisao",
     ),
 
     # Historico do usuario.

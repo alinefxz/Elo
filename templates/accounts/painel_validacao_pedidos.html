@@ -1,53 +1,52 @@
 {% extends "base.html" %}
 
-{% block title %}Validacao de pedidos | Elo{% endblock %}
+{% block title %}Análise de solicitações | Elo{% endblock %}
 
 {% block content %}
-<h1>Validacao de pedidos de sangue</h1>
+<h1>Solicitações recebidas</h1>
+<p>Somente após sua análise uma necessidade será publicada oficialmente.</p>
 
-{% for pedido in pedidos %}
+{% for pedido in solicitacoes %}
     <section>
         <h2>{{ pedido.titulo }}</h2>
 
-        <p><strong>Solicitante:</strong> {{ pedido.solicitante.nome }}</p>
-        <p><strong>Tipo sanguineo:</strong> {{ pedido.tipo_sanguineo }}</p>
-        <p><strong>Urgencia:</strong> {{ pedido.get_urgencia_display }}</p>
+        <p><strong>Solicitante:</strong> {{ pedido.nome_solicitante }}</p>
+        <p><strong>Contato:</strong> {{ pedido.contato }}</p>
+        <p><strong>Tipo:</strong> {{ pedido.tipo_sanguineo }}</p>
         <p><strong>Cidade:</strong> {{ pedido.cidade }}</p>
+        <p><strong>Urgência:</strong> {{ pedido.get_urgencia_display }}</p>
         <p><strong>Hemocentro:</strong> {{ pedido.hemocentro_destino.nome }}</p>
         <p><strong>Status:</strong> {{ pedido.get_status_display }}</p>
-        <p><strong>Descricao:</strong> {{ pedido.descricao }}</p>
+        <p><strong>Descrição:</strong> {{ pedido.descricao }}</p>
 
-        {% if pedido.justificativa_urgencia %}
-            <p>
-                <strong>Justificativa:</strong>
-                {{ pedido.justificativa_urgencia }}
-            </p>
+        {% if pedido.informacoes_complementares %}
+            <p><strong>Informações complementares:</strong> {{ pedido.informacoes_complementares }}</p>
         {% endif %}
 
-        <form method="post" action="{% url 'accounts:aprovar_pedido' pedido.id_pedido %}">
-            {% csrf_token %}
+        {% if pedido.duplicidade_suspeita %}
+            <p><strong>Atenção:</strong> há solicitação semelhante em análise.</p>
+        {% endif %}
 
-            <p>
-                <label>Motivo da aprovacao</label><br>
-                <textarea name="motivo" rows="3"></textarea>
-            </p>
-
-            <button type="submit">Aprovar</button>
-        </form>
-
-        <form method="post" action="{% url 'accounts:recusar_pedido' pedido.id_pedido %}">
-            {% csrf_token %}
-
-            <p>
-                <label>Motivo da recusa</label><br>
-                <textarea name="motivo" rows="3"></textarea>
-            </p>
-
-            <button type="submit">Recusar</button>
-        </form>
+        {% if pedido.status != "PUBLICADA" and pedido.status != "RECUSADA" %}
+            <form method="post" action="{% url 'accounts:aprovar_pedido' pedido.id_pedido %}">
+                {% csrf_token %}
+                <textarea name="motivo" rows="2" placeholder="Observação da análise"></textarea>
+                <button type="submit">Aprovar e publicar</button>
+            </form>
+            <form method="post" action="{% url 'accounts:solicitar_correcao_pedido' pedido.id_pedido %}">
+                {% csrf_token %}
+                <textarea name="motivo" rows="2" required placeholder="O que deve ser corrigido?"></textarea>
+                <button type="submit">Solicitar correção</button>
+            </form>
+            <form method="post" action="{% url 'accounts:recusar_pedido' pedido.id_pedido %}">
+                {% csrf_token %}
+                <textarea name="motivo" rows="2" placeholder="Motivo da recusa"></textarea>
+                <button type="submit">Recusar</button>
+            </form>
+        {% endif %}
     </section>
 {% empty %}
-    <p>Nenhum pedido aguardando validacao.</p>
+    <p>Nenhuma solicitação aguardando análise.</p>
 {% endfor %}
 
 {% endblock %}

@@ -72,6 +72,7 @@ class UsuarioAdmin(UserAdmin):
         "tipo_sanguineo",
         "status_validacao",
         "is_active",
+        "suspensa",
         "email_verificado",
         "is_staff",
     )
@@ -82,6 +83,7 @@ class UsuarioAdmin(UserAdmin):
         "tipo_sanguineo",
         "status_validacao",
         "is_active",
+        "suspensa",
         "email_verificado",
         "is_staff",
     )
@@ -126,6 +128,7 @@ class UsuarioAdmin(UserAdmin):
                     "data_nascimento",
                     "sexo",
                     "tipo_sanguineo",
+                    "tipo_sanguineo_confirmado",
                     "cidade",
                     "estado",
                     "status_validacao",
@@ -138,6 +141,7 @@ class UsuarioAdmin(UserAdmin):
             {
                 "fields": (
                     "is_active",
+                    "suspensa",
                     "is_staff",
                     "is_superuser",
                     "groups",
@@ -170,6 +174,7 @@ class UsuarioAdmin(UserAdmin):
                     "password1",
                     "password2",
                     "is_active",
+                    "suspensa",
                     "is_staff",
                 ),
             },

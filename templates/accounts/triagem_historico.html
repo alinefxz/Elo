@@ -17,6 +17,7 @@ somente o resumo; respostas individuais continuam protegidas no banco.
                 <strong>Triagem {{ triagem.id_triagem }} — {{ triagem.get_modalidade_display }}</strong><br>
                 Iniciada em {{ triagem.iniciada_em|date:"d/m/Y H:i" }}<br>
                 Situação: {{ triagem.get_status_display }}
+                <br>Versão das regras: {{ triagem.regra_version }}
 
                 {% if triagem.status == "CONCLUIDA" %}
                     <br>Orientação: {{ triagem.get_resultado_display }}

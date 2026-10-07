@@ -261,6 +261,11 @@ class CadastroUsuarioForm(UserCreationForm):
                     "cnpj",
                     "Informe o CNPJ do hemocentro.",
                 )
+            if cpf:
+                self.add_error(
+                    "cpf",
+                    "Hemocentro deve informar CNPJ, não CPF.",
+                )
 
         if perfil in perfis_pessoa:
             if not cpf:
@@ -274,12 +279,31 @@ class CadastroUsuarioForm(UserCreationForm):
                     "data_nascimento",
                     "Informe a data de nascimento para este tipo de perfil.",
                 )
+            if cnpj:
+                self.add_error(
+                    "cnpj",
+                    "Doador e Receptor devem informar CPF, não CNPJ.",
+                )
+
+        if perfil == Usuario.Perfil.OBSERVADOR and (cpf or cnpj):
+            self.add_error(
+                "cpf" if cpf else "cnpj",
+                "Observador não precisa informar CPF ou CNPJ.",
+            )
 
         return dados
 
 
 class LoginUsuarioForm(AuthenticationForm):
     """Formulario de login usando e-mail."""
+
+    def confirm_login_allowed(self, user):
+        super().confirm_login_allowed(user)
+        if getattr(user, "suspensa", False):
+            raise forms.ValidationError(
+                "Esta conta está suspensa. Procure o administrador.",
+                code="inactive",
+            )
 
     username = forms.EmailField(
         label="E-mail",
@@ -553,7 +577,7 @@ class MovimentarEstoqueForm(forms.Form):
 
 class PedidoSangueForm(forms.ModelForm):
     """
-    Formulario para Receptor/Solicitante criar pedido de sangue.
+    Formulário para solicitar a divulgação de uma necessidade.
 
     As validacoes mais sensiveis ficam em validacao_pedido.py.
     Aqui ficam as validacoes de formulario.
@@ -563,6 +587,8 @@ class PedidoSangueForm(forms.ModelForm):
         model = PedidoSangue
 
         fields = [
+            "nome_solicitante",
+            "contato",
             "para_quem",
             "hemocentro_destino",
             "titulo",
@@ -572,10 +598,13 @@ class PedidoSangueForm(forms.ModelForm):
             "nome_paciente",
             "descricao",
             "justificativa_urgencia",
+            "informacoes_complementares",
         ]
 
         labels = {
             "para_quem": "Para quem e este pedido?",
+            "nome_solicitante": "Nome ou identificação do solicitante",
+            "contato": "Contato",
             "hemocentro_destino": "Hemocentro de destino",
             "titulo": "Titulo do pedido",
             "tipo_sanguineo": "Tipo sanguineo",
@@ -584,6 +613,7 @@ class PedidoSangueForm(forms.ModelForm):
             "nome_paciente": "Nome da pessoa (opcional)",
             "descricao": "Descricao",
             "justificativa_urgencia": "Justificativa da urgencia",
+            "informacoes_complementares": "Informações complementares",
         }
 
         widgets = {
@@ -592,6 +622,7 @@ class PedidoSangueForm(forms.ModelForm):
             "urgencia": forms.RadioSelect,
             "descricao": forms.Textarea(attrs={"rows": 5}),
             "justificativa_urgencia": forms.Textarea(attrs={"rows": 4}),
+            "informacoes_complementares": forms.Textarea(attrs={"rows": 4}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -608,6 +639,20 @@ class PedidoSangueForm(forms.ModelForm):
 
     def clean_nome_paciente(self):
         return (self.cleaned_data.get("nome_paciente") or "").strip()
+
+    def clean_nome_solicitante(self):
+        nome = (self.cleaned_data.get("nome_solicitante") or "").strip()
+        if not nome:
+            raise forms.ValidationError(
+                "Informe o nome ou uma identificação do solicitante."
+            )
+        return nome
+
+    def clean_contato(self):
+        contato = (self.cleaned_data.get("contato") or "").strip()
+        if not contato:
+            raise forms.ValidationError("Informe um contato para retorno.")
+        return contato
 
     def clean_descricao(self):
         descricao = (self.cleaned_data.get("descricao") or "").strip()
@@ -684,4 +729,10 @@ class FiltroPedidoSangueForm(forms.Form):
         label="Data",
         required=False,
         widget=forms.DateInput(attrs={"type": "date"}),
+    )
+
+    status = forms.ChoiceField(
+        label="Status",
+        required=False,
+        choices=[("", "Todos")] + list(PedidoSangue.Status.choices),
     )

@@ -32,10 +32,10 @@ Pedidos pendentes, suspeitos ou recusados nao aparecem nesta pagina.
     <p>Nenhum pedido ativo encontrado.</p>
 {% endfor %}
 
-{% if user.is_authenticated and user.perfil == "RECEPTOR" %}
+{% if user.is_authenticated and user.perfil == "DOADOR" or user.is_authenticated and user.perfil == "RECEPTOR" or user.is_authenticated and user.perfil == "OBSERVADOR" %}
     <p>
         <a href="{% url 'accounts:criar_pedido_sangue' %}">
-            Criar novo pedido
+            Solicitar divulgação de necessidade
         </a>
     </p>
 {% endif %}
