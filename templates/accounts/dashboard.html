@@ -264,91 +264,64 @@ STATUS DA VALIDACAO DO HEMOCENTRO
 =================================================================
 Mostra para o Hemocentro a situacao atual do cadastro institucional.
 Somente Hemocentro aprovado recebe o link para gerenciar estoque.
-{% endcomment %}
-
-{% if visibilidade.mostra_status_hemocentro %}
+{% if request.user.perfil == "HEMOCENTRO" %}
 
     <section>
 
-        <h2>Status da validação institucional</h2>
+        <h2>Área do Hemocentro</h2>
 
-        {% if request.user.status_validacao == "PENDENTE" %}
-
-            <h3>Pendente</h3>
+        {% if request.user.status_validacao == "APROVADO" %}
 
             <p>
-                Seu cadastro de Hemocentro está aguardando análise
-                de um administrador.
+                Seu Hemocentro foi aprovado.
+                Agora você pode gerenciar seus estoques
+                e realizar pedidos de sangue.
             </p>
 
             <p>
-                Enquanto a análise não for concluída, a publicação
-                de estoques e campanhas permanece bloqueada.
-            </p>
-
-        {% elif request.user.status_validacao == "APROVADO" %}
-
-            <h3>Aprovado</h3>
-
-            <p>
-                Seu Hemocentro foi aprovado pelo administrador.
+                <a href="{% url 'accounts:estoque_hemocentro' %}">
+                    Gerenciar meu estoque
+                </a>
             </p>
 
             <p>
-                O Hemocentro está autorizado a cadastrar e atualizar estoques.
+                <a href="{% url 'accounts:criar_pedido_sangue' %}">
+                    Fazer pedido de sangue
+                </a>
             </p>
 
-            {% if visibilidade.pode_gerenciar_estoque %}
+        {% elif request.user.status_validacao == "PENDENTE" %}
+
+            <p>
+                Seu cadastro está aguardando validação
+                administrativa.
+            </p>
+
+        {% elif request.user.status_validacao == "CORRECAO" %}
+
+            <p>
+                Seu cadastro precisa de correção antes
+                de ser aprovado.
+            </p>
+
+            {% if validacao_atual %}
                 <p>
-                    <a href="{% url 'accounts:estoque_hemocentro' %}">
-                        Cadastrar e atualizar estoque
-                    </a>
+                    <strong>Parecer do administrador:</strong>
+                    {{ validacao_atual.parecer }}
                 </p>
             {% endif %}
 
         {% elif request.user.status_validacao == "RECUSADO" %}
 
-            <h3>Cadastro recusado</h3>
-
             <p>
-                O cadastro do Hemocentro foi recusado.
+                O cadastro deste Hemocentro foi recusado.
             </p>
 
-            {% if validacao_atual and validacao_atual.parecer %}
-
+            {% if validacao_atual %}
                 <p>
-                    <strong>Parecer do administrador:</strong>
+                    <strong>Parecer:</strong>
                     {{ validacao_atual.parecer }}
                 </p>
-
-                <p>
-                    <strong>Data da análise:</strong>
-                    {{ validacao_atual.data_analise|date:"d/m/Y H:i" }}
-                </p>
-
-            {% endif %}
-
-        {% elif request.user.status_validacao == "CORRECAO" %}
-
-            <h3>Correção necessária</h3>
-
-            <p>
-                O administrador solicitou alterações no cadastro
-                do Hemocentro.
-            </p>
-
-            {% if validacao_atual and validacao_atual.parecer %}
-
-                <p>
-                    <strong>Orientação do administrador:</strong>
-                    {{ validacao_atual.parecer }}
-                </p>
-
-                <p>
-                    <strong>Data da análise:</strong>
-                    {{ validacao_atual.data_analise|date:"d/m/Y H:i" }}
-                </p>
-
             {% endif %}
 
         {% endif %}
@@ -356,9 +329,6 @@ Somente Hemocentro aprovado recebe o link para gerenciar estoque.
     </section>
 
 {% endif %}
-
-
-{% comment %}
 =================================================================
 ACESSO DO ADMINISTRADOR
 =================================================================

@@ -69,13 +69,36 @@ def criar_pedido_pendente(
     solicitante,
 ):
     """
-    Cria o pedido sem publicá-lo.
+    Cria um pedido de sangue sem publicá-lo imediatamente.
+
+    Podem criar pedidos:
+    - Receptor/Solicitante;
+    - Hemocentro aprovado.
+
+    Um Hemocentro pendente, recusado ou em correção não pode
+    criar pedidos institucionais.
     """
 
-    if solicitante.perfil != Usuario.Perfil.RECEPTOR:
+    pode_criar = False
+
+    # Receptor/Solicitante pode criar pedido.
+    if solicitante.perfil == Usuario.Perfil.RECEPTOR:
+        pode_criar = True
+
+    # Hemocentro somente depois da aprovação administrativa.
+    elif (
+        solicitante.perfil == Usuario.Perfil.HEMOCENTRO
+        and solicitante.status_validacao
+        == Usuario.StatusValidacaoHemocentro.APROVADO
+    ):
+        pode_criar = True
+
+    if not pode_criar:
         raise PermissionDenied(
-            "Somente Receptor/Solicitante pode criar "
-            "pedidos de sangue."
+            (
+                "Somente Receptor/Solicitante ou "
+                "Hemocentro aprovado podem criar pedidos de sangue."
+            )
         )
 
     pedido = PedidoSangue(
@@ -90,8 +113,7 @@ def criar_pedido_pendente(
 
     pedido.save()
 
-    return pedido
-
+    return pedido  
 
 @transaction.atomic
 def registrar_decisao_validacao_pedido(
