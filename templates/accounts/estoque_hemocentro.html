@@ -1,166 +1,75 @@
 {% extends "base.html" %}
 
-{% block title %}Meu Estoque | Elo{% endblock %}
+{% block title %}
+Estoque de sangue | Elo
+{% endblock %}
 
 {% block content %}
 
-<section class="estoque-hemocentro">
+<main>
 
-    <h1>Meu Estoque</h1>
+    <h1>Estoque de sangue</h1>
 
     <p>
-        Gerencie a quantidade de bolsas disponíveis por tipo sanguíneo.
+        Consulte a disponibilidade informada pelos
+        Hemocentros aprovados cadastrados no Elo.
     </p>
 
-    {% if messages %}
-        {% for message in messages %}
-            <div class="mensagem {{ message.tags }}">
-                {{ message }}
-            </div>
-        {% endfor %}
-    {% endif %}
+    {% if estoques %}
 
+        <div class="estoques-publicos">
 
-    <section>
-        <h2>Estoques cadastrados</h2>
+            {% for estoque in estoques %}
 
-        {% if estoques %}
+                <article class="estoque-publico-card">
 
-            <div class="estoques-grid">
+                    <h2>
+                        {{ estoque.tipo_sanguineo }}
+                    </h2>
 
-                {% for estoque in estoques %}
+                    <p>
+                        <strong>Hemocentro:</strong>
+                        {{ estoque.hemocentro.nome }}
+                    </p>
 
-                    <article class="estoque-card">
+                    <p>
+                        <strong>Local:</strong>
+                        {{ estoque.hemocentro.cidade }}
+                        -
+                        {{ estoque.hemocentro.estado }}
+                    </p>
 
-                        <h3>{{ estoque.tipo_sanguineo }}</h3>
+                    <p>
+                        <strong>Quantidade:</strong>
+                        {{ estoque.quantidade_bolsas }}
+                        bolsas
+                    </p>
 
-                        <p>
-                            <strong>Quantidade:</strong>
-                            {{ estoque.quantidade_bolsas }} bolsas
-                        </p>
+                    <p>
+                        <strong>Status:</strong>
+                        {{ estoque.get_status_calculado_display }}
+                    </p>
 
-                        <p>
-                            <strong>Status:</strong>
-                            {{ estoque.get_status_calculado_display }}
-                        </p>
+                    <p>
+                        <strong>Atualizado em:</strong>
+                        {{ estoque.data_atualizacao|date:"d/m/Y H:i" }}
+                    </p>
 
-                        <p>
-                            <strong>Última atualização:</strong>
-                            {{ estoque.data_atualizacao|date:"d/m/Y H:i" }}
-                        </p>
+                </article>
 
+            {% endfor %}
 
-                        <h4>Atualizar estoque</h4>
+        </div>
 
-                        <form
-                            method="post"
-                            action="{% url 'accounts:atualizar_estoque' estoque.id_estoque %}"
-                        >
-                            {% csrf_token %}
+    {% else %}
 
-                            <div>
-                                {{ form_movimentacao.tipo_movimento.label_tag }}
-                                {{ form_movimentacao.tipo_movimento }}
-                            </div>
-
-                            <div>
-                                {{ form_movimentacao.quantidade.label_tag }}
-                                {{ form_movimentacao.quantidade }}
-
-                                {% if form_movimentacao.quantidade.help_text %}
-                                    <small>
-                                        {{ form_movimentacao.quantidade.help_text }}
-                                    </small>
-                                {% endif %}
-                            </div>
-
-                            <div>
-                                {{ form_movimentacao.motivo.label_tag }}
-                                {{ form_movimentacao.motivo }}
-                            </div>
-
-                            <button type="submit">
-                                Atualizar estoque
-                            </button>
-                        </form>
-
-                    </article>
-
-                {% endfor %}
-
-            </div>
-
-        {% else %}
-
-            <p>
-                Nenhum estoque foi cadastrado ainda.
-            </p>
-
-        {% endif %}
-    </section>
-
-
-    {% if tipos_disponiveis %}
-
-        <section>
-            <h2>Cadastrar novo estoque</h2>
-
-            <p>
-                Cadastre os tipos sanguíneos que ainda não possuem estoque.
-            </p>
-
-            <form
-                method="post"
-                action="{% url 'accounts:cadastrar_estoque' %}"
-            >
-                {% csrf_token %}
-
-                <div>
-                    {{ form_cadastro.tipo_sanguineo.label_tag }}
-                    {{ form_cadastro.tipo_sanguineo }}
-                </div>
-
-                <div>
-                    {{ form_cadastro.quantidade_bolsas.label_tag }}
-                    {{ form_cadastro.quantidade_bolsas }}
-
-                    {% if form_cadastro.quantidade_bolsas.help_text %}
-                        <small>
-                            {{ form_cadastro.quantidade_bolsas.help_text }}
-                        </small>
-                    {% endif %}
-                </div>
-
-                <div>
-                    {{ form_cadastro.nivel_minimo.label_tag }}
-                    {{ form_cadastro.nivel_minimo }}
-
-                    {% if form_cadastro.nivel_minimo.help_text %}
-                        <small>
-                            {{ form_cadastro.nivel_minimo.help_text }}
-                        </small>
-                    {% endif %}
-                </div>
-
-                <div>
-                    {{ form_cadastro.nivel_critico.label_tag }}
-                    {{ form_cadastro.nivel_critico }}
-
-                    {% if form_cadastro.nivel_critico.help_text %}
-                        <small>
-                            {{ form_cadastro.nivel_critico.help_text }}
-                        </small>
-                    {% endif %}
-                </div>
-
-                <button type="submit">
-                    Cadastrar estoque
-                </button>
-            </form>
-        </section>
+        <p>
+            Nenhum estoque foi informado pelos Hemocentros
+            aprovados.
+        </p>
 
     {% endif %}
 
-</section>
+</main>
 
 {% endblock %}

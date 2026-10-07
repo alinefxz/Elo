@@ -78,7 +78,14 @@ def criar_pedido_pendente(
     solicitante,
 ):
     """
-    Cria o pedido sem publicá-lo.
+    Cria um pedido de sangue sem publicá-lo imediatamente.
+
+    Podem criar pedidos:
+    - Receptor/Solicitante;
+    - Hemocentro aprovado.
+
+    Um Hemocentro pendente, recusado ou em correção não pode
+    criar pedidos institucionais.
     """
 
     if getattr(solicitante, "is_authenticated", False) and solicitante.perfil in {
@@ -135,7 +142,6 @@ def criar_pedido_pendente(
         pedido.save(update_fields=["duplicidade_suspeita", "atualizado_em"])
 
     return pedido
-
 
 @transaction.atomic
 def registrar_decisao_validacao_pedido(

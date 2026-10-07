@@ -18,7 +18,8 @@ def usuario_e_administrador(usuario):
     return bool(
         getattr(usuario, "is_authenticated", False)
         and (
-            usuario.is_superuser
+            usuario.is_staff
+            or usuario.is_superuser
             or usuario.perfil == Usuario.Perfil.ADMINISTRADOR
         )
     )

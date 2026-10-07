@@ -765,155 +765,272 @@ def dashboard(request):
     )
 
 
+# ==========================================================
+# ESTOQUE - VIEWS DO HEMOCENTRO
+# ==========================================================
+
 @login_required
-def painel_aprovacao_hemocentros(request):
-    """Mostra a tela administrativa de aprovacao de Hemocentros."""
+def estoque_hemocentro(request):
+    """
+    Página privada do Hemocentro para visualizar e administrar
+    os próprios estoques.
 
-    exigir_administrador(request.user)
+    Somente Hemocentro aprovado pode acessar esta área.
+    """
 
-    hemocentros = (
-        Usuario.objects
-        .filter(
-            perfil=Usuario.Perfil.HEMOCENTRO,
-            status_validacao=(
-                Usuario.StatusValidacaoHemocentro.PENDENTE
-            ),
+    if request.user.perfil != Usuario.Perfil.HEMOCENTRO:
+        messages.error(
+            request,
+            "Esta área é exclusiva para Hemocentros."
         )
-        .order_by("date_joined")
+        return redirect("accounts:dashboard")
+
+    if not request.user.hemocentro_aprovado:
+        messages.warning(
+            request,
+            (
+                "Seu cadastro de Hemocentro ainda não foi aprovado "
+                "por um administrador. O gerenciamento de estoque "
+                "ficará disponível após a aprovação."
+            )
+        )
+        return redirect("accounts:dashboard")
+
+    estoques = (
+        Estoque.objects
+        .filter(hemocentro=request.user)
+        .order_by("tipo_sanguineo")
     )
 
-    contexto = {
-        "hemocentros": hemocentros,
-    }
+    tipos_cadastrados = set(
+        estoques.values_list(
+            "tipo_sanguineo",
+            flat=True,
+        )
+    )
+
+    tipos_disponiveis = [
+        tipo
+        for tipo in TIPOS_SANGUINEOS
+        if tipo not in tipos_cadastrados
+    ]
+
+    form_cadastro = CadastrarEstoqueForm()
+    form_movimentacao = MovimentarEstoqueForm()
 
     return render(
         request,
-        "accounts/painel_aprovacao_hemocentros.html",
-        contexto,
+        "accounts/estoque_hemocentro.html",
+        {
+            "estoques": estoques,
+            "tipos_disponiveis": tipos_disponiveis,
+            "form_cadastro": form_cadastro,
+            "form_movimentacao": form_movimentacao,
+        },
     )
 
 
 @login_required
-def hemocentros_pendentes(request):
-    """Retorna os Hemocentros que ainda aguardam decisao administrativa."""
+@require_POST
+def cadastrar_estoque_view(request):
+    """
+    Cadastra um novo tipo sanguíneo no estoque do próprio Hemocentro.
+    """
 
-    exigir_administrador(request.user)
-
-    hemocentros = (
-        Usuario.objects
-        .filter(
-            perfil=Usuario.Perfil.HEMOCENTRO,
-            status_validacao=(
-                Usuario.StatusValidacaoHemocentro.PENDENTE
-            ),
+    if request.user.perfil != Usuario.Perfil.HEMOCENTRO:
+        raise PermissionDenied(
+            "Somente Hemocentros podem cadastrar estoque."
         )
-        .order_by("date_joined")
+
+    if not request.user.hemocentro_aprovado:
+        messages.warning(
+            request,
+            "Seu Hemocentro ainda não foi aprovado."
+        )
+        return redirect("accounts:dashboard")
+
+    form = CadastrarEstoqueForm(request.POST)
+
+    if form.is_valid():
+        try:
+            cadastrar_estoque(
+                hemocentro=request.user,
+                tipo_sanguineo=form.cleaned_data["tipo_sanguineo"],
+                quantidade_bolsas=form.cleaned_data["quantidade_bolsas"],
+                nivel_minimo=form.cleaned_data["nivel_minimo"],
+                nivel_critico=form.cleaned_data["nivel_critico"],
+                request=request,
+            )
+
+        except ValidationError as exc:
+            if hasattr(exc, "message_dict"):
+                for campo, mensagens_campo in exc.message_dict.items():
+                    for mensagem in mensagens_campo:
+                        form.add_error(campo, mensagem)
+            else:
+                for mensagem in exc.messages:
+                    form.add_error(None, mensagem)
+
+        else:
+            messages.success(
+                request,
+                "Estoque cadastrado com sucesso."
+            )
+            return redirect("accounts:estoque_hemocentro")
+
+    estoques = (
+        Estoque.objects
+        .filter(hemocentro=request.user)
+        .order_by("tipo_sanguineo")
     )
 
-    dados = [
-        {
-            "id_hemocentro": hemocentro.pk,
-            "nome": hemocentro.nome,
-            "email": hemocentro.email,
-            "cnpj": hemocentro.cnpj,
-            "cidade": hemocentro.cidade,
-            "estado": hemocentro.estado,
-            "status_validacao": hemocentro.status_validacao,
-            "data_cadastro": hemocentro.date_joined.isoformat(),
-        }
-        for hemocentro in hemocentros
+    tipos_cadastrados = set(
+        estoques.values_list(
+            "tipo_sanguineo",
+            flat=True,
+        )
+    )
+
+    tipos_disponiveis = [
+        tipo
+        for tipo in TIPOS_SANGUINEOS
+        if tipo not in tipos_cadastrados
     ]
 
-    return JsonResponse(
+    return render(
+        request,
+        "accounts/estoque_hemocentro.html",
         {
-            "hemocentros": dados
-        }
+            "estoques": estoques,
+            "tipos_disponiveis": tipos_disponiveis,
+            "form_cadastro": form,
+            "form_movimentacao": MovimentarEstoqueForm(),
+        },
     )
 
 
 @login_required
 @require_POST
-def aprovar_hemocentro(request, id_hemocentro):
-    """Acao administrativa para aprovar um Hemocentro."""
+def atualizar_estoque_view(request, id_estoque):
+    """
+    Registra entrada, saída ou ajuste no estoque pertencente
+    ao Hemocentro autenticado.
+    """
 
-    exigir_administrador(request.user)
+    if request.user.perfil != Usuario.Perfil.HEMOCENTRO:
+        raise PermissionDenied(
+            "Somente Hemocentros podem atualizar estoque."
+        )
 
-    hemocentro = obter_hemocentro_ou_404(
-        id_hemocentro
+    if not request.user.hemocentro_aprovado:
+        messages.warning(
+            request,
+            "Seu Hemocentro ainda não foi aprovado."
+        )
+        return redirect("accounts:dashboard")
+
+    estoque = get_object_or_404(
+        Estoque,
+        pk=id_estoque,
+        hemocentro=request.user,
     )
 
-    aprovar_hemocentro_servico(
-        hemocentro=hemocentro,
-        admin=request.user,
-        parecer=request.POST.get("parecer", ""),
-        request=request,
+    form = MovimentarEstoqueForm(request.POST)
+
+    if form.is_valid():
+        try:
+            registrar_movimentacao_estoque(
+                estoque=estoque,
+                usuario_resp=request.user,
+                tipo_movimento=form.cleaned_data["tipo_movimento"],
+                quantidade=form.cleaned_data["quantidade"],
+                motivo=form.cleaned_data["motivo"],
+                request=request,
+            )
+
+        except ValidationError as exc:
+            if hasattr(exc, "message_dict"):
+                for campo, mensagens_campo in exc.message_dict.items():
+                    for mensagem in mensagens_campo:
+                        form.add_error(campo, mensagem)
+            else:
+                for mensagem in exc.messages:
+                    form.add_error(None, mensagem)
+
+        else:
+            messages.success(
+                request,
+                (
+                    f"Estoque de {estoque.tipo_sanguineo} "
+                    "atualizado com sucesso."
+                )
+            )
+            return redirect("accounts:estoque_hemocentro")
+
+    estoques = (
+        Estoque.objects
+        .filter(hemocentro=request.user)
+        .order_by("tipo_sanguineo")
     )
 
-    messages.success(
+    tipos_cadastrados = set(
+        estoques.values_list(
+            "tipo_sanguineo",
+            flat=True,
+        )
+    )
+
+    tipos_disponiveis = [
+        tipo
+        for tipo in TIPOS_SANGUINEOS
+        if tipo not in tipos_cadastrados
+    ]
+
+    return render(
         request,
-        "Hemocentro aprovado com sucesso.",
-    )
-
-    return redirect(
-        "accounts:painel_aprovacao_hemocentros"
+        "accounts/estoque_hemocentro.html",
+        {
+            "estoques": estoques,
+            "tipos_disponiveis": tipos_disponiveis,
+            "form_cadastro": CadastrarEstoqueForm(),
+            "form_movimentacao": form,
+            "estoque_com_erro": estoque,
+        },
     )
 
 
 @login_required
-@require_POST
-def recusar_hemocentro(request, id_hemocentro):
-    """Acao administrativa para recusar um Hemocentro."""
+def visualizacao_publica_estoque(request):
+    """
+    Exibe o estoque dos Hemocentros aprovados.
 
-    exigir_administrador(request.user)
+    Contas pendentes, recusadas ou em correção nunca aparecem
+    na consulta pública.
+    """
 
-    hemocentro = obter_hemocentro_ou_404(
-        id_hemocentro
+    estoques = (
+        Estoque.objects
+        .select_related("hemocentro")
+        .filter(
+            hemocentro__perfil=Usuario.Perfil.HEMOCENTRO,
+            hemocentro__status_validacao=(
+                Usuario.StatusValidacaoHemocentro.APROVADO
+            ),
+        )
+        .order_by(
+            "hemocentro__cidade",
+            "hemocentro__nome",
+            "tipo_sanguineo",
+        )
     )
 
-    recusar_hemocentro_servico(
-        hemocentro=hemocentro,
-        admin=request.user,
-        parecer=request.POST.get("parecer", ""),
-        request=request,
-    )
-
-    messages.success(
+    return render(
         request,
-        "Hemocentro recusado com sucesso.",
+        "accounts/estoque_publico.html",
+        {
+            "estoques": estoques,
+        },
     )
-
-    return redirect(
-        "accounts:painel_aprovacao_hemocentros"
-    )
-
-
-@login_required
-@require_POST
-def solicitar_correcao_hemocentro(request, id_hemocentro):
-    """Solicita correcao cadastral para um Hemocentro."""
-
-    exigir_administrador(request.user)
-
-    hemocentro = obter_hemocentro_ou_404(
-        id_hemocentro
-    )
-
-    solicitar_correcao_hemocentro_servico(
-        hemocentro=hemocentro,
-        admin=request.user,
-        parecer=request.POST.get("parecer", ""),
-        request=request,
-    )
-
-    messages.success(
-        request,
-        "Solicitacao de correcao registrada com sucesso.",
-    )
-
-    return redirect(
-        "accounts:painel_aprovacao_hemocentros"
-    )
-
 
 def triagem_apresentacao(request):
     """
