@@ -1,5 +1,4 @@
 """
-
 RESUMO DO ARQUIVO
 =================
 Testes automatizados executam o fluxo sem abrir o navegador. Cada teste usa um
@@ -29,7 +28,7 @@ from django.core.exceptions import PermissionDenied
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import AuditoriaAcaoCritica, Usuario, ValidacaoHemocentro
+from .models import AuditoriaAcaoCritica, Estoque, Usuario, ValidacaoHemocentro
 from .validacao_hemocentro import (
     aprovar_hemocentro,
     hemocentro_aprovado,
@@ -100,9 +99,14 @@ class ValidacaoHemocentroTests(TestCase):
             self.hemocentro.status_validacao,
             Usuario.StatusValidacaoHemocentro.APROVADO,
         )
-        self.assertEqual(validacao.status, Usuario.StatusValidacaoHemocentro.APROVADO)
         self.assertEqual(
-            ValidacaoHemocentro.objects.filter(hemocentro=self.hemocentro).count(),
+            validacao.status,
+            Usuario.StatusValidacaoHemocentro.APROVADO,
+        )
+        self.assertEqual(
+            ValidacaoHemocentro.objects.filter(
+                hemocentro=self.hemocentro
+            ).count(),
             1,
         )
         self.assertTrue(
@@ -196,20 +200,119 @@ class ValidacaoHemocentroTests(TestCase):
 
         resposta = self.client.get(reverse("accounts:dashboard"))
 
-        self.assertContains(resposta, "Status da validação institucional")
+        self.assertContains(
+            resposta,
+            "Status da validação institucional",
+        )
         self.assertContains(resposta, "Pendente")
         self.assertNotContains(resposta, "Gestão de Hemocentros")
-        self.assertNotContains(resposta, "Acessar aprovação de Hemocentros")
+        self.assertNotContains(
+            resposta,
+            "Acessar aprovação de Hemocentros",
+        )
 
-    def test_dashboard_admin_nao_mostra_validacao_fora_do_admin(self):
-        """Aprovacao de Hemocentro deve ficar somente dentro do Django Admin."""
+    def test_admin_acessa_tela_de_validacao_e_ve_pendente(self):
+        """Administrador deve receber a tela da aplicacao com os pendentes."""
 
         self.client.force_login(self.admin)
 
         resposta = self.client.get(reverse("accounts:dashboard"))
 
-        self.assertNotContains(resposta, "Gestão de Hemocentros")
-        self.assertNotContains(resposta, "Acessar aprovação de Hemocentros")
+        self.assertContains(resposta, "Validação de Hemocentros")
+        self.assertContains(
+            resposta,
+            "Acessar aprovação de Hemocentros",
+        )
+        self.assertContains(
+            resposta,
+            "<li>Aprovar Hemocentros.</li>",
+            html=True,
+        )
+        self.assertContains(resposta, 'href="/admin/"')
+
+        painel = self.client.get(
+            reverse("accounts:painel_aprovacao_hemocentros")
+        )
+
+        self.assertEqual(painel.status_code, 200)
+        self.assertContains(painel, self.hemocentro.nome)
+        self.assertContains(painel, "Pendente")
+        self.assertContains(painel, "Voltar ao painel")
+        self.assertContains(painel, "Página inicial")
+        self.assertContains(painel, "Estoques públicos")
+
+    def test_admin_aprova_pelo_painel_e_libera_estoque(self):
+        """A aprovacao feita na tela altera o status e libera o estoque."""
+
+        self.client.force_login(self.admin)
+
+        resposta = self.client.post(
+            reverse(
+                "accounts:aprovar_hemocentro",
+                kwargs={"id_hemocentro": self.hemocentro.pk},
+            ),
+            {"parecer": "Documentacao conferida."},
+        )
+
+        self.assertRedirects(
+            resposta,
+            reverse("accounts:painel_aprovacao_hemocentros"),
+        )
+
+        self.hemocentro.refresh_from_db()
+
+        self.assertEqual(
+            self.hemocentro.status_validacao,
+            Usuario.StatusValidacaoHemocentro.APROVADO,
+        )
+
+        self.client.force_login(self.hemocentro)
+
+        estoque = self.client.get(
+            reverse("accounts:estoque_hemocentro")
+        )
+
+        self.assertEqual(estoque.status_code, 200)
+        self.assertContains(estoque, "Cadastrar novo estoque")
+
+        cadastro_estoque = self.client.post(
+            reverse("accounts:cadastrar_estoque"),
+            {
+                "tipo_sanguineo": "O+",
+                "quantidade_bolsas": 8,
+                "nivel_minimo": 10,
+                "nivel_critico": 5,
+            },
+        )
+
+        self.assertRedirects(
+            cadastro_estoque,
+            reverse("accounts:estoque_hemocentro"),
+        )
+
+        self.assertTrue(
+            Estoque.objects.filter(
+                hemocentro=self.hemocentro,
+                tipo_sanguineo="O+",
+            ).exists()
+        )
+
+    def test_usuario_comum_nao_acessa_tela_de_validacao(self):
+        """A tela e suas acoes continuam restritas ao Administrador."""
+
+        usuario_comum = self.criar_usuario(
+            email="doador-tela@elo.test",
+            nome="Doador",
+            perfil=Usuario.Perfil.DOADOR,
+        )
+
+        self.client.force_login(usuario_comum)
+
+        resposta = self.client.get(
+            reverse("accounts:painel_aprovacao_hemocentros")
+        )
+
+        self.assertEqual(resposta.status_code, 403)
 
     def test_dashboard_admin_nao_mostra_publicacao_de_pedido(self):
         """Administrador não atua como Hemocentro na publicação."""
@@ -219,14 +322,11 @@ class ValidacaoHemocentroTests(TestCase):
         resposta = self.client.get(reverse("accounts:dashboard"))
 
         self.assertContains(resposta, "Pedidos ativos")
-        self.assertNotContains(resposta, "Publicar pedido de sangue")
-        self.assertNotContains(resposta, "Solicitar divulgação de necessidade")
-
-    def test_urls_comuns_de_validacao_foram_removidas(self):
-        """Links diretos antigos de validacao nao devem funcionar no site comum."""
-
-        self.client.force_login(self.admin)
-
-        resposta = self.client.get("/hemocentros/validacao/")
-
-        self.assertEqual(resposta.status_code, 404)
+        self.assertNotContains(
+            resposta,
+            "Publicar pedido de sangue",
+        )
+        self.assertNotContains(
+            resposta,
+            "Solicitar divulgação de necessidade",
+        )
