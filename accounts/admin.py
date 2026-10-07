@@ -1574,6 +1574,7 @@ class PedidoSangueAdmin(admin.ModelAdmin):
         "id_pedido",
         "titulo",
         "solicitante",
+        "contato",
         "hemocentro_destino",
         "tipo_sanguineo",
         "urgencia",

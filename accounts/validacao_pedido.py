@@ -1,4 +1,5 @@
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.validators import validate_email
 from datetime import timedelta
 
 from django.db import transaction
@@ -48,7 +49,12 @@ def validar_dados_pedido(pedido):
         raise ValidationError("Informe o nome ou identificação do solicitante.")
 
     if not pedido.contato.strip():
-        raise ValidationError("Informe um contato para retorno.")
+        raise ValidationError("Informe um e-mail para retorno.")
+
+    try:
+        validate_email(pedido.contato.strip())
+    except ValidationError as erro:
+        raise ValidationError("Informe um e-mail válido para retorno.") from erro
 
     if not pedido.hemocentro_destino_id:
         raise ValidationError(

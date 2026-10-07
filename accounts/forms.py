@@ -588,6 +588,16 @@ class PedidoSangueForm(forms.ModelForm):
     Aqui ficam as validacoes de formulario.
     """
 
+    contato = forms.EmailField(
+        label="E-mail de contato",
+        widget=forms.EmailInput(
+            attrs={
+                "autocomplete": "email",
+                "placeholder": "seuemail@exemplo.com",
+            }
+        ),
+    )
+
     class Meta:
         model = PedidoSangue
 
@@ -609,7 +619,7 @@ class PedidoSangueForm(forms.ModelForm):
         labels = {
             "para_quem": "Para quem e este pedido?",
             "nome_solicitante": "Nome ou identificação do solicitante",
-            "contato": "Contato",
+            "contato": "E-mail de contato",
             "hemocentro_destino": "Hemocentro de destino",
             "titulo": "Titulo do pedido",
             "tipo_sanguineo": "Tipo sanguineo",
@@ -656,8 +666,8 @@ class PedidoSangueForm(forms.ModelForm):
     def clean_contato(self):
         contato = (self.cleaned_data.get("contato") or "").strip()
         if not contato:
-            raise forms.ValidationError("Informe um contato para retorno.")
-        return contato
+            raise forms.ValidationError("Informe um e-mail para retorno.")
+        return contato.lower()
 
     def clean_descricao(self):
         descricao = (self.cleaned_data.get("descricao") or "").strip()

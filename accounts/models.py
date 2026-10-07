@@ -982,7 +982,7 @@ class PedidoSangue(models.Model):
     )
 
     nome_solicitante = models.CharField(max_length=150, default="")
-    contato = models.CharField(max_length=120, default="")
+    contato = models.EmailField(max_length=120, default="")
 
     hemocentro_destino = models.ForeignKey(
         settings.AUTH_USER_MODEL,

@@ -35,7 +35,7 @@ class FluxoCadastroTriagemPedidosTests(TestCase):
     def dados_solicitacao(self):
         return {
             "nome_solicitante": "Pessoa solicitante",
-            "contato": "(31) 99999-0000",
+            "contato": "solicitante@elo.test",
             "para_quem": PedidoSangue.ParaQuem.MIM,
             "hemocentro_destino": self.hemocentro.pk,
             "titulo": "Necessidade de sangue",

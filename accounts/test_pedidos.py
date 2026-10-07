@@ -123,6 +123,22 @@ class PedidoSangueTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("descricao", form.errors)
 
+    def test_formulario_exige_email_no_contato(self):
+        form_invalido = PedidoSangueForm(
+            self.dados_validos(contato="(31) 99999-0000")
+        )
+        self.assertFalse(form_invalido.is_valid())
+        self.assertIn("contato", form_invalido.errors)
+
+        form_valido = PedidoSangueForm(
+            self.dados_validos(contato="  Receptor@Elo.Test ")
+        )
+        self.assertTrue(form_valido.is_valid())
+        self.assertEqual(
+            form_valido.cleaned_data["contato"],
+            "receptor@elo.test",
+        )
+
     def test_formulario_rejeita_hemocentro_pendente(self):
         form = PedidoSangueForm(
             self.dados_validos(
