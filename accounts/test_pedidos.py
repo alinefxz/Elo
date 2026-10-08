@@ -160,9 +160,69 @@ class PedidoSangueTests(TestCase):
         )
 
         pedido.refresh_from_db()
-        self.assertEqual(pedido.status, PedidoSangue.Status.ATIVO)
+        self.assertEqual(pedido.status, PedidoSangue.Status.PENDENTE_VALIDACAO)
         self.assertEqual(
             validacao.status_validacao,
             ValidacaoPedido.StatusValidacao.APROVADO,
         )
         self.assertEqual(pedido.validacoes.count(), 1)
+
+    def test_publicacao_exclusiva_do_hemocentro_responsavel(self):
+        from django.core.exceptions import PermissionDenied
+        self.client.force_login(self.receptor)
+        self.client.post(reverse('accounts:pedido_publicar'), self.dados_validos())
+        pedido = PedidoSangue.objects.get()
+        self.client.force_login(self.hemocentro_pendente)
+        self.assertEqual(self.client.get(reverse('accounts:painel_validacao_pedidos')).status_code, 403)
+        with self.assertRaises(PermissionDenied):
+            aprovar_pedido(pedido=pedido, moderador=self.hemocentro_pendente)
+        self.hemocentro_pendente.status_validacao = Usuario.StatusValidacaoHemocentro.APROVADO
+        self.hemocentro_pendente.save()
+        with self.assertRaises(PermissionDenied):
+            aprovar_pedido(pedido=pedido, moderador=self.hemocentro_pendente)
+        self.assertNotContains(self.client.get(reverse('accounts:painel_validacao_pedidos')), pedido.titulo)
+        self.client.force_login(self.hemocentro)
+        self.assertContains(self.client.get(reverse('accounts:painel_validacao_pedidos')), pedido.titulo)
+        resposta = self.client.post(reverse('accounts:aprovar_pedido', kwargs={'id_pedido': pedido.pk}))
+        self.assertEqual(resposta.status_code, 302)
+        pedido.refresh_from_db()
+        self.assertEqual(pedido.status, PedidoSangue.Status.ATIVO)
+
+    def test_permissao_do_servico_de_publicacao(self):
+        from .pedidos import pode_publicar_pedido
+        for usuario in (self.receptor, self.doador, self.administrador, self.hemocentro_pendente):
+            with self.subTest(perfil=usuario.perfil):
+                self.assertFalse(pode_publicar_pedido(usuario))
+        self.assertTrue(pode_publicar_pedido(self.hemocentro))
+
+    def test_auditoria_distingue_validacao_e_publicacao(self):
+        from .models import AuditoriaAcaoCritica
+        self.client.force_login(self.receptor)
+        self.client.post(reverse('accounts:pedido_publicar'), self.dados_validos())
+        pedido = PedidoSangue.objects.get()
+        aprovar_pedido(pedido=pedido, moderador=self.administrador)
+        registro = AuditoriaAcaoCritica.objects.filter(alvo_tipo='accounts.PedidoSangue').latest('id_auditoria')
+        self.assertEqual(registro.metadados['evento'], 'VALIDACAO_PEDIDO')
+        self.assertEqual(registro.metadados['status_anterior'], PedidoSangue.Status.PENDENTE_VALIDACAO)
+        self.assertEqual(registro.metadados['status_pedido'], PedidoSangue.Status.PENDENTE_VALIDACAO)
+        aprovar_pedido(pedido=pedido, moderador=self.hemocentro)
+        registro = AuditoriaAcaoCritica.objects.filter(alvo_tipo='accounts.PedidoSangue').latest('id_auditoria')
+        self.assertEqual(registro.usuario, self.hemocentro)
+        self.assertEqual(registro.metadados['evento'], 'PUBLICACAO_PEDIDO')
+        self.assertEqual(registro.metadados['status_pedido'], PedidoSangue.Status.ATIVO)
+        self.assertNotIn('Paciente de exemplo', str(registro.metadados))
+
+    def test_tentativa_de_publicacao_alheia_persiste_na_auditoria(self):
+        from .models import AuditoriaAcaoCritica
+        self.client.force_login(self.receptor)
+        self.client.post(reverse('accounts:pedido_publicar'), self.dados_validos())
+        pedido = PedidoSangue.objects.get()
+        self.hemocentro_pendente.status_validacao = Usuario.StatusValidacaoHemocentro.APROVADO
+        self.hemocentro_pendente.save()
+        self.client.force_login(self.hemocentro_pendente)
+        resposta = self.client.post(reverse('accounts:aprovar_pedido', kwargs={'id_pedido': pedido.pk}))
+        self.assertEqual(resposta.status_code, 403)
+        registro = AuditoriaAcaoCritica.objects.filter(usuario=self.hemocentro_pendente).latest('id_auditoria')
+        self.assertEqual(registro.resultado, AuditoriaAcaoCritica.Resultado.BLOQUEADO)
+        pedido.refresh_from_db()
+        self.assertEqual(pedido.status, PedidoSangue.Status.PENDENTE_VALIDACAO)

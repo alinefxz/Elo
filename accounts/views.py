@@ -46,6 +46,7 @@ from .forms import (
     TriagemExtensaForm,
     FiltroPedidoSangueForm,
 )
+from .auditoria import registrar_auditoria
 
 from .models import (
     ConsentimentoLGPD,
@@ -56,6 +57,7 @@ from .models import (
     Usuario,
     ValidacaoHemocentro,
     ValidacaoPedido,
+    AuditoriaAcaoCritica,
 )
 
 from .estoque import (
@@ -67,6 +69,7 @@ from .estoque import (
 from .validacao_hemocentro import (
     aprovar_hemocentro as aprovar_hemocentro_servico,
     exigir_hemocentro_aprovado,
+    hemocentro_aprovado,
     recusar_hemocentro as recusar_hemocentro_servico,
     solicitar_correcao_hemocentro as solicitar_correcao_hemocentro_servico,
     usuario_e_administrador,
@@ -422,15 +425,14 @@ PAINEIS_POR_PERFIL = {
         "acoes": [
             "Ver estoque publico dos Hemocentros.",
             "Consultar pedidos de sangue ativos.",
-            "Publicar pedido de sangue.",
+            "Enviar solicitacao de pedido ao Hemocentro.",
             "Consultar a compatibilidade sanguinea.",
-            "Responder a triagem caso tambem queira doar sangue.",
         ],
-        "mostra_triagem": True,
+        "mostra_triagem": False,
         "mostra_campanhas": False,
         "mostra_pedidos": True,
         "mostra_estoque_publico": True,
-        "mostra_postos": False,
+        "mostra_postos": True,
     },
     Usuario.Perfil.OBSERVADOR: {
         "rotulo": "Observador",
@@ -476,9 +478,9 @@ PAINEIS_POR_PERFIL = {
             "Acessar o painel administrativo do Django.",
         ],
         "mostra_triagem": False,
-        "mostra_campanhas": False,
+        "mostra_campanhas": True,
         "mostra_pedidos": True,
-        "mostra_estoque_publico": False,
+        "mostra_estoque_publico": True,
         "mostra_postos": False,
     },
 }
@@ -503,12 +505,16 @@ def montar_visibilidade_dashboard(usuario, painel):
     return {
         "mostra_triagem": painel.get("mostra_triagem", False),
         "mostra_campanhas": painel.get("mostra_campanhas", False),
-        "mostra_pedidos": painel.get("mostra_pedidos", False),
+        "mostra_pedidos": painel.get("mostra_pedidos", False) and (
+            usuario.perfil != Usuario.Perfil.HEMOCENTRO or hemocentro_aprovado
+        ),
         "mostra_estoque_publico": painel.get("mostra_estoque_publico", False),
         "mostra_postos": painel.get("mostra_postos", False),
         "mostra_status_hemocentro": usuario.perfil == Usuario.Perfil.HEMOCENTRO,
+        "pode_solicitar_pedido": usuario.perfil == Usuario.Perfil.RECEPTOR,
         "pode_gerenciar_estoque": hemocentro_aprovado,
         "pode_aprovar_hemocentros": administrador,
+        "pode_validar_pedidos": administrador or hemocentro_aprovado,
     }
 
 
@@ -718,6 +724,11 @@ def dashboard(request):
         request.user.perfil,
         PAINEIS_POR_PERFIL[Usuario.Perfil.OBSERVADOR],
     )
+
+    if request.user.perfil == Usuario.Perfil.HEMOCENTRO and not hemocentro_aprovado(request.user):
+        painel = {**painel, "acoes": ["Acompanhar o status da validacao institucional."]}
+    elif hemocentro_aprovado(request.user):
+        painel = {**painel, "acoes": [*painel["acoes"], "Analisar e publicar solicitacoes destinadas ao proprio Hemocentro."]}
 
     # Busca a ultima analise administrativa do Hemocentro.
     validacao_atual = None
@@ -989,6 +1000,14 @@ def triagem_historico(request):
             "A triagem de doacao nao esta disponivel para este perfil.",
         )
 
+        registrar_auditoria(
+            acao=AuditoriaAcaoCritica.Acao.MODERACAO,
+            resultado=AuditoriaAcaoCritica.Resultado.BLOQUEADO,
+            usuario=request.user, request=request,
+            descricao="Tentativa de acesso ao historico de triagens bloqueada.",
+            metadados={"evento": "TENTATIVA_ACESSO", "rota": "accounts:triagem_historico"},
+        )
+
         return redirect("accounts:dashboard")
 
     triagens = (
@@ -1042,6 +1061,9 @@ def triagem_iniciar(request, modalidade):
 
 def _triagem_do_usuario_ou_404(request, id_triagem):
     """Evita que uma conta consulte o questionário privado de outra."""
+
+    if not pode_responder(request.user):
+        raise PermissionDenied("Somente Doadores podem acessar a triagem.")
 
     return get_object_or_404(
         Triagem,
@@ -1399,12 +1421,19 @@ def criar_pedido_sangue(request):
     """
     RF - Criar pedido de sangue.
 
-    Apenas usuario Receptor/Solicitante pode publicar pedido.
+    Apenas Receptor/Solicitante pode enviar solicitacao de pedido.
 
-    Ao salvar, o pedido passa pela validacao automatica.
+    Ao salvar, a solicitacao aguarda analise do Hemocentro.
     """
 
     if request.user.perfil != Usuario.Perfil.RECEPTOR:
+        registrar_auditoria(
+            acao=AuditoriaAcaoCritica.Acao.MODERACAO,
+            resultado=AuditoriaAcaoCritica.Resultado.BLOQUEADO,
+            usuario=request.user, request=request,
+            descricao="Tentativa de enviar solicitacao de pedido bloqueada.",
+            metadados={"evento": "TENTATIVA_ACESSO", "rota": "accounts:pedido_publicar"},
+        )
         messages.error(
             request,
             "Somente Receptor/Solicitante pode criar pedido de sangue.",
@@ -1431,7 +1460,7 @@ def criar_pedido_sangue(request):
                 else:
                     messages.success(
                         request,
-                        "Pedido registrado com sucesso.",
+                        "Solicitacao enviada ao Hemocentro para analise.",
                     )
 
                 return redirect("accounts:consultar_pedidos")
@@ -1538,7 +1567,8 @@ def painel_validacao_pedidos(request):
     Administrador visualiza pedidos pendentes ou suspeitos.
     """
 
-    exigir_administrador(request.user)
+    if not hemocentro_aprovado(request.user):
+        exigir_administrador(request.user)
 
     pedidos = (
         PedidoSangue.objects
@@ -1551,6 +1581,9 @@ def painel_validacao_pedidos(request):
         )
         .order_by("-data_criacao")
     )
+
+    if hemocentro_aprovado(request.user):
+        pedidos = pedidos.filter(hemocentro_destino=request.user)
 
     return render(
         request,
@@ -1566,7 +1599,8 @@ def painel_validacao_pedidos(request):
 def aprovar_pedido(request, id_pedido):
     """Aprova manualmente um pedido suspeito ou pendente."""
 
-    exigir_administrador(request.user)
+    if not hemocentro_aprovado(request.user):
+        exigir_administrador(request.user)
 
     pedido = get_object_or_404(
         PedidoSangue,
@@ -1582,7 +1616,8 @@ def aprovar_pedido(request, id_pedido):
 
     messages.success(
         request,
-        "Pedido aprovado com sucesso.",
+        "Pedido publicado com sucesso." if hemocentro_aprovado(request.user)
+        else "Pedido validado sem publicacao.",
     )
 
     return redirect("accounts:painel_validacao_pedidos")
@@ -1593,7 +1628,8 @@ def aprovar_pedido(request, id_pedido):
 def recusar_pedido(request, id_pedido):
     """Recusa manualmente um pedido suspeito ou pendente."""
 
-    exigir_administrador(request.user)
+    if not hemocentro_aprovado(request.user):
+        exigir_administrador(request.user)
 
     pedido = get_object_or_404(
         PedidoSangue,

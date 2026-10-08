@@ -39,7 +39,6 @@ class PerguntaInvalida(Exception):
 
 PERFIS_COM_TRIAGEM = {
     Usuario.Perfil.DOADOR,
-    Usuario.Perfil.RECEPTOR,
 }
 
 
@@ -156,7 +155,7 @@ def iniciar_triagem(usuario, modalidade, ip=None):
 
     if not pode_responder(usuario):
         raise PermissionDenied(
-            "A triagem está disponível para Doadores e Receptores."
+            "A triagem está disponível para Doadores."
         )
 
     if modalidade not in {

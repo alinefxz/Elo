@@ -81,6 +81,9 @@ def registrar_decisao_validacao_hemocentro(
     if not usuario_e_administrador(admin):
         raise PermissionDenied("Somente administradores podem validar Hemocentros.")
 
+    if admin.perfil == Usuario.Perfil.HEMOCENTRO:
+        raise PermissionDenied("Hemocentros nao podem validar cadastros institucionais.")
+
     parecer = (parecer or "").strip() or PARECER_PADRAO.get(status, "")
 
     with transaction.atomic():

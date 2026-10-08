@@ -185,6 +185,14 @@ class UsuarioAdmin(UserAdmin):
             "is_staff",
             "is_superuser",
             "email_verificado",
+            "nome",
+            "email",
+            "cpf",
+            "cnpj",
+            "cidade",
+            "estado",
+            "data_nascimento",
+            "tipo_sanguineo",
         ]
 
         alteracoes = (
@@ -196,13 +204,28 @@ class UsuarioAdmin(UserAdmin):
         super().save_model(request, obj, form, change)
 
         if alteracoes:
+            # Alteracoes cadastrais guardam apenas nomes de campos, sem
+            # duplicar CPF, nascimento ou outros dados pessoais na auditoria.
+            permissoes = {campo: valor for campo, valor in alteracoes.items()
+                          if campo in {"perfil", "is_active", "is_staff", "is_superuser", "email_verificado"}}
+            suspensao = "is_active" in permissoes and not obj.is_active
             registrar_auditoria(
-                acao=AuditoriaAcaoCritica.Acao.ALTERACAO_PERMISSAO,
+                acao=(AuditoriaAcaoCritica.Acao.ALTERACAO_PERMISSAO if permissoes
+                      else AuditoriaAcaoCritica.Acao.MODERACAO),
                 usuario=request.user,
                 alvo=obj,
-                descricao="Alteracao administrativa de perfil ou permissao.",
+                descricao="Desativacao administrativa de usuario." if suspensao
+                else "Alteracao administrativa de usuario.",
                 request=request,
-                metadados={"alteracoes": alteracoes},
+                metadados={"evento": "SUSPENSAO_USUARIO" if suspensao else "ALTERACAO_ADMINISTRATIVA",
+                           "alteracoes": permissoes, "campos_alterados": sorted(alteracoes)},
+            )
+        elif not change:
+            registrar_auditoria(
+                acao=AuditoriaAcaoCritica.Acao.MODERACAO,
+                usuario=request.user, alvo=obj, request=request,
+                descricao="Criacao administrativa de usuario.",
+                metadados={"evento": "ALTERACAO_ADMINISTRATIVA", "operacao": "CRIACAO_USUARIO"},
             )
 
     def _executar_acao_validacao(
@@ -356,7 +379,7 @@ class UsuarioAdmin(UserAdmin):
                 alvo=obj,
                 descricao="Alteracao administrativa de grupos ou permissoes.",
                 request=request,
-                metadados={"alteracoes": alteracoes},
+                metadados={"evento": "ALTERACAO_PERMISSAO", "alteracoes": alteracoes},
             )
 
 
@@ -422,6 +445,17 @@ class ValidacaoHemocentroAdmin(admin.ModelAdmin):
 class ConsentimentoLGPDAdmin(admin.ModelAdmin):
     """Permite consultar os aceites LGPD no painel administrativo."""
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        registrar_auditoria(
+            acao=AuditoriaAcaoCritica.Acao.MODERACAO,
+            usuario=request.user, alvo=obj, request=request,
+            descricao="Alteracao administrativa de consentimento." if change
+            else "Criacao administrativa de consentimento.",
+            metadados={"evento": "ALTERACAO_ADMINISTRATIVA",
+                       "campos_alterados": list(form.changed_data)},
+        )
+
     list_display = (
         "usuario",
         "tipo_termo",
@@ -451,6 +485,15 @@ class ConsentimentoLGPDAdmin(admin.ModelAdmin):
 class AuditoriaAcaoCriticaAdmin(admin.ModelAdmin):
     """Consulta somente leitura das acoes criticas registradas."""
 
+    def has_view_permission(self, request, obj=None):
+        return (
+            request.user.perfil == Usuario.Perfil.ADMINISTRADOR
+            and super().has_view_permission(request, obj)
+        )
+
+    def has_module_permission(self, request):
+        return self.has_view_permission(request)
+
     list_display = (
         "criado_em",
         "acao",
@@ -471,6 +514,7 @@ class AuditoriaAcaoCriticaAdmin(admin.ModelAdmin):
         "usuario__email",
         "usuario__nome",
         "descricao",
+        "metadados",
         "alvo_tipo",
         "alvo_id",
         "ip",

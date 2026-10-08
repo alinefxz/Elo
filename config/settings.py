@@ -70,6 +70,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     # Usa a sessao para preencher request.user.
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "accounts.auditoria.AuditoriaAcessosMiddleware",
     # Disponibiliza mensagens temporarias nos templates.
     "django.contrib.messages.middleware.MessageMiddleware",
     # Ajuda a impedir que o site seja embutido em iframe malicioso.

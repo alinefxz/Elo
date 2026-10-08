@@ -6,7 +6,10 @@ AuditoriaAcaoCritica diretamente. Isso mantem saneamento de metadados,
 captura de IP e regras de seguranca em um unico ponto.
 """
 
+from ipaddress import ip_address
+
 from django.forms.models import model_to_dict
+from django.utils.deprecation import MiddlewareMixin
 
 from .models import AuditoriaAcaoCritica
 
@@ -23,15 +26,15 @@ CAMPOS_SENSIVEIS = {
 
 """serve para identiifcar de onde a ação veio"""
 def obter_ip(request):
-    """Extrai o IP de uma requisicao HTTP, considerando proxies."""
+    """Usa o endereco da conexao, sem confiar em cabecalhos enviados pelo cliente."""
 
     if not request:
         return None
 
-    encaminhado = request.META.get("HTTP_X_FORWARDED_FOR")
-    if encaminhado:
-        return encaminhado.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR")
+    try:
+        return str(ip_address(request.META.get("REMOTE_ADDR", "")))
+    except ValueError:
+        return None
 
 
 def obter_user_agent(request):
@@ -137,3 +140,61 @@ def snapshot_campos(objeto, campos):
 
     dados = model_to_dict(objeto, fields=campos)
     return {campo: str(valor) for campo, valor in dados.items()}
+
+
+class AuditoriaAcessosMiddleware(MiddlewareMixin):
+    """Audita respostas protegidas sem copiar formularios ou dados clinicos."""
+
+    ROTAS_SENSIVEIS = {
+        "accounts:triagem_pergunta", "accounts:triagem_resultado",
+        "accounts:triagem_historico", "accounts:painel_validacao_pedidos",
+    }
+    MODELOS_SENSIVEIS_ADMIN = {
+        "usuario", "triagem", "respostatriagem", "consentimentolgpd",
+        "pedidosangue", "validacaopedido", "validacaohemocentro",
+        "notificacao", "auditoriaacaocritica",
+    }
+
+    def process_response(self, request, response):
+        rota = getattr(request, "resolver_match", None)
+        if rota is None:
+            return response
+        usuario = getattr(request, "user", None)
+        autenticado = getattr(usuario, "is_authenticated", False)
+        nome = rota.view_name
+        protegido = nome.startswith("accounts:") and (
+            nome in self.ROTAS_SENSIVEIS
+            or any(parte in nome for parte in (
+                "triagem_iniciar", "estoque_hemocentro", "cadastrar_estoque",
+                "atualizar_estoque", "aprovar_pedido", "recusar_pedido",
+                "pedido_publicar", "criar_pedido_sangue",
+            ))
+        )
+        login_exigido = response.status_code == 302 and not autenticado and protegido
+        bloqueado = response.status_code == 403 or (
+            response.status_code == 404 and protegido and autenticado
+        ) or login_exigido
+        admin_sensivel = nome.startswith("admin:") and any(
+            nome.startswith("admin:accounts_" + modelo + "_")
+            for modelo in self.MODELOS_SENSIVEIS_ADMIN
+        )
+        dados_sensiveis = nome in self.ROTAS_SENSIVEIS or admin_sensivel or (
+            nome == "accounts:dashboard" and getattr(usuario, "perfil", "") == "DOADOR"
+        )
+        if bloqueado:
+            registrar_auditoria(
+                acao=AuditoriaAcaoCritica.Acao.MODERACAO,
+                resultado=AuditoriaAcaoCritica.Resultado.BLOQUEADO,
+                usuario=usuario, request=request,
+                descricao="Tentativa de acesso bloqueada.",
+                metadados={"evento": "TENTATIVA_ACESSO", "rota": nome,
+                           "metodo": request.method, "status_http": response.status_code},
+            )
+        elif dados_sensiveis and request.method == "GET" and response.status_code == 200 and autenticado:
+            registrar_auditoria(
+                acao=AuditoriaAcaoCritica.Acao.ACESSO_DADOS_SENSIVEIS,
+                usuario=usuario, request=request,
+                descricao="Consulta de dados sensiveis.",
+                metadados={"rota": nome, "parametros": rota.kwargs},
+            )
+        return response

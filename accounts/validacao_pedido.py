@@ -8,7 +8,7 @@ from .models import (
     Usuario,
     ValidacaoPedido,
 )
-from .validacao_hemocentro import usuario_e_administrador
+from .validacao_hemocentro import hemocentro_aprovado, usuario_e_administrador
 
 
 def validar_dados_pedido(pedido):
@@ -107,9 +107,10 @@ def registrar_decisao_validacao_pedido(
     o status do pedido.
     """
 
-    if not usuario_e_administrador(moderador):
+    institucional = hemocentro_aprovado(moderador)
+    if not usuario_e_administrador(moderador) and not institucional:
         raise PermissionDenied(
-            "Somente administradores podem validar pedidos."
+            "Somente administradores ou Hemocentros aprovados podem analisar pedidos."
         )
 
     motivo = (motivo or "").strip()
@@ -133,14 +134,24 @@ def registrar_decisao_validacao_pedido(
         .get(pk=pedido.pk)
     )
 
+    if institucional and pedido.hemocentro_destino_id != moderador.pk:
+        raise PermissionDenied("O pedido pertence a outro Hemocentro.")
+
+    status_anterior = pedido.status
     if status_validacao == (
         ValidacaoPedido.StatusValidacao.APROVADO
     ):
-        novo_status = PedidoSangue.Status.ATIVO
+        # A decisao administrativa registra a validacao sem publicar.
+        novo_status = (
+            PedidoSangue.Status.ATIVO if institucional else pedido.status
+        )
+        if institucional:
+            validar_dados_pedido(pedido)
 
         if not motivo:
             motivo = (
-                "Pedido aprovado pelo administrador."
+                "Pedido publicado pelo Hemocentro." if institucional
+                else "Pedido validado pelo administrador, sem publicacao."
             )
 
     elif status_validacao == (
@@ -150,7 +161,8 @@ def registrar_decisao_validacao_pedido(
 
         if not motivo:
             motivo = (
-                "Pedido recusado pelo administrador."
+                "Pedido recusado pelo Hemocentro." if institucional
+                else "Pedido recusado pelo administrador."
             )
 
     else:
@@ -184,10 +196,14 @@ def registrar_decisao_validacao_pedido(
         usuario=moderador,
         alvo=pedido,
         descricao=(
-            "Decisão administrativa sobre pedido de sangue."
+            "Decisao institucional sobre pedido de sangue." if institucional
+            else "Validacao administrativa de pedido de sangue."
         ),
         request=request,
         metadados={
+            "evento": "PUBLICACAO_PEDIDO" if institucional and status_validacao == ValidacaoPedido.StatusValidacao.APROVADO else "VALIDACAO_PEDIDO",
+            "status_anterior": status_anterior,
+            "perfil_responsavel": moderador.perfil,
             "id_pedido": pedido.pk,
             "id_validacao": validacao.pk,
             "status_validacao": status_validacao,

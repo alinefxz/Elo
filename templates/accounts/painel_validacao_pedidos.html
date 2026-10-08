@@ -32,7 +32,7 @@
                 <textarea name="motivo" rows="3"></textarea>
             </p>
 
-            <button type="submit">Aprovar</button>
+            <button type="submit">{% if user.perfil == "HEMOCENTRO" %}Publicar pedido{% else %}Validar sem publicar{% endif %}</button>
         </form>
 
         <form method="post" action="{% url 'accounts:recusar_pedido' pedido.id_pedido %}">

@@ -122,10 +122,10 @@ class TriagemViewsTests(TestCase):
         self.assertEqual(self.client.get(url).status_code, 405)
         self.assertEqual(Triagem.objects.count(), 0)
 
-    def test_doador_e_receptor_podem_iniciar_extensa(self):
+    def test_doador_pode_iniciar_extensa(self):
         """Falha se um dos dois perfis autorizados não puder responder."""
 
-        for usuario in (self.doador, self.receptor):
+        for usuario in (self.doador,):
             with self.subTest(perfil=usuario.perfil):
                 resposta = self._iniciar_pela_rota(usuario=usuario)
                 triagem = Triagem.objects.get(usuario=usuario)
@@ -346,10 +346,10 @@ class TriagemViewsTests(TestCase):
         self.assertContains(resposta, f"Triagem {propria.pk}")
         self.assertNotContains(resposta, f"Triagem {alheia.pk}")
 
-    def test_dashboard_doador_e_receptor_aponta_para_triagem(self):
+    def test_dashboard_doador_aponta_para_triagem(self):
         """Falha se um perfil autorizado não encontrar a triagem no painel."""
 
-        for usuario in (self.doador, self.receptor):
+        for usuario in (self.doador,):
             with self.subTest(perfil=usuario.perfil):
                 self.client.force_login(usuario)
                 resposta = self.client.get(reverse("accounts:dashboard"))
@@ -358,3 +358,12 @@ class TriagemViewsTests(TestCase):
                     resposta,
                     reverse("accounts:triagem_apresentacao"),
                 )
+
+    def test_receptor_bloqueado_inclusive_triagem_antiga(self):
+        self.client.force_login(self.receptor)
+        triagem = self._criar_extensa_concluida(self.receptor)
+        for rota in ('triagem_pergunta', 'triagem_resultado'):
+            resposta = self.client.get(reverse('accounts:' + rota, kwargs={'id_triagem': triagem.pk}))
+            self.assertEqual(resposta.status_code, 403)
+        self.assertEqual(self._iniciar_pela_rota(usuario=self.receptor).status_code, 403)
+        self.assertNotContains(self.client.get(reverse('accounts:dashboard')), 'Triagem para doação')

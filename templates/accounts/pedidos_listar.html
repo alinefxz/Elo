@@ -35,7 +35,7 @@ Pedidos pendentes, suspeitos ou recusados nao aparecem nesta pagina.
 {% if user.is_authenticated and user.perfil == "RECEPTOR" %}
     <p>
         <a href="{% url 'accounts:criar_pedido_sangue' %}">
-            Criar novo pedido
+            Enviar nova solicitacao
         </a>
     </p>
 {% endif %}

@@ -41,9 +41,11 @@ A navegacao tambem respeita a particularizacao por perfil:
                 Estoques publicos
             </a>
 
-            <a href="{% url 'accounts:pedido_publicar' %}">
-                Publicar pedido de sangue
-            </a>
+            {% if user.perfil == "RECEPTOR" %}
+                <a href="{% url 'accounts:pedido_publicar' %}">
+                    Solicitar pedido de sangue
+                </a>
+            {% endif %}
 
             <!-- Somente Hemocentro aprovado gerencia estoque proprio. -->
             {% if user.perfil == "HEMOCENTRO" and user.status_validacao == "APROVADO" %}

@@ -4,29 +4,27 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 
 from .models import PedidoSangue, Usuario
+from .models import AuditoriaAcaoCritica
+from .auditoria import registrar_auditoria
+from .validacao_hemocentro import hemocentro_aprovado
 
 
 PERFIS_QUE_PUBLICAM_PEDIDOS = {
-    Usuario.Perfil.DOADOR,
-    Usuario.Perfil.RECEPTOR,
-    Usuario.Perfil.OBSERVADOR,
     Usuario.Perfil.HEMOCENTRO,
-    Usuario.Perfil.ADMINISTRADOR,
 }
 
 
 def pode_publicar_pedido(usuario):
-    """Permite publicação para pessoas e instituições, mas não para admin."""
+    """Somente Hemocentro aprovado pode publicar oficialmente."""
 
     return (
-        usuario.is_authenticated
-        and usuario.perfil in PERFIS_QUE_PUBLICAM_PEDIDOS
+        hemocentro_aprovado(usuario)
     )
 
 
 @transaction.atomic
-def publicar_pedido(usuario, form):
-    """Cria um pedido pendente com o usuário autenticado como solicitante."""
+def publicar_pedido(usuario, form, request=None):
+    """Publica um pedido do proprio Hemocentro aprovado."""
 
     if not pode_publicar_pedido(usuario):
         raise PermissionDenied(
@@ -34,9 +32,16 @@ def publicar_pedido(usuario, form):
         )
 
     pedido = form.save(commit=False)
+    if pedido.hemocentro_destino_id != usuario.pk:
+        raise PermissionDenied("O pedido pertence a outro Hemocentro.")
     pedido.solicitante = usuario
-    pedido.status = PedidoSangue.Status.PENDENTE
-    pedido.cidade = pedido.hemocentro.cidade
+    pedido.status = PedidoSangue.Status.ATIVO
     pedido.full_clean()
     pedido.save()
+    registrar_auditoria(
+        acao=AuditoriaAcaoCritica.Acao.MODERACAO,
+        usuario=usuario, alvo=pedido, request=request,
+        descricao="Publicacao institucional de pedido de sangue.",
+        metadados={"evento": "PUBLICACAO_PEDIDO", "status_pedido": pedido.status},
+    )
     return pedido
