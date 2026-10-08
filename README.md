@@ -6,7 +6,8 @@ Repositório: <https://github.com/alinefxz/Elo.git>
 
 ## Estado atual do projeto
 
-Esta entrega contém o ambiente inicial do sistema e um MVP de autenticação. Já foram implementados:
+O fluxo de cadastro, autenticação, triagem orientativa e solicitações de
+divulgação de pedidos está implementado. Já estão disponíveis:
 
 - projeto Django conectado ao PostgreSQL;
 - acesso publico do Visitante para busca de postos, estoque geral e pedidos;
@@ -18,6 +19,12 @@ Esta entrega contém o ambiente inicial do sistema e um MVP de autenticação. J
 - usuário-base personalizado do Django;
 - registro do consentimento LGPD no cadastro;
 - painel protegido com conteudo particularizado por perfil;
+- aprovação administrativa de Hemocentros;
+- triagem extensa e simplificada com salvamento, retomada, revisão, resultado e histórico;
+- formulário público de solicitação de divulgação de necessidade;
+- análise, correção, recusa e publicação oficial pelo Hemocentro aprovado;
+- filtros e ordenação de pedidos publicados;
+- notificações de pedidos somente para doadores compatíveis, aptos e optantes;
 - painel administrativo do Django;
 - migrations versionadas do app `accounts`;
 - testes básicos de cadastro, senha e login;
@@ -25,7 +32,10 @@ Esta entrega contém o ambiente inicial do sistema e um MVP de autenticação. J
 
 As senhas não são armazenadas como texto comum. O Django gera e salva um hash seguro na coluna `senha_hash`.
 
-Esta etapa implementa uma conta-base completa, com o perfil escolhido no cadastro. O sistema já guarda CPF ou CNPJ, telefone, nascimento, sexo, cidade e estado. O campo `perfil` já particulariza o painel de Doador, Receptor/Solicitante, Hemocentro, Observador e Administrador. O Visitante nao possui conta: ele usa a pagina inicial publica para consultar postos, estoque geral e pedidos ativos.
+O Visitante não possui conta e pode consultar informações públicas e enviar uma
+solicitação de divulgação. Doador, Receptor e Observador também podem enviar
+solicitações, mas nenhum deles publica pedidos. A publicação só ocorre após a
+análise do Hemocentro aprovado de destino.
 
 ## Tecnologias utilizadas
 
@@ -392,13 +402,7 @@ Esta é uma primeira entrega. Permanecem para etapas futuras:
 - recuperação de senha;
 - confirmação de e-mail;
 - bloqueio após tentativas excessivas de login;
-- regras e permissões completas dos perfis Doador, Receptor, Hemocentro, Observador e Administrador;
 - edição e páginas específicas de cada perfil;
-- cadastro e aprovação completa de hemocentros;
-- triagem;
-- estoque de sangue;
-- pedidos e demandas;
-- notificações;
 - mapas e localização;
 - Supabase e recursos em tempo real;
 - Gemini API;

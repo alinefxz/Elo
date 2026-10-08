@@ -143,6 +143,10 @@ class Usuario(AbstractUser):
         default="",
     )
 
+    # Quando um Hemocentro confirma o tipo, ele deixa de ser editável pela
+    # triagem/autopreenchimento do usuário.
+    tipo_sanguineo_confirmado = models.BooleanField(default=False)
+
     cidade = models.CharField(max_length=100, blank=True, default="")
     estado = models.CharField(max_length=2, blank=True, default="")
 
@@ -159,6 +163,8 @@ class Usuario(AbstractUser):
     )
 
     is_active = models.BooleanField(default=True, db_column="ativo")
+    suspensa = models.BooleanField(default=False)
+    aceita_notificacoes_pedidos = models.BooleanField(default=True)
     email_verificado = models.BooleanField(default=False)
 
     date_joined = models.DateTimeField(
@@ -462,7 +468,7 @@ class Triagem(models.Model):
     class Resultado(models.TextChoices):
         SEM_IMPEDIMENTO = (
             "SEM_IMPEDIMENTO_IDENTIFICADO",
-            "Sem impedimento identificado",
+            "Apto",
         )
         TEMPORARIA = (
             "INAPTIDAO_TEMPORARIA",
@@ -474,7 +480,7 @@ class Triagem(models.Model):
         )
         AVALIACAO = (
             "AVALIACAO_PRESENCIAL",
-            "Avaliação presencial",
+            "Avaliação presencial necessária",
         )
         DOCUMENTACAO = (
             "DOCUMENTACAO_ESPECIAL",
@@ -519,7 +525,7 @@ class Triagem(models.Model):
     )
 
     resultado = models.CharField(
-        max_length=30,
+        max_length=40,
         choices=Resultado.choices,
         blank=True,
         default="",
@@ -573,6 +579,14 @@ class Triagem(models.Model):
             f"{self.usuario.nome} - "
             f"{self.get_resultado_display()}"
         )
+
+
+# Nomes legados continuam disponíveis para código já existente, mas apontam
+# para os resultados oficiais usados pelo fluxo atual.
+Triagem.Resultado.APTO = Triagem.Resultado.SEM_IMPEDIMENTO
+Triagem.Resultado.INAPTO_TEMPORARIO = Triagem.Resultado.TEMPORARIA
+Triagem.Resultado.INAPTO_PERMANENTE = Triagem.Resultado.DEFINITIVA
+Triagem.Resultado.AVALIACAO_PRESENCIAL_NECESSARIA = Triagem.Resultado.AVALIACAO
 
 
 class RespostaTriagem(models.Model):
@@ -862,6 +876,7 @@ class Notificacao(models.Model):
 
         ESTOQUE_BAIXO = "ESTOQUE_BAIXO", "Estoque baixo"
         ESTOQUE_CRITICO = "ESTOQUE_CRITICO", "Estoque crítico"
+        PEDIDO_COMPATIVEL = "PEDIDO_COMPATIVEL", "Pedido compatível"
         GERAL = "GERAL", "Aviso geral"
 
     id_notificacao = models.BigAutoField(primary_key=True)
@@ -880,6 +895,15 @@ class Notificacao(models.Model):
         blank=True,
         related_name="notificacoes",
         db_column="id_estoque",
+    )
+
+    pedido = models.ForeignKey(
+        "PedidoSangue",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notificacoes",
+        db_column="id_pedido",
     )
 
     tipo = models.CharField(
@@ -922,10 +946,10 @@ class PedidoSangue(models.Model):
     """
     Rf - Pedido de Sangue.
 
-    Guarda pedidos publicados por Receptor/Solicitante.
+    Guarda solicitações de divulgação e os pedidos publicados oficialmente.
 
-    O status permite que o pedido fique pendente, ativo, suspeito,
-    recusado ou encerrado.
+    Doador, Receptor, Observador e Visitante criam somente uma solicitação.
+    A publicação oficial é feita pelo Hemocentro aprovado vinculado.
     """
 
     class ParaQuem(models.TextChoices):
@@ -939,20 +963,26 @@ class PedidoSangue(models.Model):
         CRITICA = "CRITICA", "Critica"
 
     class Status(models.TextChoices):
-        PENDENTE_VALIDACAO = "PENDENTE_VALIDACAO", "Pendente de validacao"
-        ATIVO = "ATIVO", "Ativo"
-        SUSPEITO = "SUSPEITO", "Suspeito"
-        RECUSADO = "RECUSADO", "Recusado"
-        ENCERRADO = "ENCERRADO", "Encerrado"
+        ENVIADA = "ENVIADA", "Enviada"
+        EM_ANALISE = "EM_ANALISE", "Em análise"
+        PUBLICADA = "PUBLICADA", "Publicada"
+        CORRECAO_SOLICITADA = "CORRECAO_SOLICITADA", "Correção solicitada"
+        RECUSADA = "RECUSADA", "Recusada"
+        ENCERRADA = "ENCERRADA", "Encerrada"
 
     id_pedido = models.BigAutoField(primary_key=True)
 
     solicitante = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="pedidos_sangue",
         db_column="id_solicitante",
     )
+
+    nome_solicitante = models.CharField(max_length=150, default="")
+    contato = models.EmailField(max_length=120, default="")
 
     hemocentro_destino = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -990,12 +1020,25 @@ class PedidoSangue(models.Model):
     )
     descricao = models.TextField()
     justificativa_urgencia = models.TextField(blank=True, default="")
+    informacoes_complementares = models.TextField(blank=True, default="")
 
     status = models.CharField(
         max_length=30,
         choices=Status.choices,
-        default=Status.PENDENTE_VALIDACAO,
+        default=Status.ENVIADA,
     )
+
+    duplicidade_suspeita = models.BooleanField(default=False)
+
+    publicado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="pedidos_publicados",
+        db_column="id_publicado_por",
+    )
+    publicado_em = models.DateTimeField(null=True, blank=True)
 
     data_criacao = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
@@ -1025,6 +1068,28 @@ class PedidoSangue(models.Model):
     def clean(self):
         super().clean()
 
+        if self.solicitante_id and self.solicitante.perfil in {
+            Usuario.Perfil.HEMOCENTRO,
+            Usuario.Perfil.ADMINISTRADOR,
+        }:
+            raise ValidationError(
+                {"solicitante": "Este perfil não pode enviar solicitações."}
+            )
+
+        if self.status == self.Status.PUBLICADA:
+            if not self.publicado_por_id or not self.publicado_por:
+                raise ValidationError(
+                    {"publicado_por": "A publicação precisa de um Hemocentro aprovado."}
+                )
+            if not (
+                self.publicado_por.perfil == Usuario.Perfil.HEMOCENTRO
+                and self.publicado_por.status_validacao
+                == Usuario.StatusValidacaoHemocentro.APROVADO
+            ):
+                raise ValidationError(
+                    {"publicado_por": "Somente Hemocentro aprovado pode publicar."}
+                )
+
         if (
             self.hemocentro_destino_id
             and self.hemocentro_destino.perfil != Usuario.Perfil.HEMOCENTRO
@@ -1044,6 +1109,15 @@ class PedidoSangue(models.Model):
         )
 
 
+# Compatibilidade de leitura para integrações antigas. Os valores novos são
+# os únicos gravados pelo fluxo atual.
+PedidoSangue.Status.PENDENTE_VALIDACAO = PedidoSangue.Status.ENVIADA
+PedidoSangue.Status.ATIVO = PedidoSangue.Status.PUBLICADA
+PedidoSangue.Status.SUSPEITO = PedidoSangue.Status.EM_ANALISE
+PedidoSangue.Status.RECUSADO = PedidoSangue.Status.RECUSADA
+PedidoSangue.Status.ENCERRADO = PedidoSangue.Status.ENCERRADA
+
+
 class ValidacaoPedido(models.Model):
     """
     Uc_17 - Validar Pedido.
@@ -1053,6 +1127,7 @@ class ValidacaoPedido(models.Model):
 
     class StatusValidacao(models.TextChoices):
         APROVADO = "APROVADO", "Aprovado"
+        CORRECAO_SOLICITADA = "CORRECAO_SOLICITADA", "Correção solicitada"
         SUSPEITO = "SUSPEITO", "Suspeito"
         RECUSADO = "RECUSADO", "Recusado"
 
@@ -1089,3 +1164,8 @@ class ValidacaoPedido(models.Model):
 
     def __str__(self):
         return f"Pedido {self.pedido_id} - {self.get_status_validacao_display()}"
+
+
+ValidacaoPedido.StatusValidacao.CORRECAO = (
+    ValidacaoPedido.StatusValidacao.CORRECAO_SOLICITADA
+)

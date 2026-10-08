@@ -61,6 +61,11 @@ Somente os formulários abaixo iniciam um registro no histórico.
     {% if pode_iniciar %}
         <form method="post" action="{% url 'accounts:triagem_iniciar' modalidade='extensa' %}">
             {% csrf_token %}
+            <label>
+                <input type="checkbox" name="aceite_termo" required>
+                Li e estou ciente de que a pré-triagem é orientativa e não
+                substitui a avaliação clínica presencial do hemocentro.
+            </label>
             <button type="submit">Iniciar ou continuar triagem extensa</button>
         </form>
     {% elif not user.is_authenticated %}
@@ -77,6 +82,11 @@ Somente os formulários abaixo iniciam um registro no histórico.
     {% if pode_simplificada %}
         <form method="post" action="{% url 'accounts:triagem_iniciar' modalidade='simplificada' %}">
             {% csrf_token %}
+            <label>
+                <input type="checkbox" name="aceite_termo" required>
+                Li e estou ciente de que a pré-triagem é orientativa e não
+                substitui a avaliação clínica presencial do hemocentro.
+            </label>
             <button type="submit">Iniciar ou continuar triagem simplificada</button>
         </form>
     {% elif pode_iniciar %}

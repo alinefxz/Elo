@@ -40,6 +40,14 @@
                             {{ estoque.data_atualizacao|date:"d/m/Y H:i" }}
                         </p>
 
+                        <p>
+                            <strong>Nível mínimo:</strong>
+                            {{ estoque.nivel_minimo }} bolsas
+                            <br>
+                            <strong>Nível crítico:</strong>
+                            {{ estoque.nivel_critico }} bolsas
+                        </p>
+
 
                         <h4>Atualizar estoque</h4>
 
@@ -68,12 +76,60 @@
                             <div>
                                 {{ form_movimentacao.motivo.label_tag }}
                                 {{ form_movimentacao.motivo }}
+                                {% if form_movimentacao.motivo.help_text %}
+                                    <small>
+                                        {{ form_movimentacao.motivo.help_text }}
+                                    </small>
+                                {% endif %}
                             </div>
 
                             <button type="submit">
                                 Atualizar estoque
                             </button>
                         </form>
+
+                        <h4>Histórico de movimentações</h4>
+
+                        {% with movimentacoes=estoque.movimentacoes.all %}
+                            {% if movimentacoes %}
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Data</th>
+                                            <th>Movimentação</th>
+                                            <th>Anterior</th>
+                                            <th>Nova</th>
+                                            <th>Responsável</th>
+                                            <th>Motivo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for movimentacao in movimentacoes %}
+                                            <tr>
+                                                <td>
+                                                    {{ movimentacao.data_hora|date:"d/m/Y H:i" }}
+                                                </td>
+                                                <td>
+                                                    {{ movimentacao.get_tipo_movimento_display }}
+                                                </td>
+                                                <td>{{ movimentacao.quantidade_anterior }}</td>
+                                                <td>{{ movimentacao.quantidade_nova }}</td>
+                                                <td>
+                                                    {% if movimentacao.usuario_resp %}
+                                                        {{ movimentacao.usuario_resp.nome }}
+                                                    {% else %}
+                                                        Usuário removido
+                                                    {% endif %}
+                                                </td>
+                                                <td>{{ movimentacao.motivo }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            {% else %}
+                                <p>Nenhuma movimentação registrada.</p>
+                            {% endif %}
+                        {% endwith %}
 
                     </article>
 

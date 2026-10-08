@@ -88,6 +88,7 @@ class TriagemExtensaTests(TestCase):
                 "accounts:triagem_iniciar",
                 kwargs={"modalidade": "extensa"},
             ),
+            {"aceite_termo": "on"},
         )
 
         self.assertEqual(
@@ -140,6 +141,7 @@ class TriagemExtensaTests(TestCase):
                 "accounts:triagem_iniciar",
                 kwargs={"modalidade": "extensa"},
             ),
+            {"aceite_termo": "on"},
         )
 
         self.assertEqual(resposta.status_code, 403)
@@ -163,6 +165,7 @@ class TriagemExtensaTests(TestCase):
                 "accounts:triagem_iniciar",
                 kwargs={"modalidade": "extensa"},
             ),
+            {"aceite_termo": "on"},
         )
 
         self.assertEqual(

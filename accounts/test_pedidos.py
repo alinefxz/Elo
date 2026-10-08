@@ -4,7 +4,7 @@ from django.urls import reverse
 from .forms import PedidoSangueForm
 from .models import PedidoSangue, Usuario, ValidacaoPedido
 from .validacao_hemocentro import aprovar_hemocentro
-from .validacao_pedido import aprovar_pedido
+from .validacao_pedido import aprovar_pedido, criar_pedido_pendente, marcar_pedido_suspeito
 
 
 class PedidoSangueTests(TestCase):
@@ -57,6 +57,8 @@ class PedidoSangueTests(TestCase):
 
     def dados_validos(self, **alteracoes):
         dados = {
+            "nome_solicitante": "Solicitante de exemplo",
+            "contato": "receptor@elo.test",
             "para_quem": PedidoSangue.ParaQuem.OUTRA_PESSOA,
             "hemocentro_destino": self.hemocentro.pk,
             "titulo": "Doacao para paciente internado",
@@ -68,6 +70,7 @@ class PedidoSangueTests(TestCase):
                 "Precisamos de doadores para auxiliar um paciente internado."
             ),
             "justificativa_urgencia": "",
+            "informacoes_complementares": "Retorno por telefone.",
         }
         dados.update(alteracoes)
         return dados
@@ -82,7 +85,7 @@ class PedidoSangueTests(TestCase):
             [self.hemocentro],
         )
 
-    def test_receptor_cria_pedido_pendente(self):
+    def test_receptor_cria_solicitacao_enviada(self):
         self.client.force_login(self.receptor)
 
         resposta = self.client.post(
@@ -90,39 +93,47 @@ class PedidoSangueTests(TestCase):
             self.dados_validos(),
         )
 
-        self.assertRedirects(resposta, reverse("accounts:consultar_pedidos"))
+        self.assertRedirects(resposta, reverse("accounts:minhas_solicitacoes"))
         pedido = PedidoSangue.objects.get()
         self.assertEqual(pedido.solicitante, self.receptor)
         self.assertEqual(pedido.hemocentro_destino, self.hemocentro)
         self.assertEqual(
             pedido.status,
-            PedidoSangue.Status.PENDENTE_VALIDACAO,
+            PedidoSangue.Status.ENVIADA,
         )
 
-    def test_doador_nao_pode_criar_pedido(self):
+    def test_doador_nao_pode_enviar_solicitacao(self):
         self.client.force_login(self.doador)
-
-        resposta = self.client.post(
-            reverse("accounts:pedido_publicar"),
-            self.dados_validos(),
-        )
-
+        resposta = self.client.post(reverse("accounts:pedido_publicar"), self.dados_validos())
         self.assertRedirects(resposta, reverse("accounts:dashboard"))
         self.assertFalse(PedidoSangue.objects.exists())
 
     def test_visitante_precisa_entrar(self):
-        resposta = self.client.get(reverse("accounts:pedido_publicar"))
-
-        self.assertRedirects(
-            resposta,
-            f"{reverse('accounts:login')}?next={reverse('accounts:pedido_publicar')}",
-        )
+        url = reverse("accounts:pedido_publicar")
+        resposta = self.client.get(url)
+        self.assertRedirects(resposta, f"{reverse('accounts:login')}?next={url}")
 
     def test_formulario_rejeita_descricao_curta(self):
         form = PedidoSangueForm(self.dados_validos(descricao="Curto"))
 
         self.assertFalse(form.is_valid())
         self.assertIn("descricao", form.errors)
+
+    def test_formulario_exige_email_no_contato(self):
+        form_invalido = PedidoSangueForm(
+            self.dados_validos(contato="(31) 99999-0000")
+        )
+        self.assertFalse(form_invalido.is_valid())
+        self.assertIn("contato", form_invalido.errors)
+
+        form_valido = PedidoSangueForm(
+            self.dados_validos(contato="  Receptor@Elo.Test ")
+        )
+        self.assertTrue(form_valido.is_valid())
+        self.assertEqual(
+            form_valido.cleaned_data["contato"],
+            "receptor@elo.test",
+        )
 
     def test_formulario_rejeita_hemocentro_pendente(self):
         form = PedidoSangueForm(
@@ -145,7 +156,7 @@ class PedidoSangueTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("justificativa_urgencia", form.errors)
 
-    def test_administrador_aprova_pedido_e_registra_historico(self):
+    def test_hemocentro_aprova_pedido_e_registra_historico(self):
         self.client.force_login(self.receptor)
         self.client.post(
             reverse("accounts:pedido_publicar"),
@@ -155,17 +166,64 @@ class PedidoSangueTests(TestCase):
 
         validacao = aprovar_pedido(
             pedido=pedido,
-            moderador=self.administrador,
+            moderador=self.hemocentro,
             motivo="Dados conferidos pelo administrador.",
         )
 
         pedido.refresh_from_db()
-        self.assertEqual(pedido.status, PedidoSangue.Status.PENDENTE_VALIDACAO)
+        self.assertEqual(pedido.status, PedidoSangue.Status.PUBLICADA)
         self.assertEqual(
             validacao.status_validacao,
             ValidacaoPedido.StatusValidacao.APROVADO,
         )
         self.assertEqual(pedido.validacoes.count(), 1)
+
+    def test_admin_moderar_pedido_nao_publica(self):
+        pedido = criar_pedido_pendente(
+            dados=self.dados_validos(),
+            solicitante=self.receptor,
+        )
+
+        self.client.force_login(self.administrador)
+
+        resposta = self.client.get(
+            reverse("accounts:painel_validacao_pedidos")
+        )
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, str(pedido.pk))
+
+        resposta = self.client.post(
+            reverse(
+                "accounts:marcar_pedido_suspeito",
+                kwargs={"id_pedido": pedido.pk},
+            ),
+            {"motivo": "Há solicitação semelhante para o mesmo destino."},
+        )
+
+        self.assertRedirects(
+            resposta,
+            reverse("accounts:painel_validacao_pedidos"),
+        )
+        pedido.refresh_from_db()
+        self.assertEqual(
+            pedido.status,
+            PedidoSangue.Status.EM_ANALISE,
+        )
+        self.assertFalse(pedido.publicado_por_id)
+        self.assertEqual(
+            pedido.validacoes.latest("data_validacao").status_validacao,
+            ValidacaoPedido.StatusValidacao.SUSPEITO,
+        )
+
+    def test_hemocentro_nao_acessa_moderacao_administrativa(self):
+        self.client.force_login(self.hemocentro)
+
+        resposta = self.client.get(
+            reverse("accounts:painel_validacao_pedidos")
+        )
+
+        self.assertEqual(resposta.status_code, 403)
 
     def test_publicacao_exclusiva_do_hemocentro_responsavel(self):
         from django.core.exceptions import PermissionDenied
@@ -173,20 +231,20 @@ class PedidoSangueTests(TestCase):
         self.client.post(reverse('accounts:pedido_publicar'), self.dados_validos())
         pedido = PedidoSangue.objects.get()
         self.client.force_login(self.hemocentro_pendente)
-        self.assertEqual(self.client.get(reverse('accounts:painel_validacao_pedidos')).status_code, 403)
+        self.assertEqual(self.client.get(reverse('accounts:painel_pedidos_hemocentro')).status_code, 403)
         with self.assertRaises(PermissionDenied):
             aprovar_pedido(pedido=pedido, moderador=self.hemocentro_pendente)
         self.hemocentro_pendente.status_validacao = Usuario.StatusValidacaoHemocentro.APROVADO
         self.hemocentro_pendente.save()
         with self.assertRaises(PermissionDenied):
             aprovar_pedido(pedido=pedido, moderador=self.hemocentro_pendente)
-        self.assertNotContains(self.client.get(reverse('accounts:painel_validacao_pedidos')), pedido.titulo)
+        self.assertNotContains(self.client.get(reverse('accounts:painel_pedidos_hemocentro')), pedido.titulo)
         self.client.force_login(self.hemocentro)
-        self.assertContains(self.client.get(reverse('accounts:painel_validacao_pedidos')), pedido.titulo)
+        self.assertContains(self.client.get(reverse('accounts:painel_pedidos_hemocentro')), pedido.titulo)
         resposta = self.client.post(reverse('accounts:aprovar_pedido', kwargs={'id_pedido': pedido.pk}))
         self.assertEqual(resposta.status_code, 302)
         pedido.refresh_from_db()
-        self.assertEqual(pedido.status, PedidoSangue.Status.ATIVO)
+        self.assertEqual(pedido.status, PedidoSangue.Status.PUBLICADA)
 
     def test_permissao_do_servico_de_publicacao(self):
         from .pedidos import pode_publicar_pedido
@@ -200,16 +258,16 @@ class PedidoSangueTests(TestCase):
         self.client.force_login(self.receptor)
         self.client.post(reverse('accounts:pedido_publicar'), self.dados_validos())
         pedido = PedidoSangue.objects.get()
-        aprovar_pedido(pedido=pedido, moderador=self.administrador)
+        marcar_pedido_suspeito(pedido=pedido, moderador=self.administrador)
         registro = AuditoriaAcaoCritica.objects.filter(alvo_tipo='accounts.PedidoSangue').latest('id_auditoria')
         self.assertEqual(registro.metadados['evento'], 'VALIDACAO_PEDIDO')
-        self.assertEqual(registro.metadados['status_anterior'], PedidoSangue.Status.PENDENTE_VALIDACAO)
-        self.assertEqual(registro.metadados['status_pedido'], PedidoSangue.Status.PENDENTE_VALIDACAO)
+        self.assertEqual(registro.metadados['status_anterior'], PedidoSangue.Status.ENVIADA)
+        self.assertEqual(registro.metadados['status_pedido'], PedidoSangue.Status.EM_ANALISE)
         aprovar_pedido(pedido=pedido, moderador=self.hemocentro)
         registro = AuditoriaAcaoCritica.objects.filter(alvo_tipo='accounts.PedidoSangue').latest('id_auditoria')
         self.assertEqual(registro.usuario, self.hemocentro)
         self.assertEqual(registro.metadados['evento'], 'PUBLICACAO_PEDIDO')
-        self.assertEqual(registro.metadados['status_pedido'], PedidoSangue.Status.ATIVO)
+        self.assertEqual(registro.metadados['status_pedido'], PedidoSangue.Status.PUBLICADA)
         self.assertNotIn('Paciente de exemplo', str(registro.metadados))
 
     def test_tentativa_de_publicacao_alheia_persiste_na_auditoria(self):
@@ -225,4 +283,4 @@ class PedidoSangueTests(TestCase):
         registro = AuditoriaAcaoCritica.objects.filter(usuario=self.hemocentro_pendente).latest('id_auditoria')
         self.assertEqual(registro.resultado, AuditoriaAcaoCritica.Resultado.BLOQUEADO)
         pedido.refresh_from_db()
-        self.assertEqual(pedido.status, PedidoSangue.Status.PENDENTE_VALIDACAO)
+        self.assertEqual(pedido.status, PedidoSangue.Status.ENVIADA)

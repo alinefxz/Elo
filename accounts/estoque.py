@@ -240,6 +240,22 @@ def registrar_movimentacao_estoque(
             {"quantidade": "A quantidade ajustada nao pode ser negativa."}
         )
 
+    motivo_limpo = (motivo or "").strip()
+    if not motivo_limpo:
+        raise ValidationError(
+            {"motivo": "Informe o motivo da movimentacao de estoque."}
+        )
+
+    motivo_limpo = (motivo or "").strip()
+
+    if not motivo_limpo:
+        raise ValidationError(
+            {
+                "motivo": (
+                    "Informe o motivo da movimentacao de estoque."
+                )
+            }
+        )
     with transaction.atomic():
         estoque_atual = Estoque.objects.select_for_update().get(pk=estoque.pk)
 
@@ -290,8 +306,8 @@ def registrar_movimentacao_estoque(
             quantidade_anterior=quantidade_anterior,
             quantidade_movimentada=quantidade_movimentada,
             quantidade_nova=quantidade_nova,
-            motivo=(motivo or "").strip(),
-        )
+            motivo=motivo_limpo,
+    )
 
         notificacoes_geradas = criar_notificacoes_para_doadores_compativeis(
             estoque=estoque_atual,
@@ -339,6 +355,14 @@ def calcular_status_publico(quantidade_bolsas, nivel_minimo, nivel_critico):
     return "ADEQUADO"
 
 
+STATUS_PUBLICO_LABEL = {
+    "CRITICO": "Crítico",
+    "BAIXO": "Baixo",
+    "ADEQUADO": "Adequado",
+    "ALTO": "Alto",
+}
+
+
 def obter_estoques_publicos():
     """
     Busca os estoques dos Hemocentros aprovados e retorna somente
@@ -364,6 +388,11 @@ def obter_estoques_publicos():
     resultado = []
 
     for estoque in estoques:
+        status_codigo = calcular_status_publico(
+            estoque.quantidade_bolsas,
+            estoque.nivel_minimo,
+            estoque.nivel_critico,
+        )
         resultado.append(
             {
                 "nome": estoque.hemocentro.nome,
@@ -371,11 +400,12 @@ def obter_estoques_publicos():
                 "estado": estoque.hemocentro.estado,
                 "tipo_sanguineo": estoque.tipo_sanguineo,
                 "quantidade_bolsas": estoque.quantidade_bolsas,
-                "status": calcular_status_publico(
-                    estoque.quantidade_bolsas,
-                    estoque.nivel_minimo,
-                    estoque.nivel_critico,
-                ),
+                # ``status`` permanece como código para compatibilidade com
+                # integrações; os campos abaixo facilitam a exibição e os
+                # filtros sem expor níveis internos.
+                "status": status_codigo,
+                "status_codigo": status_codigo,
+                "status_label": STATUS_PUBLICO_LABEL[status_codigo],
                 "data_atualizacao": estoque.data_atualizacao,
             }
         )

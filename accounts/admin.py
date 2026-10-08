@@ -72,6 +72,7 @@ class UsuarioAdmin(UserAdmin):
         "tipo_sanguineo",
         "status_validacao",
         "is_active",
+        "suspensa",
         "email_verificado",
         "is_staff",
     )
@@ -82,6 +83,7 @@ class UsuarioAdmin(UserAdmin):
         "tipo_sanguineo",
         "status_validacao",
         "is_active",
+        "suspensa",
         "email_verificado",
         "is_staff",
     )
@@ -126,6 +128,7 @@ class UsuarioAdmin(UserAdmin):
                     "data_nascimento",
                     "sexo",
                     "tipo_sanguineo",
+                    "tipo_sanguineo_confirmado",
                     "cidade",
                     "estado",
                     "status_validacao",
@@ -138,6 +141,7 @@ class UsuarioAdmin(UserAdmin):
             {
                 "fields": (
                     "is_active",
+                    "suspensa",
                     "is_staff",
                     "is_superuser",
                     "groups",
@@ -170,6 +174,7 @@ class UsuarioAdmin(UserAdmin):
                     "password1",
                     "password2",
                     "is_active",
+                    "suspensa",
                     "is_staff",
                 ),
             },
@@ -185,6 +190,7 @@ class UsuarioAdmin(UserAdmin):
             "is_staff",
             "is_superuser",
             "email_verificado",
+            "suspensa",
             "nome",
             "email",
             "cpf",
@@ -207,8 +213,10 @@ class UsuarioAdmin(UserAdmin):
             # Alteracoes cadastrais guardam apenas nomes de campos, sem
             # duplicar CPF, nascimento ou outros dados pessoais na auditoria.
             permissoes = {campo: valor for campo, valor in alteracoes.items()
-                          if campo in {"perfil", "is_active", "is_staff", "is_superuser", "email_verificado"}}
-            suspensao = "is_active" in permissoes and not obj.is_active
+                          if campo in {"perfil", "is_active", "is_staff", "is_superuser", "email_verificado", "suspensa"}}
+            suspensao = (
+                "is_active" in permissoes and not obj.is_active
+            ) or ("suspensa" in permissoes and obj.suspensa)
             registrar_auditoria(
                 acao=(AuditoriaAcaoCritica.Acao.ALTERACAO_PERMISSAO if permissoes
                       else AuditoriaAcaoCritica.Acao.MODERACAO),
@@ -841,6 +849,7 @@ class PedidoSangueAdmin(admin.ModelAdmin):
         "id_pedido",
         "titulo",
         "solicitante",
+        "contato",
         "hemocentro_destino",
         "tipo_sanguineo",
         "urgencia",

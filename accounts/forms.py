@@ -261,6 +261,11 @@ class CadastroUsuarioForm(UserCreationForm):
                     "cnpj",
                     "Informe o CNPJ do hemocentro.",
                 )
+            if cpf:
+                self.add_error(
+                    "cpf",
+                    "Hemocentro deve informar CNPJ, não CPF.",
+                )
 
         if perfil in perfis_pessoa:
             if not cpf:
@@ -274,12 +279,31 @@ class CadastroUsuarioForm(UserCreationForm):
                     "data_nascimento",
                     "Informe a data de nascimento para este tipo de perfil.",
                 )
+            if cnpj:
+                self.add_error(
+                    "cnpj",
+                    "Doador e Receptor devem informar CPF, não CNPJ.",
+                )
+
+        if perfil == Usuario.Perfil.OBSERVADOR and (cpf or cnpj):
+            self.add_error(
+                "cpf" if cpf else "cnpj",
+                "Observador não precisa informar CPF ou CNPJ.",
+            )
 
         return dados
 
 
 class LoginUsuarioForm(AuthenticationForm):
     """Formulario de login usando e-mail."""
+
+    def confirm_login_allowed(self, user):
+        super().confirm_login_allowed(user)
+        if getattr(user, "suspensa", False):
+            raise forms.ValidationError(
+                "Esta conta está suspensa. Procure o administrador.",
+                code="inactive",
+            )
 
     username = forms.EmailField(
         label="E-mail",
@@ -484,16 +508,8 @@ class CadastrarEstoqueForm(forms.Form):
 
 class MovimentarEstoqueForm(forms.Form):
     """
-    UC_30 - Formulario usado pelo Hemocentro para registrar entrada,
+    Formulario usado pelo Hemocentro para registrar entrada,
     saída ou ajuste de bolsas em um estoque já cadastrado.
-
-    O campo "quantidade" muda de sentido conforme o tipo de movimento:
-
-    - Entrada/Saída: quantas bolsas somar ou subtrair;
-    - Ajuste: qual é a nova quantidade total de bolsas.
-
-    O texto de ajuda é atualizado no navegador via JavaScript simples no
-    template, mas a validação real acontece aqui e na camada de serviço.
     """
 
     tipo_movimento = forms.ChoiceField(
@@ -513,33 +529,28 @@ class MovimentarEstoqueForm(forms.Form):
 
     motivo = forms.CharField(
         label="Motivo",
-        required=False,
+        required=True,
         max_length=255,
         widget=forms.Textarea(attrs={"rows": 3}),
         help_text=(
-            "Opcional. Ex.: doação recebida, transfusão realizada, "
+            "Obrigatório. Ex.: doação recebida, transfusão realizada, "
             "contagem física."
         ),
     )
 
     def clean(self):
-        """
-        Entrada e saída exigem quantidade maior que zero; ajuste aceita
-        zero (esvaziar o estoque também é um ajuste válido).
-        """
-
         dados = super().clean()
 
         tipo_movimento = dados.get("tipo_movimento")
         quantidade = dados.get("quantidade")
 
-        movimentos_que_exigem_quantidade_positiva = (
+        movimentos_positivos = (
             EstoqueMovimentacao.TipoMovimento.ENTRADA,
             EstoqueMovimentacao.TipoMovimento.SAIDA,
         )
 
         if (
-            tipo_movimento in movimentos_que_exigem_quantidade_positiva
+            tipo_movimento in movimentos_positivos
             and quantidade is not None
             and quantidade <= 0
         ):
@@ -550,19 +561,30 @@ class MovimentarEstoqueForm(forms.Form):
 
         return dados
 
-
 class PedidoSangueForm(forms.ModelForm):
     """
-    Formulario para Receptor/Solicitante criar pedido de sangue.
+    Formulário para solicitar a divulgação de uma necessidade.
 
     As validacoes mais sensiveis ficam em validacao_pedido.py.
     Aqui ficam as validacoes de formulario.
     """
 
+    contato = forms.EmailField(
+        label="E-mail de contato",
+        widget=forms.EmailInput(
+            attrs={
+                "autocomplete": "email",
+                "placeholder": "seuemail@exemplo.com",
+            }
+        ),
+    )
+
     class Meta:
         model = PedidoSangue
 
         fields = [
+            "nome_solicitante",
+            "contato",
             "para_quem",
             "hemocentro_destino",
             "titulo",
@@ -572,10 +594,13 @@ class PedidoSangueForm(forms.ModelForm):
             "nome_paciente",
             "descricao",
             "justificativa_urgencia",
+            "informacoes_complementares",
         ]
 
         labels = {
             "para_quem": "Para quem e este pedido?",
+            "nome_solicitante": "Nome ou identificação do solicitante",
+            "contato": "E-mail de contato",
             "hemocentro_destino": "Hemocentro de destino",
             "titulo": "Titulo do pedido",
             "tipo_sanguineo": "Tipo sanguineo",
@@ -584,6 +609,7 @@ class PedidoSangueForm(forms.ModelForm):
             "nome_paciente": "Nome da pessoa (opcional)",
             "descricao": "Descricao",
             "justificativa_urgencia": "Justificativa da urgencia",
+            "informacoes_complementares": "Informações complementares",
         }
 
         widgets = {
@@ -592,6 +618,7 @@ class PedidoSangueForm(forms.ModelForm):
             "urgencia": forms.RadioSelect,
             "descricao": forms.Textarea(attrs={"rows": 5}),
             "justificativa_urgencia": forms.Textarea(attrs={"rows": 4}),
+            "informacoes_complementares": forms.Textarea(attrs={"rows": 4}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -608,6 +635,20 @@ class PedidoSangueForm(forms.ModelForm):
 
     def clean_nome_paciente(self):
         return (self.cleaned_data.get("nome_paciente") or "").strip()
+
+    def clean_nome_solicitante(self):
+        nome = (self.cleaned_data.get("nome_solicitante") or "").strip()
+        if not nome:
+            raise forms.ValidationError(
+                "Informe o nome ou uma identificação do solicitante."
+            )
+        return nome
+
+    def clean_contato(self):
+        contato = (self.cleaned_data.get("contato") or "").strip()
+        if not contato:
+            raise forms.ValidationError("Informe um e-mail para retorno.")
+        return contato.lower()
 
     def clean_descricao(self):
         descricao = (self.cleaned_data.get("descricao") or "").strip()
@@ -684,4 +725,52 @@ class FiltroPedidoSangueForm(forms.Form):
         label="Data",
         required=False,
         widget=forms.DateInput(attrs={"type": "date"}),
+    )
+
+    status = forms.ChoiceField(
+        label="Status",
+        required=False,
+        choices=[("", "Todos")] + list(PedidoSangue.Status.choices),
+    )
+
+
+class FiltroEstoquePublicoForm(forms.Form):
+    """Filtros da consulta pública de estoques.
+
+    A situação usa os códigos calculados pelo sistema. Os níveis mínimo e
+    crítico continuam ocultos, pois são parâmetros internos do Hemocentro.
+    """
+
+    tipo_sanguineo = forms.ChoiceField(
+        label="Tipo sanguíneo",
+        required=False,
+        choices=[("", "Todos")] + [(tipo, tipo) for tipo in TIPOS_SANGUINEOS],
+    )
+
+    cidade = forms.CharField(
+        label="Cidade",
+        required=False,
+    )
+
+    hemocentro = forms.CharField(
+        label="Hemocentro",
+        required=False,
+    )
+
+    situacao = forms.ChoiceField(
+        label="Situação do estoque",
+        required=False,
+        choices=[
+            ("", "Todas"),
+            ("CRITICO", "Crítico"),
+            ("BAIXO", "Baixo"),
+            ("ADEQUADO", "Adequado"),
+            ("ALTO", "Alto"),
+        ],
+    )
+
+    busca = forms.CharField(
+        label="Busca",
+        required=False,
+        help_text="Nome do Hemocentro, cidade, UF ou tipo sanguíneo.",
     )

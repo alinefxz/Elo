@@ -1,8 +1,79 @@
+# Este módulo calcula o resultado inicial da triagem extensa. A triagem é apenas orientativa e não substitui a avaliação do Hemocentro.
+
+# TRIAGEM_RULE_VERSION: Identifica a versão das regras usadas no cálculo.
+
+# QUESTION_FIELDS: Relaciona cada campo do formulário ao código da pergunta e à origem correspondente no documento oficial da triagem.
+
+# adicionar_achado()
+# --------------------
+# Registra um problema, impedimento ou alerta encontrado durante a análise.
+# O achado guarda:
+# - código da pergunta;
+# - resultado gerado;
+# - mensagem explicativa;
+# - data de liberação, quando existir.
+# Nenhum achado anterior é apagado.
+
+# escolher_resultado()
+# --------------------
+# Analisa todos os achados e escolhe o resultado mais restritivo.
+# Ordem de prioridade:
+# 1. DEFINITIVA;
+# 2. AVALIACAO;
+# 3. TEMPORARIA;
+# 4. DOCUMENTACAO.
+# Se não houver nenhum achado, o resultado será SEM_IMPEDIMENTO.
+
+# mensagem_do_resultado()
+# -----------------------
+# Converte o resultado interno em uma mensagem segura para o usuário.
+# A mensagem deixa claro que o sistema não libera definitivamente a doação.
+
+# calcular_resultado()
+# --------------------
+# Executa as regras da triagem extensa:
+
+# - EXT-01: se a pessoa não entender que a triagem é orientativa, exige avaliação.
+# - EXT-02: menores de 16 anos e pessoas com 70 anos ou mais exigem avaliação. Pessoas de 16 ou 17 anos precisam de documentação específica.
+# - EXT-03: peso abaixo de 50 kg gera condição temporária. Peso igual ou acima de 130 kg, ou não informado com certeza, exige confirmação e avaliação do Hemocentro.
+# - EXT-05: histórico de doação desconhecido exige avaliação.
+# - EXT-05A: quando a pessoa já doou, calcula o intervalo mínimo desde a última doação: 90 dias para sexo feminino e 60 dias para sexo masculino. Se o intervalo ainda não terminou, gera resultado temporário e calcula a data orientativa de liberação.
+# - EXT-04: se o sexo necessário para calcular o intervalo não for informado de formaválida, o sistema não libera automaticamente e exige avaliação.
+# - EXT-05B: verifica o limite orientativo de doações nos últimos 12 meses: 3 para sexo feminino e 4 para sexo masculino. Se a quantidade for desconhecida ou atingir o limite, pode gerar avaliação ou impedimento temporário.
+
+# Depois de analisar todas as respostas:
+# - escolhe o resultado mais restritivo;
+# - procura todas as datas de liberação;
+# - utiliza a data mais distante quando existem vários prazos;
+# - retorna resultado, mensagem, data de liberação e todos os achados.
+
+# preparar_respostas()
+# --------------------
+# Converte as respostas limpas do formulário para o formato salvo no banco.
+# Para cada resposta, registra:
+# - código da pergunta;
+# - valor enviado;
+# - texto apresentado ao usuário;
+# - data relacionada, quando existir;
+# - versão das regras;
+# - referência da pergunta original.
+# Campos opcionais vazios não geram registros.
+# Datas são convertidas para o formato ISO no banco e exibidas no formato brasileiro para o usuário.
+
+# FLUXO RESUMIDO
+# --------------
+# Formulário de triagem - Respostas limpas pelo formulário - calcular_resultado() - Todos os achados são registrados - O resultado mais restritivo é escolhido - Mensagem e data orientativa são retornadas - preparar_respostas() organiza os dados para o histórico
+# A triagem não decide a liberação médica definitiva.
+# A decisão final sempre pertence ao Hemocentro.
+# =============================================================================
+
 """
 Regras iniciais da triagem extensa.
 
 Estas regras são orientativas e não substituem a avaliação
 clínica feita pelo hemocentro.
+
+O arquivo triagem.py reúne as regras iniciais da triagem e calcula uma orientação preliminar com base nas respostas básicas do usuário.
 """
 
 from datetime import date, timedelta

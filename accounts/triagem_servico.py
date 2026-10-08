@@ -150,8 +150,12 @@ def calcular_fluxo(triagem):
 
 
 @transaction.atomic
-def iniciar_triagem(usuario, modalidade, ip=None):
-    """Cria uma triagem ou retoma a execução em andamento da modalidade."""
+def iniciar_triagem(usuario, modalidade, ip=None, aceite_termo=True):
+    """Cria/retoma a triagem após o aceite registrado pela camada de entrada.
+
+    A view exige o checkbox explicitamente; o valor padrão preserva a API de
+    serviço usada por integrações internas que já representam esse aceite.
+    """
 
     if not pode_responder(usuario):
         raise PermissionDenied(
@@ -163,6 +167,11 @@ def iniciar_triagem(usuario, modalidade, ip=None):
         Triagem.Modalidade.SIMPLIFICADA,
     }:
         raise ValueError("Modalidade de triagem inválida.")
+
+    if not aceite_termo:
+        raise PermissionDenied(
+            "Confirme ciência do termo da pré-triagem antes de começar."
+        )
 
     existente = (
         usuario.triagens.filter(
@@ -298,6 +307,9 @@ def atualizar_tipo_sanguineo_do_usuario(triagem, valor):
         return
 
     usuario = triagem.usuario
+    if usuario.tipo_sanguineo_confirmado:
+        return
+
     if usuario.tipo_sanguineo == tipo_sanguineo:
         return
 
@@ -415,6 +427,23 @@ def voltar_pergunta(triagem):
     triagem_recebida.pergunta_atual = registro.pergunta_atual
     triagem_recebida.atualizada_em = registro.atualizada_em
     return triagem_recebida
+
+
+@transaction.atomic
+def editar_pergunta(triagem, id_pergunta):
+    """Reposiciona uma triagem em andamento para uma resposta já salva."""
+
+    registro = Triagem.objects.select_for_update().get(pk=triagem.pk)
+    if registro.status != Triagem.Status.EM_ANDAMENTO:
+        raise TriagemConcluida("Uma triagem concluída não pode ser alterada.")
+    if id_pergunta not in registro.fluxo_perguntas:
+        raise PerguntaInvalida("A pergunta não pertence a esta triagem.")
+
+    registro.pergunta_atual = registro.fluxo_perguntas.index(id_pergunta)
+    registro.save(update_fields=["pergunta_atual", "atualizada_em"])
+    triagem.pergunta_atual = registro.pergunta_atual
+    triagem.atualizada_em = registro.atualizada_em
+    return triagem
 
 
 @transaction.atomic

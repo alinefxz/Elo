@@ -64,7 +64,7 @@ ou esconde as secoes correspondentes.
 =================================================================
 TRIAGEM
 =================================================================
-Somente Doador pode acessar a triagem. Outros perfis nao
+Doador e Receptor/Solicitante podem acessar a triagem. Outros perfis nao
 devem ver esse bloco no dashboard.
 {% endcomment %}
 
@@ -77,6 +77,13 @@ devem ver esse bloco no dashboard.
 
             <p>
                 Responda à triagem inicial antes de procurar um posto de coleta.
+            </p>
+
+        {% elif user.perfil == "RECEPTOR" %}
+
+            <p>
+                Mesmo sendo Receptor, você pode responder à triagem
+                caso também queira doar sangue.
             </p>
 
         {% endif %}
@@ -190,25 +197,25 @@ Gerenciar estoque e diferente de consultar estoque publico.
 =================================================================
 PEDIDOS
 =================================================================
-Doador, Receptor, Observador, Hemocentro e Administrador podem ver pedidos
-ativos. Receptor envia solicitacoes; Hemocentro aprovado publica pedidos.
+Doador, Receptor, Observador e Hemocentro podem ver pedidos ativos. O
+Administrador nao precisa receber essa lista no painel administrativo.
 {% endcomment %}
 
 {% if visibilidade.mostra_pedidos %}
 
     <section>
         <h2>Pedidos ativos</h2>
+        <p><a href="{% url 'accounts:consultar_pedidos' %}">Consultar pedidos ativos</a></p>
 
-        <p>
-            <a href="{% url 'accounts:consultar_pedidos' %}">
-                Consultar pedidos ativos
-            </a>
-        </p>
-
-        {% if visibilidade.pode_solicitar_pedido %}
+        {% if visibilidade.pode_solicitar_divulgacao %}
             <p>
                 <a href="{% url 'accounts:pedido_publicar' %}">
-                    Solicitar pedido de sangue
+                    Solicitar divulgação de necessidade
+                </a>
+            </p>
+            <p>
+                <a href="{% url 'accounts:minhas_solicitacoes' %}">
+                    Acompanhar minhas solicitações
                 </a>
             </p>
         {% endif %}
@@ -227,6 +234,18 @@ ativos. Receptor envia solicitacoes; Hemocentro aprovado publica pedidos.
         </ul>
     </section>
 
+{% endif %}
+
+{% if visibilidade.pode_analisar_pedidos %}
+    <section>
+        <h2>Análise de solicitações</h2>
+        <p>Somente o Hemocentro aprovado pode decidir pela publicação.</p>
+        <p>
+            <a href="{% url 'accounts:painel_pedidos_hemocentro' %}">
+                Analisar solicitações recebidas
+            </a>
+        </p>
+    </section>
 {% endif %}
 
 
@@ -367,20 +386,28 @@ Mostra o link para a tela de aprovação quando o usuário é administrador.
 Administrador nao e tratado como Hemocentro.
 {% endcomment %}
 
-{% if visibilidade.pode_validar_pedidos %}
+{% if visibilidade.pode_aprovar_hemocentros %}
     <section>
-        <h2>Gestao de pedidos</h2>
+        <h2>Validação de Hemocentros</h2>
 
         <p>
-            Analise pedidos suspeitos ou pendentes de validacao.
+            Analise cadastros pendentes e libere o acesso institucional
+            somente depois da aprovação.
         </p>
 
         <p>
-            <a href="{% url 'accounts:painel_validacao_pedidos' %}">
-                Acessar validacao de pedidos
+            <a href="{% url 'accounts:painel_aprovacao_hemocentros' %}">
+                Acessar aprovação de Hemocentros
             </a>
         </p>
     </section>
 {% endif %}
 
+{% if visibilidade.pode_moderar_pedidos %}
+    <section>
+        <h2>Moderação de pedidos</h2>
+        <p>Analise pedidos suspeitos ou pendentes sem publicar em nome do Hemocentro.</p>
+        <p><a href="{% url 'accounts:painel_validacao_pedidos' %}">Acessar moderação de pedidos</a></p>
+    </section>
+{% endif %}
 {% endblock %}

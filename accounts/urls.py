@@ -63,6 +63,35 @@ urlpatterns = [
         name="dashboard",
     ),
 
+    # Validacao administrativa de Hemocentros.
+    # A tela e as acoes sao protegidas pelas views para que somente um
+    # Administrador consiga consultar ou alterar os cadastros pendentes.
+    path(
+        "hemocentros/validacao/",
+        views.painel_aprovacao_hemocentros,
+        name="painel_aprovacao_hemocentros",
+    ),
+    path(
+        "hemocentros/pendentes/",
+        views.hemocentros_pendentes,
+        name="hemocentros_pendentes",
+    ),
+    path(
+        "hemocentros/<int:id_hemocentro>/aprovar/",
+        views.aprovar_hemocentro,
+        name="aprovar_hemocentro",
+    ),
+    path(
+        "hemocentros/<int:id_hemocentro>/recusar/",
+        views.recusar_hemocentro,
+        name="recusar_hemocentro",
+    ),
+    path(
+        "hemocentros/<int:id_hemocentro>/solicitar-correcao/",
+        views.solicitar_correcao_hemocentro,
+        name="solicitar_correcao_hemocentro",
+    ),
+
     # ==========================================================
     # PEDIDOS DE SANGUE
     # ==========================================================
@@ -87,6 +116,18 @@ urlpatterns = [
     ),
 
     path(
+        "pedidos/minhas-solicitacoes/",
+        views.minhas_solicitacoes,
+        name="minhas_solicitacoes",
+    ),
+
+    path(
+        "pedidos/hemocentro/",
+        views.painel_pedidos_hemocentro,
+        name="painel_pedidos_hemocentro",
+    ),
+
+    path(
         "pedidos/validacao/",
         views.painel_validacao_pedidos,
         name="painel_validacao_pedidos",
@@ -102,6 +143,18 @@ urlpatterns = [
         "pedidos/<int:id_pedido>/recusar/",
         views.recusar_pedido,
         name="recusar_pedido",
+    ),
+
+    path(
+        "pedidos/<int:id_pedido>/correcao/",
+        views.solicitar_correcao_pedido,
+        name="solicitar_correcao_pedido",
+    ),
+
+    path(
+        "pedidos/<int:id_pedido>/suspeito/",
+        views.marcar_pedido_suspeito,
+        name="marcar_pedido_suspeito",
     ),
 
     # ==========================================================
@@ -134,6 +187,12 @@ urlpatterns = [
         "triagem/<int:id_triagem>/resultado/",
         views.triagem_resultado,
         name="triagem_resultado",
+    ),
+
+    path(
+        "triagem/<int:id_triagem>/revisao/",
+        views.triagem_revisao,
+        name="triagem_revisao",
     ),
 
     # Historico do usuario.

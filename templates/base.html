@@ -33,6 +33,8 @@ A navegacao tambem respeita a particularizacao por perfil:
 
             <a href="{% url 'accounts:dashboard' %}">Painel</a>
 
+            <a href="{% url 'accounts:inicio' %}">Início</a>
+
             <a href="{% url 'accounts:compatibilidade_sanguinea' %}">
                 Compatibilidade sanguinea
             </a>
@@ -43,7 +45,13 @@ A navegacao tambem respeita a particularizacao por perfil:
 
             {% if user.perfil == "RECEPTOR" %}
                 <a href="{% url 'accounts:pedido_publicar' %}">
-                    Solicitar pedido de sangue
+                    Solicitar divulgação de necessidade
+                </a>
+            {% endif %}
+
+            {% if user.perfil == "HEMOCENTRO" and user.status_validacao == "APROVADO" %}
+                <a href="{% url 'accounts:painel_pedidos_hemocentro' %}">
+                    Analisar solicitações
                 </a>
             {% endif %}
 
@@ -56,6 +64,14 @@ A navegacao tambem respeita a particularizacao por perfil:
 
             <!-- Administrador valida Hemocentros e pode acessar o admin Django. -->
             {% if user.is_staff or user.is_superuser or user.perfil == "ADMINISTRADOR" %}
+                <a href="{% url 'accounts:painel_aprovacao_hemocentros' %}">
+                    Validar Hemocentros
+                </a>
+
+                <a href="{% url 'accounts:painel_validacao_pedidos' %}">
+                    Moderar pedidos
+                </a>
+
                 <a href="/admin/">
                     Admin
                 </a>
@@ -85,6 +101,10 @@ A navegacao tambem respeita a particularizacao por perfil:
 
             <a href="{% url 'accounts:estoque_publico' %}">
                 Estoques publicos
+            </a>
+
+            <a href="{% url 'accounts:pedido_publicar' %}">
+                Solicitar divulgação de necessidade
             </a>
 
             <a href="{% url 'accounts:login' %}">

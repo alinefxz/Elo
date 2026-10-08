@@ -1,42 +1,101 @@
 {% extends "base.html" %}
 
 {% comment %}
-Lista publica de pedidos de sangue que ja foram aprovados.
+Lista pública de pedidos de sangue que já foram aprovados.
 
-A view envia o formulario de filtros em form e os pedidos ativos em pedidos.
-Pedidos pendentes, suspeitos ou recusados nao aparecem nesta pagina.
+A view envia:
+- form: formulário de filtros;
+- pedidos: somente pedidos publicados.
+
+Pedidos pendentes, suspeitos ou recusados
+não aparecem nesta página.
 {% endcomment %}
 
 {% block title %}Pedidos de sangue | Elo{% endblock %}
 
 {% block content %}
+
 <h1>Pedidos de sangue ativos</h1>
 
 <form method="get">
     {{ form.as_p }}
-    <button type="submit">Filtrar</button>
+
+    <button type="submit">
+        Filtrar pedidos
+    </button>
+
+    <a href="{% url 'accounts:consultar_pedidos' %}">
+        Limpar filtros
+    </a>
 </form>
 
-{% for pedido in pedidos %}
-    <section>
-        <h2>{{ pedido.titulo }}</h2>
+<hr>
 
-        <p><strong>Tipo sanguineo:</strong> {{ pedido.tipo_sanguineo }}</p>
-        <p><strong>Urgencia:</strong> {{ pedido.get_urgencia_display }}</p>
-        <p><strong>Cidade:</strong> {{ pedido.cidade }}</p>
-        <p><strong>Hemocentro:</strong> {{ pedido.hemocentro_destino.nome }}</p>
-        <p><strong>Descricao:</strong> {{ pedido.descricao }}</p>
-        <p><strong>Publicado em:</strong> {{ pedido.data_criacao }}</p>
+<h2>Pedidos encontrados</h2>
+
+{% for pedido in pedidos %}
+
+    <section>
+        <h3>{{ pedido.titulo }}</h3>
+
+        <p>
+            <strong>Tipo sanguíneo:</strong>
+            {{ pedido.tipo_sanguineo }}
+        </p>
+
+        <p>
+            <strong>Urgência:</strong>
+            {{ pedido.get_urgencia_display }}
+        </p>
+
+        <p>
+            <strong>Cidade:</strong>
+            {{ pedido.cidade }}
+        </p>
+
+        <p>
+            <strong>Hemocentro:</strong>
+            {{ pedido.hemocentro_destino.nome }}
+        </p>
+
+        <p>
+            <strong>Descrição:</strong>
+            {{ pedido.descricao }}
+        </p>
+
+        <p>
+            <strong>Status:</strong>
+            {{ pedido.get_status_display }}
+        </p>
+
+        <p>
+            <strong>Publicado em:</strong>
+            {{ pedido.publicado_em|default:pedido.data_criacao|date:"d/m/Y H:i" }}
+        </p>
     </section>
+
 {% empty %}
-    <p>Nenhum pedido ativo encontrado.</p>
+
+    <p>
+        Nenhum pedido ativo encontrado.
+    </p>
+
 {% endfor %}
 
-{% if user.is_authenticated and user.perfil == "RECEPTOR" %}
-    <p>
-        <a href="{% url 'accounts:criar_pedido_sangue' %}">
-            Enviar nova solicitacao
-        </a>
-    </p>
+{% if user.is_authenticated %}
+    {% if user.perfil == "RECEPTOR" %}
+        <p>
+            <a href="{% url 'accounts:criar_pedido_sangue' %}">
+                Solicitar divulgação de necessidade
+            </a>
+        </p>
+    {% endif %}
 {% endif %}
+
+<p>
+    <a href="{% url 'accounts:dashboard' %}">
+        Voltar ao painel
+    </a>
+</p>
+
 {% endblock %}

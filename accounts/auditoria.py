@@ -148,6 +148,8 @@ class AuditoriaAcessosMiddleware(MiddlewareMixin):
     ROTAS_SENSIVEIS = {
         "accounts:triagem_pergunta", "accounts:triagem_resultado",
         "accounts:triagem_historico", "accounts:painel_validacao_pedidos",
+        "accounts:triagem_revisao", "accounts:minhas_solicitacoes",
+        "accounts:painel_pedidos_hemocentro",
     }
     MODELOS_SENSIVEIS_ADMIN = {
         "usuario", "triagem", "respostatriagem", "consentimentolgpd",
@@ -168,6 +170,7 @@ class AuditoriaAcessosMiddleware(MiddlewareMixin):
                 "triagem_iniciar", "estoque_hemocentro", "cadastrar_estoque",
                 "atualizar_estoque", "aprovar_pedido", "recusar_pedido",
                 "pedido_publicar", "criar_pedido_sangue",
+                "solicitar_correcao_pedido", "marcar_pedido_suspeito",
             ))
         )
         login_exigido = response.status_code == 302 and not autenticado and protegido

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Revisão da triagem | Elo{% endblock %}
+
+{% block content %}
+<h1>Revise suas respostas</h1>
+<p>
+    Confira as informações antes de finalizar. O resultado será calculado
+    somente após sua confirmação.
+</p>
+<p><strong>Importante:</strong> esta pré-triagem é orientativa e não substitui a avaliação clínica presencial.</p>
+
+{% for item in respostas_revisao %}
+    <section>
+        <h2>{{ item.titulo }}</h2>
+        <p>{{ item.resposta }}</p>
+        {% if item.detalhes %}<p>{{ item.detalhes }}</p>{% endif %}
+        <a href="{% url 'accounts:triagem_pergunta' triagem.id_triagem %}?pergunta={{ item.id }}">Editar resposta</a>
+    </section>
+{% empty %}
+    <p>Nenhuma resposta foi salva ainda.</p>
+{% endfor %}
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" name="acao" value="finalizar">Finalizar e calcular resultado</button>
+</form>
+<p><a href="{% url 'accounts:triagem_pergunta' triagem.id_triagem %}">Voltar à triagem</a></p>
+{% endblock %}
