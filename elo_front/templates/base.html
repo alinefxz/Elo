@@ -1,0 +1,80 @@
+{% load static %}
+<!doctype html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Elo — sistema de doação de sangue.">
+    <title>{% block title %}Elo{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/elo.css' %}">
+</head>
+
+<body>
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="{% url 'accounts:inicio' %}" aria-label="Elo - página inicial">
+                <span class="brand-mark" aria-hidden="true"></span>
+                <span class="brand-name">elo</span>
+            </a>
+
+            <button class="menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false">
+                <span></span><span></span><span></span>
+            </button>
+
+            <nav class="main-nav" aria-label="Navegação principal">
+                <a href="{% url 'accounts:inicio' %}#sobre">Sobre o elo</a>
+                <a href="{% url 'accounts:inicio' %}#como-doar">Como doar</a>
+                <a href="{% url 'accounts:estoque_publico' %}">Hemocentro</a>
+                <a href="{% url 'accounts:inicio' %}#duvidas">Dúvidas</a>
+                <a class="nav-cta" href="{% url 'accounts:cadastro' %}">Sou hemocentro</a>
+            </nav>
+        </div>
+    </header>
+
+    {% if messages %}
+        <div class="messages-wrap">
+            {% for message in messages %}
+                <div class="message message-{{ message.tags|default:'info' }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <a class="brand brand-footer" href="{% url 'accounts:inicio' %}">
+                <span class="brand-mark" aria-hidden="true"></span>
+                <span class="brand-name">elo</span>
+            </a>
+            <p>Conectando pessoas, hemocentros e vidas.</p>
+            <div class="footer-links">
+                <a href="{% url 'accounts:inicio' %}#sobre">Sobre o elo</a>
+                <a href="{% url 'accounts:triagem_apresentacao' %}">Como doar</a>
+                <a href="{% url 'accounts:estoque_publico' %}">Estoques</a>
+                {% if user.is_authenticated %}
+                    <a href="{% url 'accounts:dashboard' %}">Meu painel</a>
+                {% else %}
+                    <a href="{% url 'accounts:login' %}">Entrar</a>
+                {% endif %}
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        const menuToggle = document.querySelector(".menu-toggle");
+        const mainNav = document.querySelector(".main-nav");
+
+        if (menuToggle && mainNav) {
+            menuToggle.addEventListener("click", () => {
+                const opened = mainNav.classList.toggle("is-open");
+                menuToggle.setAttribute("aria-expanded", opened ? "true" : "false");
+            });
+        }
+    </script>
+</body>
+</html>

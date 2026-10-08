@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Elo — Cada gota é um elo de vida{% endblock %}
+
+{% block content %}
+
+<section class="hero" id="sobre">
+    <div class="container hero-inner">
+        <div class="hero-copy">
+            <p class="eyebrow">SISTEMA DE DOAÇÃO DE SANGUE</p>
+
+            <h1>
+                Cada gota<br>
+                é um <em>elo</em><br>
+                de vida.
+            </h1>
+
+            <p class="hero-text">
+                Conectamos doadores, hemocentros e pacientes
+                em um único sistema — com inteligência,
+                cuidado e a urgência que salvar vidas exige.
+            </p>
+
+            <div class="hero-actions">
+                <a class="button button-primary" href="{% url 'accounts:triagem_apresentacao' %}">
+                    Quero ser doador
+                </a>
+                <a class="button button-outline" href="{% url 'accounts:cadastro' %}">
+                    Sou do hemocentro
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="stock-section" id="estoques">
+    <div class="container">
+        <div class="section-heading">
+            <h2>Situação dos estoques</h2>
+            <p>Sul de Minas</p>
+        </div>
+
+        <div class="blood-grid">
+            {% for item in estoque_geral %}
+                <article class="blood-card">
+                    <strong class="blood-type">{{ item.tipo }}</strong>
+                    <span class="blood-line"></span>
+                    <span class="blood-status
+                        {% if item.nivel == 'Critico' %}status-critical
+                        {% elif item.nivel == 'Alerta' or item.nivel == 'Baixo' %}status-alert
+                        {% else %}status-stable{% endif %}">
+                        {{ item.nivel }}
+                    </span>
+                </article>
+            {% empty %}
+                <p class="empty-state">Nenhuma informação de estoque disponível no momento.</p>
+            {% endfor %}
+        </div>
+
+        <div class="center-action">
+            <a class="button button-outline button-small" href="{% url 'accounts:estoque_publico' %}">
+                Ver detalhes por cidade
+            </a>
+        </div>
+    </div>
+</section>
+
+<section class="info-section" id="como-doar">
+    <div class="container info-grid">
+        <div>
+            <p class="eyebrow">COMO FUNCIONA</p>
+            <h2>Doar sangue é um gesto simples que pode fazer diferença.</h2>
+        </div>
+
+        <div class="info-text">
+            <p>
+                O Elo ajuda você a encontrar informações, consultar estoques
+                e acompanhar oportunidades de doação.
+            </p>
+            <a class="text-link" href="{% url 'accounts:triagem_apresentacao' %}">
+                Conhecer a triagem →
+            </a>
+        </div>
+    </div>
+</section>
+
+<section class="faq-section" id="duvidas">
+    <div class="container">
+        <p class="eyebrow">DÚVIDAS</p>
+        <h2>Perguntas frequentes</h2>
+
+        <div class="faq-grid">
+            <details>
+                <summary>Onde posso consultar os estoques?</summary>
+                <p>
+                    A página de estoques públicos permite consultar as informações
+                    disponibilizadas pelos hemocentros.
+                </p>
+            </details>
+
+            <details>
+                <summary>Como começo o processo para doar?</summary>
+                <p>
+                    Acesse a área de triagem para conhecer as etapas iniciais
+                    e verificar como continuar.
+                </p>
+            </details>
+
+            <details>
+                <summary>Hemocentros podem participar do Elo?</summary>
+                <p>
+                    Sim. O cadastro de Hemocentro passa pelo processo de validação
+                    administrativa antes do acesso às funções institucionais.
+                </p>
+            </details>
+        </div>
+    </div>
+</section>
+
+{% endblock %}
