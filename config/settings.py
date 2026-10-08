@@ -179,6 +179,11 @@ TIME_ZONE = "America/Sao_Paulo"
 USE_I18N = True
 USE_TZ = True
 
+# Limite conjunto de alertas internos de estoque e pedidos por doador.
+CONVOCACAO_INTERVALO_HORAS = 24
+CONVOCACAO_LIMITE_NOTIFICACOES = 1
+CONVOCACAO_VERSAO_CONSENTIMENTO = "1.0"
+
 
 # Prefixo de URL reservado para futuros arquivos CSS, JS e imagens.
 STATIC_URL = "static/"

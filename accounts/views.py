@@ -41,6 +41,7 @@ from django.db.models import Case, IntegerField, Prefetch, Value, When
 from .forms import (
     CadastrarEstoqueForm,
     CadastroUsuarioForm,
+    PreferenciaConvocacaoForm,
     MovimentarEstoqueForm,
     FiltroEstoquePublicoForm,
     PedidoSangueForm,
@@ -81,7 +82,9 @@ from .compatibilidade import (
     doadores_compativeis_para,
     tabela_de_compatibilidade,
     tipos_que_recebem_de,
+    atualizar_preferencia_convocacao,
 )
+from django.conf import settings
 
 from .triagem_servico import (
     TriagemExtensaNecessaria,
@@ -625,6 +628,11 @@ def cadastro(request):
                     ip=obter_ip(request),
                 )
 
+                if usuario.perfil == Usuario.Perfil.DOADOR:
+                    atualizar_preferencia_convocacao(
+                        usuario, form.cleaned_data["aceita_notificacoes_pedidos"], request,
+                    )
+
             # Cria a sessao do usuario.
             login(request, usuario)
 
@@ -709,6 +717,28 @@ def compatibilidade_sanguinea(request):
 def dashboard(request):
     """Mostra o painel protegido particularizado pelo perfil do usuario."""
 
+    if request.method == "POST":
+        if request.user.perfil != Usuario.Perfil.DOADOR:
+            raise PermissionDenied("Somente Doadores podem configurar convocacoes.")
+        form = PreferenciaConvocacaoForm(request.POST)
+        if form.is_valid():
+            atualizar_preferencia_convocacao(
+                request.user, form.cleaned_data["aceita_convocacoes"], request,
+            )
+            messages.success(request, "Preferencia de convocacao salva.")
+            return redirect("accounts:dashboard")
+
+    preferencia_convocacao = None
+    if request.user.perfil == Usuario.Perfil.DOADOR:
+        consentimento_vigente = request.user.consentimentos_lgpd.filter(
+            tipo_termo=ConsentimentoLGPD.TipoTermo.NOTIFICACOES,
+            versao_termo=settings.CONVOCACAO_VERSAO_CONSENTIMENTO,
+            aceito=True, revogado_em__isnull=True,
+        ).exists()
+        preferencia_convocacao = PreferenciaConvocacaoForm(initial={
+            "aceita_convocacoes": request.user.aceita_notificacoes_pedidos and consentimento_vigente,
+        })
+
     painel = PAINEIS_POR_PERFIL.get(
         request.user.perfil,
         PAINEIS_POR_PERFIL[Usuario.Perfil.OBSERVADOR],
@@ -766,6 +796,9 @@ def dashboard(request):
         "validacao_atual": validacao_atual,
         "ultima_triagem": ultima_triagem,
         "notificacoes_dashboard": notificacoes_dashboard,
+        "preferencia_convocacao": preferencia_convocacao,
+        "convocacao_intervalo_horas": settings.CONVOCACAO_INTERVALO_HORAS,
+        "convocacao_limite": settings.CONVOCACAO_LIMITE_NOTIFICACOES,
     }
 
     return render(

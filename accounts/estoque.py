@@ -16,7 +16,8 @@ from django.db import transaction
 from django.urls import reverse
 
 from .auditoria import registrar_auditoria
-from .compatibilidade import doadores_compativeis_para, normalizar_tipo_sanguineo
+from .compatibilidade import normalizar_tipo_sanguineo
+from .compatibilidade import doadores_aptos_para_convocacao, limite_convocacao_atingido
 from .models import (
     AuditoriaAcaoCritica,
     Estoque,
@@ -33,34 +34,23 @@ STATUS_DE_ESTOQUE_QUE_GERAM_ALERTA = {
 }
 
 
+@transaction.atomic
 def criar_notificacoes_para_doadores_compativeis(*, estoque, status_calculado):
     """
     Cria notificacoes internas para doadores compativeis.
 
     Quando o estoque atualizado fica BAIXO ou CRITICO, o sistema procura
-    doadores ativos cujo tipo sanguineo seja compativel com aquele estoque.
+    doadores compativeis e aptos que autorizaram convocacoes, respeitando
+    o limite conjunto de notificacoes de estoque e pedidos.
     """
 
     if status_calculado not in STATUS_DE_ESTOQUE_QUE_GERAM_ALERTA:
         return 0
 
-    tipos_compativeis = doadores_compativeis_para(estoque.tipo_sanguineo)
     tipo_notificacao = STATUS_DE_ESTOQUE_QUE_GERAM_ALERTA[status_calculado]
 
-    doadores = Usuario.objects.filter(
-        perfil=Usuario.Perfil.DOADOR,
-        tipo_sanguineo__in=tipos_compativeis,
-        is_active=True,
-    )
-
-    usuarios_com_alerta_aberto = set(
-        Notificacao.objects.filter(
-            usuario__in=doadores,
-            estoque=estoque,
-            tipo=tipo_notificacao,
-            lida=False,
-        ).values_list("usuario_id", flat=True)
-    )
+    # Serializa as convocacoes por doador antes de conferir o limite conjunto.
+    doadores = doadores_aptos_para_convocacao(estoque.tipo_sanguineo).select_for_update()
 
     nivel = "critico"
     if status_calculado == Estoque.StatusCalculado.BAIXO:
@@ -69,7 +59,9 @@ def criar_notificacoes_para_doadores_compativeis(*, estoque, status_calculado):
     notificacoes = []
 
     for doador in doadores:
-        if doador.pk in usuarios_com_alerta_aberto:
+        if limite_convocacao_atingido(doador) or Notificacao.objects.filter(
+            usuario=doador, estoque=estoque, tipo=tipo_notificacao, lida=False,
+        ).exists():
             continue
 
         notificacoes.append(

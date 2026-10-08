@@ -24,6 +24,19 @@ ou esconde as secoes correspondentes.
     <strong>{{ painel.rotulo }}</strong>
 </p>
 
+{% if preferencia_convocacao %}
+    <section>
+        <h2>Alertas de doação</h2>
+        <p>Receba até {{ convocacao_limite }} alerta(s) a cada {{ convocacao_intervalo_horas }} horas,
+            quando houver compatibilidade e sua última triagem concluída permitir.</p>
+        <form method="post">
+            {% csrf_token %}
+            {{ preferencia_convocacao.as_p }}
+            <button type="submit">Salvar preferência</button>
+        </form>
+    </section>
+{% endif %}
+
 {% if notificacoes_dashboard %}
 
     <section>

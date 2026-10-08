@@ -1,14 +1,12 @@
 """Operações de publicação de pedidos de sangue."""
 
-from datetime import date
-
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.db.models import OuterRef, Subquery
 from django.urls import reverse
+from django.utils import timezone
 
-from .compatibilidade import doadores_compativeis_para
-from .models import AuditoriaAcaoCritica, Notificacao, PedidoSangue, Triagem, Usuario
+from .compatibilidade import doadores_aptos_para_convocacao, limite_convocacao_atingido
+from .models import AuditoriaAcaoCritica, Notificacao, PedidoSangue, Usuario
 from .auditoria import registrar_auditoria
 
 
@@ -36,10 +34,12 @@ def publicar_pedido(usuario, form, request=None):
     if pedido.hemocentro_destino_id != usuario.pk:
         raise PermissionDenied("O pedido pertence a outro Hemocentro.")
     pedido.publicado_por = usuario
+    pedido.publicado_em = timezone.now()
     pedido.status = PedidoSangue.Status.PUBLICADA
     pedido.cidade = pedido.hemocentro_destino.cidade
     pedido.full_clean()
     pedido.save()
+    criar_notificacoes_para_pedido(pedido=pedido)
     registrar_auditoria(
         acao=AuditoriaAcaoCritica.Acao.MODERACAO, usuario=usuario, alvo=pedido, request=request,
         descricao="Publicacao institucional de pedido de sangue.",
@@ -48,38 +48,17 @@ def publicar_pedido(usuario, form, request=None):
     return pedido
 
 
+@transaction.atomic
 def criar_notificacoes_para_pedido(*, pedido):
     """Notifica apenas doadores compatíveis e aptos para o pedido publicado."""
 
-    tipos_compativeis = doadores_compativeis_para(pedido.tipo_sanguineo)
-    ultima_triagem = Triagem.objects.filter(
-        usuario=OuterRef("pk"),
-        status=Triagem.Status.CONCLUIDA,
-    ).order_by("-finalizada_em", "-iniciada_em")
-
-    doadores = (
-        Usuario.objects
-        .filter(
-            perfil=Usuario.Perfil.DOADOR,
-            is_active=True,
-            suspensa=False,
-            aceita_notificacoes_pedidos=True,
-            tipo_sanguineo__in=tipos_compativeis,
-        )
-        .annotate(
-            ultima_triagem_resultado=Subquery(
-                ultima_triagem.values("resultado")[:1]
-            ),
-            ultima_data_liberacao=Subquery(
-                ultima_triagem.values("data_liberacao")[:1]
-            ),
-        )
-        .filter(ultima_triagem_resultado=Triagem.Resultado.APTO)
-    )
+    if pedido.status != PedidoSangue.Status.PUBLICADA or not pode_publicar_pedido(pedido.hemocentro_destino):
+        return 0
+    doadores = doadores_aptos_para_convocacao(pedido.tipo_sanguineo).select_for_update()
 
     notificacoes = []
     for doador in doadores:
-        if doador.ultima_data_liberacao and doador.ultima_data_liberacao > date.today():
+        if limite_convocacao_atingido(doador):
             continue
         if Notificacao.objects.filter(usuario=doador, pedido=pedido).exists():
             continue
