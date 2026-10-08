@@ -29,7 +29,6 @@ from .validacao_hemocentro import validar_publicacao_hemocentro
 
 
 STATUS_DE_ESTOQUE_QUE_GERAM_ALERTA = {
-    Estoque.StatusCalculado.BAIXO: Notificacao.Tipo.ESTOQUE_BAIXO,
     Estoque.StatusCalculado.CRITICO: Notificacao.Tipo.ESTOQUE_CRITICO,
 }
 
@@ -39,7 +38,7 @@ def criar_notificacoes_para_doadores_compativeis(*, estoque, status_calculado):
     """
     Cria notificacoes internas para doadores compativeis.
 
-    Quando o estoque atualizado fica BAIXO ou CRITICO, o sistema procura
+    Quando o estoque atualizado fica CRITICO, o sistema procura
     doadores compativeis e aptos que autorizaram convocacoes, respeitando
     o limite conjunto de notificacoes de estoque e pedidos.
     """
@@ -53,8 +52,6 @@ def criar_notificacoes_para_doadores_compativeis(*, estoque, status_calculado):
     doadores = doadores_aptos_para_convocacao(estoque.tipo_sanguineo).select_for_update()
 
     nivel = "critico"
-    if status_calculado == Estoque.StatusCalculado.BAIXO:
-        nivel = "baixo"
 
     notificacoes = []
 

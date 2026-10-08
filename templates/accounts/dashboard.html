@@ -37,29 +37,49 @@ ou esconde as secoes correspondentes.
     </section>
 {% endif %}
 
-{% if notificacoes_dashboard %}
-
-    <section>
+    <section id="notificacoes">
         <h2>Notificações</h2>
+        <p>{{ notificacoes_nao_lidas }} não lida(s).</p>
 
         <ul>
             {% for notificacao in notificacoes_dashboard %}
                 <li>
                     <strong>{{ notificacao.titulo }}</strong><br>
+                    <span>{{ notificacao.get_tipo_display }} · {{ notificacao.criada_em|date:"d/m/Y H:i" }}</span><br>
+                    <span>{% if notificacao.lida %}Lida{% else %}Não lida{% endif %}</span><br>
                     {{ notificacao.mensagem }}
 
                     {% if notificacao.url_destino %}
                         <br>
                         <a href="{{ notificacao.url_destino }}">
-                            Ver detalhes
+                            {% if notificacao.tipo == "ESTOQUE_CRITICO" or notificacao.tipo == "ESTOQUE_BAIXO" %}Ver estoque{% elif notificacao.tipo == "PEDIDO_COMPATIVEL" %}Ver pedido{% else %}Ver detalhes{% endif %}
                         </a>
                     {% endif %}
+                    {% if not notificacao.lida %}
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="acao" value="marcar_notificacao_lida">
+                            <input type="hidden" name="id_notificacao" value="{{ notificacao.pk }}">
+                            <button type="submit">Marcar como lida</button>
+                        </form>
+                    {% endif %}
                 </li>
+            {% empty %}
+                <li>Você ainda não tem notificações.</li>
             {% endfor %}
         </ul>
+        {% if notificacoes_dashboard.has_other_pages %}
+            <nav aria-label="Páginas de notificações">
+                {% if notificacoes_dashboard.has_previous %}
+                    <a href="?pagina_notificacoes={{ notificacoes_dashboard.previous_page_number }}#notificacoes">Anterior</a>
+                {% endif %}
+                <span>Página {{ notificacoes_dashboard.number }} de {{ notificacoes_dashboard.paginator.num_pages }}</span>
+                {% if notificacoes_dashboard.has_next %}
+                    <a href="?pagina_notificacoes={{ notificacoes_dashboard.next_page_number }}#notificacoes">Próxima</a>
+                {% endif %}
+            </nav>
+        {% endif %}
     </section>
-
-{% endif %}
 
 <section>
     <h2>{{ painel.titulo }}</h2>

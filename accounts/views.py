@@ -27,6 +27,8 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
+from django.utils import timezone
 
 from django.db import transaction
 
@@ -718,6 +720,18 @@ def dashboard(request):
     """Mostra o painel protegido particularizado pelo perfil do usuario."""
 
     if request.method == "POST":
+        if request.POST.get("acao") == "marcar_notificacao_lida":
+            try:
+                id_notificacao = int(request.POST.get("id_notificacao", ""))
+            except (TypeError, ValueError):
+                raise Http404("Notificacao nao encontrada.")
+            notificacao = get_object_or_404(
+                request.user.notificacoes, pk=id_notificacao,
+            )
+            request.user.notificacoes.filter(pk=notificacao.pk, lida=False).update(
+                lida=True, lida_em=timezone.now(),
+            )
+            return redirect("accounts:dashboard")
         if request.user.perfil != Usuario.Perfil.DOADOR:
             raise PermissionDenied("Somente Doadores podem configurar convocacoes.")
         form = PreferenciaConvocacaoForm(request.POST)
@@ -774,11 +788,9 @@ def dashboard(request):
         painel,
     )
 
-    notificacoes_dashboard = (
-        request.user.notificacoes
-        .select_related("estoque", "estoque__hemocentro")
-        .filter(lida=False)
-        .order_by("-criada_em")[:5]
+    notificacoes_usuario = request.user.notificacoes.order_by("-criada_em", "-pk")
+    notificacoes_dashboard = Paginator(notificacoes_usuario, 10).get_page(
+        request.GET.get("pagina_notificacoes"),
     )
 
     contexto = {
@@ -796,6 +808,7 @@ def dashboard(request):
         "validacao_atual": validacao_atual,
         "ultima_triagem": ultima_triagem,
         "notificacoes_dashboard": notificacoes_dashboard,
+        "notificacoes_nao_lidas": notificacoes_usuario.filter(lida=False).count(),
         "preferencia_convocacao": preferencia_convocacao,
         "convocacao_intervalo_horas": settings.CONVOCACAO_INTERVALO_HORAS,
         "convocacao_limite": settings.CONVOCACAO_LIMITE_NOTIFICACOES,

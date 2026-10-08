@@ -433,6 +433,28 @@ class ConvocacaoCompatibilidadeTests(TestCase):
         self.pedido.status = PedidoSangue.Status.ENVIADA
         self.assertEqual(self.emitir('pedido'), 0)
 
+    def test_atualizacao_de_estoque_convoca_somente_quando_critico(self):
+        from .estoque import registrar_movimentacao_estoque
+        from .models import Estoque, EstoqueMovimentacao
+        doador = self.doador('estoque_critico')
+        for quantidade, status in (
+            (7, Estoque.StatusCalculado.BAIXO),
+            (12, Estoque.StatusCalculado.ESTAVEL),
+            (5, Estoque.StatusCalculado.CRITICO),
+        ):
+            with self.subTest(status=status):
+                registrar_movimentacao_estoque(
+                    estoque=self.estoque, usuario_resp=self.hemocentro,
+                    tipo_movimento=EstoqueMovimentacao.TipoMovimento.AJUSTE,
+                    quantidade=quantidade, motivo='Conferencia do estoque',
+                )
+                self.estoque.refresh_from_db()
+                self.assertEqual(self.estoque.status_calculado, status)
+                self.assertEqual(Notificacao.objects.count(), int(status == Estoque.StatusCalculado.CRITICO))
+        notificacao = Notificacao.objects.get()
+        self.assertEqual(notificacao.usuario_id, doador.pk)
+        self.assertEqual(notificacao.tipo, Notificacao.Tipo.ESTOQUE_CRITICO)
+
     def test_preferencia_no_painel_registra_aceite_e_revogacao(self):
         from .models import AuditoriaAcaoCritica
         usuario = self.doador('painel')
@@ -510,3 +532,63 @@ class ConvocacaoCompatibilidadeTests(TestCase):
             self.assertEqual(self.emitir('pedido'), 0)
             self.assertEqual(self.emitir('estoque'), 1)
             self.assertEqual(self.emitir('estoque'), 0)
+
+
+class CentralNotificacoesTests(TestCase):
+    def setUp(self):
+        self.usuario = Usuario.objects.create_user(
+            email='central@elo.test', nome='Receptor', perfil=Usuario.Perfil.RECEPTOR,
+        )
+        self.outro = Usuario.objects.create_user(
+            email='outra-central@elo.test', nome='Outro', perfil=Usuario.Perfil.RECEPTOR,
+        )
+        self.aviso = Notificacao.objects.create(
+            usuario=self.usuario, titulo='Estoque urgente', mensagem='Precisamos de doadores.',
+            tipo=Notificacao.Tipo.ESTOQUE_CRITICO, url_destino=reverse('accounts:estoque_publico'),
+        )
+        self.client.force_login(self.usuario)
+        self.url = reverse('accounts:dashboard')
+
+    def test_leitura_persiste_sem_apagar_historico_nem_regravar_data(self):
+        dados = {'acao': 'marcar_notificacao_lida', 'id_notificacao': self.aviso.pk}
+        self.assertEqual(self.client.post(self.url, dados).status_code, 302)
+        self.aviso.refresh_from_db()
+        self.assertTrue(self.aviso.lida)
+        self.assertIsNotNone(self.aviso.lida_em)
+        data_leitura = self.aviso.lida_em
+        self.client.post(self.url, dados)
+        self.aviso.refresh_from_db()
+        self.assertEqual(self.aviso.lida_em, data_leitura)
+        pagina = self.client.get(self.url)
+        self.assertContains(pagina, 'Estoque urgente')
+        self.assertContains(pagina, 'Ver estoque')
+        self.assertContains(pagina, 'Lida')
+        self.assertEqual(pagina.context['notificacoes_nao_lidas'], 0)
+
+    def test_nao_permite_marcar_notificacao_de_outro_usuario(self):
+        aviso = Notificacao.objects.create(usuario=self.outro, titulo='Privada', mensagem='Privada')
+        self.assertEqual(self.client.post(self.url, {
+            'acao': 'marcar_notificacao_lida', 'id_notificacao': aviso.pk,
+        }).status_code, 404)
+        aviso.refresh_from_db()
+        self.assertFalse(aviso.lida)
+        self.assertNotContains(self.client.get(self.url), 'Privada')
+
+    def test_historico_paginado_mostra_notificacoes_mais_antigas(self):
+        for numero in range(11):
+            Notificacao.objects.create(usuario=self.usuario, titulo=f'Aviso {numero}', mensagem='Aviso')
+        pagina = self.client.get(self.url)
+        self.assertEqual(len(pagina.context['notificacoes_dashboard']), 10)
+        self.assertContains(pagina, 'Próxima')
+        self.assertContains(self.client.get(self.url, {'pagina_notificacoes': 2}), 'Estoque urgente')
+
+    def test_identificador_invalido_e_anonimo_nao_marcam_leitura(self):
+        self.assertEqual(self.client.post(self.url, {
+            'acao': 'marcar_notificacao_lida', 'id_notificacao': 'invalido',
+        }).status_code, 404)
+        self.client.logout()
+        self.assertEqual(self.client.post(self.url, {
+            'acao': 'marcar_notificacao_lida', 'id_notificacao': self.aviso.pk,
+        }).status_code, 302)
+        self.aviso.refresh_from_db()
+        self.assertFalse(self.aviso.lida)
