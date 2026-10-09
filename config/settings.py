@@ -70,6 +70,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     # Usa a sessao para preencher request.user.
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "accounts.auditoria.AuditoriaAcessosMiddleware",
     # Disponibiliza mensagens temporarias nos templates.
     "django.contrib.messages.middleware.MessageMiddleware",
     # Ajuda a impedir que o site seja embutido em iframe malicioso.
@@ -178,9 +179,18 @@ TIME_ZONE = "America/Sao_Paulo"
 USE_I18N = True
 USE_TZ = True
 
+# Limite conjunto de alertas internos de estoque e pedidos por doador.
+CONVOCACAO_INTERVALO_HORAS = 24
+CONVOCACAO_LIMITE_NOTIFICACOES = 1
+CONVOCACAO_VERSAO_CONSENTIMENTO = "1.0"
+
 
 # Prefixo de URL reservado para futuros arquivos CSS, JS e imagens.
 STATIC_URL = "static/"
+
+STATICFILES_DIRS = [
+    BASE_DIR / "elo_front" / "static",
+]
 
 # Enquanto nao existe servidor de e-mail, qualquer mensagem enviada pelo Django
 # aparece no terminal. Isso evita disparos reais durante o desenvolvimento.

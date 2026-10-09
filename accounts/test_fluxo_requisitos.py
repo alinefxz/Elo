@@ -228,6 +228,7 @@ class FluxoCadastroTriagemPedidosTests(TestCase):
         )
 
     def test_solicitacao_nao_publica_e_hemocentro_publica(self):
+        self.client.force_login(self.receptor)
         resposta = self.client.post(
             reverse("accounts:pedido_publicar"),
             self.dados_solicitacao(),
@@ -320,6 +321,8 @@ class FluxoCadastroTriagemPedidosTests(TestCase):
         )
 
     def test_publicacao_notifica_somente_doador_apto_compativel(self):
+        from .compatibilidade import atualizar_preferencia_convocacao
+        atualizar_preferencia_convocacao(self.doador, True)
         self.doador.tipo_sanguineo = "O-"
         self.doador.save(
             update_fields=["tipo_sanguineo"]
@@ -348,3 +351,244 @@ class FluxoCadastroTriagemPedidosTests(TestCase):
                 tipo=Notificacao.Tipo.PEDIDO_COMPATIVEL,
             ).exists()
         )
+
+class ConvocacaoCompatibilidadeTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        from .models import Estoque
+        cls.hemocentro = Usuario.objects.create_user(
+            email='hemo.convocacao@elo.test', nome='Hemocentro', perfil=Usuario.Perfil.HEMOCENTRO,
+            status_validacao=Usuario.StatusValidacaoHemocentro.APROVADO,
+            cidade='Belo Horizonte',
+        )
+        cls.estoque = Estoque.objects.create(hemocentro=cls.hemocentro, tipo_sanguineo='O-',
+            quantidade_bolsas=0, nivel_minimo=10, nivel_critico=5, status_calculado=Estoque.StatusCalculado.CRITICO)
+        cls.pedido = PedidoSangue.objects.create(hemocentro_destino=cls.hemocentro,
+            nome_solicitante='Solicitante', contato='contato@elo.test', para_quem=PedidoSangue.ParaQuem.MIM,
+            tipo_sanguineo='O-', cidade='Belo Horizonte', urgencia=PedidoSangue.Urgencia.MEDIA,
+            descricao='Pedido publicado para testar convocacao.', status=PedidoSangue.Status.PUBLICADA)
+
+    def doador(self, nome, **extras):
+        usuario = Usuario.objects.create_user(email=nome+'@convocacao.test', nome=nome,
+            perfil=extras.pop('perfil', Usuario.Perfil.DOADOR), tipo_sanguineo=extras.pop('tipo_sanguineo', 'O-'),
+            **extras)
+        Triagem.objects.create(usuario=usuario, status=Triagem.Status.CONCLUIDA,
+            resultado=Triagem.Resultado.APTO)
+        ConsentimentoLGPD.objects.create(usuario=usuario, tipo_termo=ConsentimentoLGPD.TipoTermo.NOTIFICACOES,
+            versao_termo='1.0', aceito=True)
+        return usuario
+
+    def emitir(self, origem):
+        from .estoque import criar_notificacoes_para_doadores_compativeis
+        from .pedidos import criar_notificacoes_para_pedido
+        from .models import Estoque
+        if origem == 'estoque':
+            return criar_notificacoes_para_doadores_compativeis(estoque=self.estoque,
+                status_calculado=Estoque.StatusCalculado.CRITICO)
+        return criar_notificacoes_para_pedido(pedido=self.pedido)
+
+    def test_ambos_fluxos_exigem_todos_os_criterios(self):
+        from django.utils import timezone
+        from datetime import timedelta
+        apto = self.doador('apto')
+        self.doador('incompativel', tipo_sanguineo='A+')
+        self.doador('suspenso', suspensa=True)
+        self.doador('inativo', is_active=False)
+        self.doador('preferencia_desativada', aceita_notificacoes_pedidos=False)
+        self.doador('receptor', perfil=Usuario.Perfil.RECEPTOR)
+        revogado = self.doador('revogado')
+        revogado.consentimentos_lgpd.update(revogado_em=timezone.now())
+        recusou = self.doador('recusou')
+        recusou.consentimentos_lgpd.update(aceito=False)
+        sem_consentimento = self.doador('sem_consentimento')
+        sem_consentimento.consentimentos_lgpd.all().delete()
+        versao_antiga = self.doador('versao_antiga')
+        versao_antiga.consentimentos_lgpd.update(versao_termo='0.9')
+        futuro = self.doador('futuro')
+        futuro.triagens.update(data_liberacao=timezone.localdate()+timedelta(days=1))
+        sem_triagem = self.doador('sem_triagem')
+        sem_triagem.triagens.all().delete()
+        inapto = self.doador('inapto')
+        Triagem.objects.create(usuario=inapto, status=Triagem.Status.CONCLUIDA,
+            resultado=Triagem.Resultado.INAPTO_TEMPORARIO, finalizada_em=timezone.now())
+        for origem in ('estoque', 'pedido'):
+            with self.subTest(origem=origem):
+                self.assertEqual(self.emitir(origem), 1)
+                self.assertEqual(list(Notificacao.objects.values_list('usuario_id', flat=True)), [apto.pk])
+                Notificacao.objects.all().delete()
+
+    def test_limite_soma_estoque_e_pedido_mesmo_depois_de_lido(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        self.doador('frequencia')
+        self.assertEqual(self.emitir('estoque'), 1)
+        Notificacao.objects.update(lida=True)
+        self.assertEqual(self.emitir('pedido'), 0)
+        Notificacao.objects.update(criada_em=timezone.now()-timedelta(hours=25))
+        self.assertEqual(self.emitir('pedido'), 1)
+        self.assertEqual(self.emitir('pedido'), 0)
+
+    def test_pedido_pendente_nao_convoca(self):
+        self.doador('pendente')
+        self.pedido.status = PedidoSangue.Status.ENVIADA
+        self.assertEqual(self.emitir('pedido'), 0)
+
+    def test_atualizacao_de_estoque_convoca_somente_quando_critico(self):
+        from .estoque import registrar_movimentacao_estoque
+        from .models import Estoque, EstoqueMovimentacao
+        doador = self.doador('estoque_critico')
+        for quantidade, status in (
+            (7, Estoque.StatusCalculado.BAIXO),
+            (12, Estoque.StatusCalculado.ESTAVEL),
+            (5, Estoque.StatusCalculado.CRITICO),
+        ):
+            with self.subTest(status=status):
+                registrar_movimentacao_estoque(
+                    estoque=self.estoque, usuario_resp=self.hemocentro,
+                    tipo_movimento=EstoqueMovimentacao.TipoMovimento.AJUSTE,
+                    quantidade=quantidade, motivo='Conferencia do estoque',
+                )
+                self.estoque.refresh_from_db()
+                self.assertEqual(self.estoque.status_calculado, status)
+                self.assertEqual(Notificacao.objects.count(), int(status == Estoque.StatusCalculado.CRITICO))
+        notificacao = Notificacao.objects.get()
+        self.assertEqual(notificacao.usuario_id, doador.pk)
+        self.assertEqual(notificacao.tipo, Notificacao.Tipo.ESTOQUE_CRITICO)
+
+    def test_preferencia_no_painel_registra_aceite_e_revogacao(self):
+        from .models import AuditoriaAcaoCritica
+        usuario = self.doador('painel')
+        usuario.consentimentos_lgpd.all().delete()
+        self.client.force_login(usuario)
+        url = reverse('accounts:dashboard')
+        self.assertContains(self.client.get(url), 'Alertas de doação')
+        self.assertEqual(self.client.post(url, {'aceita_convocacoes': 'on'}).status_code, 302)
+        consentimento = usuario.consentimentos_lgpd.get(tipo_termo=ConsentimentoLGPD.TipoTermo.NOTIFICACOES)
+        self.assertTrue(consentimento.aceito)
+        self.assertIsNone(consentimento.revogado_em)
+        self.assertEqual(self.emitir('pedido'), 1)
+        self.assertEqual(self.client.post(url, {}).status_code, 302)
+        consentimento.refresh_from_db()
+        usuario.refresh_from_db()
+        self.assertFalse(usuario.aceita_notificacoes_pedidos)
+        self.assertFalse(consentimento.aceito)
+        self.assertIsNotNone(consentimento.revogado_em)
+        self.assertTrue(AuditoriaAcaoCritica.objects.filter(metadados__evento='PREFERENCIA_CONVOCACAO').exists())
+        Notificacao.objects.all().delete()
+        self.assertEqual(self.emitir('estoque'), 0)
+
+    def test_outro_perfil_nao_altera_preferencia(self):
+        usuario = Usuario.objects.create_user(email='observador@convocacao.test', nome='Observador',
+            perfil=Usuario.Perfil.OBSERVADOR)
+        self.client.force_login(usuario)
+        self.assertEqual(self.client.post(reverse('accounts:dashboard'), {'aceita_convocacoes': 'on'}).status_code, 403)
+        self.assertFalse(usuario.consentimentos_lgpd.filter(tipo_termo=ConsentimentoLGPD.TipoTermo.NOTIFICACOES).exists())
+
+    def test_cadastro_autorizacao_e_opcional_e_explicita(self):
+        for aceita in (False, True):
+            with self.subTest(aceita=aceita):
+                self.client.logout()
+                dados = {'nome': 'Doador', 'email': f'cadastro{int(aceita)}@convocacao.test',
+                    'perfil': Usuario.Perfil.DOADOR, 'cpf': '12345678901' if not aceita else '12345678902', 'data_nascimento': '1990-01-01',
+                    'password1': 'SenhaForte123!', 'password2': 'SenhaForte123!', 'aceite_lgpd': 'on'}
+                if aceita:
+                    dados['aceita_notificacoes_pedidos'] = 'on'
+                self.assertEqual(self.client.post(reverse('accounts:cadastro'), dados).status_code, 302)
+                usuario = Usuario.objects.get(email=dados['email'])
+                self.assertEqual(usuario.aceita_notificacoes_pedidos, aceita)
+                self.assertEqual(usuario.consentimentos_lgpd.get(tipo_termo=ConsentimentoLGPD.TipoTermo.NOTIFICACOES).aceito, aceita)
+
+    def test_publicacao_alternativa_tambem_convoca(self):
+        from .forms import PedidoSangueForm
+        from .pedidos import publicar_pedido
+        self.doador('alternativa')
+        form = PedidoSangueForm({'nome_solicitante': 'Solicitante', 'contato': 'contato@elo.test',
+            'para_quem': PedidoSangue.ParaQuem.MIM, 'hemocentro_destino': self.hemocentro.pk,
+            'titulo': 'Pedido alternativo', 'tipo_sanguineo': 'O-', 'urgencia': PedidoSangue.Urgencia.MEDIA,
+            'cidade': 'Belo Horizonte', 'descricao': 'Precisamos de doadores para atendimento hospitalar.'})
+        self.assertTrue(form.is_valid(), form.errors)
+        pedido = publicar_pedido(self.hemocentro, form)
+        self.assertTrue(Notificacao.objects.filter(pedido=pedido).exists())
+
+    def test_compatibilidade_seleciona_os_tipos_da_tabela(self):
+        from .compatibilidade import TIPOS_SANGUINEOS, COMPATIBILIDADE_RECEBIMENTO, doadores_aptos_para_convocacao
+        for i, tipo in enumerate(TIPOS_SANGUINEOS):
+            self.doador(f'tipo{i}', tipo_sanguineo=tipo)
+        for solicitado, esperados in COMPATIBILIDADE_RECEBIMENTO.items():
+            with self.subTest(tipo=solicitado):
+                encontrados = set(doadores_aptos_para_convocacao(solicitado).values_list('tipo_sanguineo', flat=True))
+                self.assertEqual(encontrados, set(esperados))
+
+    def test_limite_e_compartilhado_tambem_quando_pedido_vem_primeiro(self):
+        self.doador('pedido_primeiro')
+        self.assertEqual(self.emitir('pedido'), 1)
+        self.assertEqual(self.emitir('estoque'), 0)
+
+    def test_limite_configuravel_nao_remove_protecao_contra_duplicatas(self):
+        from django.test import override_settings
+        self.doador('limite_configuravel')
+        with override_settings(CONVOCACAO_LIMITE_NOTIFICACOES=3):
+            self.assertEqual(self.emitir('pedido'), 1)
+            self.assertEqual(self.emitir('pedido'), 0)
+            self.assertEqual(self.emitir('estoque'), 1)
+            self.assertEqual(self.emitir('estoque'), 0)
+
+
+class CentralNotificacoesTests(TestCase):
+    def setUp(self):
+        self.usuario = Usuario.objects.create_user(
+            email='central@elo.test', nome='Receptor', perfil=Usuario.Perfil.RECEPTOR,
+        )
+        self.outro = Usuario.objects.create_user(
+            email='outra-central@elo.test', nome='Outro', perfil=Usuario.Perfil.RECEPTOR,
+        )
+        self.aviso = Notificacao.objects.create(
+            usuario=self.usuario, titulo='Estoque urgente', mensagem='Precisamos de doadores.',
+            tipo=Notificacao.Tipo.ESTOQUE_CRITICO, url_destino=reverse('accounts:estoque_publico'),
+        )
+        self.client.force_login(self.usuario)
+        self.url = reverse('accounts:dashboard')
+
+    def test_leitura_persiste_sem_apagar_historico_nem_regravar_data(self):
+        dados = {'acao': 'marcar_notificacao_lida', 'id_notificacao': self.aviso.pk}
+        self.assertEqual(self.client.post(self.url, dados).status_code, 302)
+        self.aviso.refresh_from_db()
+        self.assertTrue(self.aviso.lida)
+        self.assertIsNotNone(self.aviso.lida_em)
+        data_leitura = self.aviso.lida_em
+        self.client.post(self.url, dados)
+        self.aviso.refresh_from_db()
+        self.assertEqual(self.aviso.lida_em, data_leitura)
+        pagina = self.client.get(self.url)
+        self.assertContains(pagina, 'Estoque urgente')
+        self.assertContains(pagina, 'Ver estoque')
+        self.assertContains(pagina, 'Lida')
+        self.assertEqual(pagina.context['notificacoes_nao_lidas'], 0)
+
+    def test_nao_permite_marcar_notificacao_de_outro_usuario(self):
+        aviso = Notificacao.objects.create(usuario=self.outro, titulo='Privada', mensagem='Privada')
+        self.assertEqual(self.client.post(self.url, {
+            'acao': 'marcar_notificacao_lida', 'id_notificacao': aviso.pk,
+        }).status_code, 404)
+        aviso.refresh_from_db()
+        self.assertFalse(aviso.lida)
+        self.assertNotContains(self.client.get(self.url), 'Privada')
+
+    def test_historico_paginado_mostra_notificacoes_mais_antigas(self):
+        for numero in range(11):
+            Notificacao.objects.create(usuario=self.usuario, titulo=f'Aviso {numero}', mensagem='Aviso')
+        pagina = self.client.get(self.url)
+        self.assertEqual(len(pagina.context['notificacoes_dashboard']), 10)
+        self.assertContains(pagina, 'Próxima')
+        self.assertContains(self.client.get(self.url, {'pagina_notificacoes': 2}), 'Estoque urgente')
+
+    def test_identificador_invalido_e_anonimo_nao_marcam_leitura(self):
+        self.assertEqual(self.client.post(self.url, {
+            'acao': 'marcar_notificacao_lida', 'id_notificacao': 'invalido',
+        }).status_code, 404)
+        self.client.logout()
+        self.assertEqual(self.client.post(self.url, {
+            'acao': 'marcar_notificacao_lida', 'id_notificacao': self.aviso.pk,
+        }).status_code, 302)
+        self.aviso.refresh_from_db()
+        self.assertFalse(self.aviso.lida)

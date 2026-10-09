@@ -27,6 +27,8 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
+from django.utils import timezone
 
 from django.db import transaction
 
@@ -41,11 +43,13 @@ from django.db.models import Case, IntegerField, Prefetch, Value, When
 from .forms import (
     CadastrarEstoqueForm,
     CadastroUsuarioForm,
+    PreferenciaConvocacaoForm,
     MovimentarEstoqueForm,
     FiltroEstoquePublicoForm,
     PedidoSangueForm,
     FiltroPedidoSangueForm,
 )
+from .auditoria import registrar_auditoria
 
 from .models import (
     ConsentimentoLGPD,
@@ -56,6 +60,7 @@ from .models import (
     Usuario,
     ValidacaoHemocentro,
     ValidacaoPedido,
+    AuditoriaAcaoCritica,
 )
 
 from .estoque import (
@@ -67,6 +72,8 @@ from .estoque import (
 from .validacao_hemocentro import (
     aprovar_hemocentro as aprovar_hemocentro_servico,
     exigir_hemocentro_aprovado,
+    validar_publicacao_hemocentro,
+    hemocentro_aprovado,
     recusar_hemocentro as recusar_hemocentro_servico,
     solicitar_correcao_hemocentro as solicitar_correcao_hemocentro_servico,
     usuario_e_administrador,
@@ -77,7 +84,9 @@ from .compatibilidade import (
     doadores_compativeis_para,
     tabela_de_compatibilidade,
     tipos_que_recebem_de,
+    atualizar_preferencia_convocacao,
 )
+from django.conf import settings
 
 from .triagem_servico import (
     TriagemExtensaNecessaria,
@@ -404,15 +413,14 @@ PAINEIS_POR_PERFIL = {
         "acoes": [
             "Ver estoque publico dos Hemocentros.",
             "Consultar pedidos de sangue ativos.",
-            "Solicitar divulgação de uma necessidade.",
+            "Enviar solicitacao de pedido ao Hemocentro.",
             "Consultar a compatibilidade sanguinea.",
-            "Responder a triagem caso tambem queira doar sangue.",
         ],
-        "mostra_triagem": True,
+        "mostra_triagem": False,
         "mostra_campanhas": False,
         "mostra_pedidos": True,
         "mostra_estoque_publico": True,
-        "mostra_postos": False,
+        "mostra_postos": True,
     },
     Usuario.Perfil.OBSERVADOR: {
         "rotulo": "Observador",
@@ -423,7 +431,6 @@ PAINEIS_POR_PERFIL = {
             "Consultar postos de coleta.",
             "Acompanhar pedidos publicos.",
             "Acompanhar campanhas publicas.",
-            "Solicitar divulgação de uma necessidade.",
         ],
         "mostra_triagem": False,
         "mostra_campanhas": True,
@@ -459,9 +466,9 @@ PAINEIS_POR_PERFIL = {
             "Acessar o painel administrativo do Django.",
         ],
         "mostra_triagem": False,
-        "mostra_campanhas": False,
+        "mostra_campanhas": True,
         "mostra_pedidos": True,
-        "mostra_estoque_publico": False,
+        "mostra_estoque_publico": True,
         "mostra_postos": False,
     },
 }
@@ -486,15 +493,14 @@ def montar_visibilidade_dashboard(usuario, painel):
     return {
         "mostra_triagem": painel.get("mostra_triagem", False),
         "mostra_campanhas": painel.get("mostra_campanhas", False),
-        "mostra_pedidos": painel.get("mostra_pedidos", False),
+        "mostra_pedidos": painel.get("mostra_pedidos", False) and (
+            usuario.perfil != Usuario.Perfil.HEMOCENTRO or hemocentro_aprovado
+        ),
         "mostra_estoque_publico": painel.get("mostra_estoque_publico", False),
         "mostra_postos": painel.get("mostra_postos", False),
-        "pode_solicitar_divulgacao": usuario.perfil in {
-            Usuario.Perfil.DOADOR,
-            Usuario.Perfil.RECEPTOR,
-            Usuario.Perfil.OBSERVADOR,
-        },
+        "pode_solicitar_divulgacao": usuario.perfil == Usuario.Perfil.RECEPTOR,
         "mostra_status_hemocentro": usuario.perfil == Usuario.Perfil.HEMOCENTRO,
+        "pode_solicitar_pedido": usuario.perfil == Usuario.Perfil.RECEPTOR,
         "pode_gerenciar_estoque": hemocentro_aprovado,
         "pode_analisar_pedidos": hemocentro_aprovado,
         "pode_aprovar_hemocentros": administrador,
@@ -625,6 +631,11 @@ def cadastro(request):
                     ip=obter_ip(request),
                 )
 
+                if usuario.perfil == Usuario.Perfil.DOADOR:
+                    atualizar_preferencia_convocacao(
+                        usuario, form.cleaned_data["aceita_notificacoes_pedidos"], request,
+                    )
+
             # Cria a sessao do usuario.
             login(request, usuario)
 
@@ -709,10 +720,49 @@ def compatibilidade_sanguinea(request):
 def dashboard(request):
     """Mostra o painel protegido particularizado pelo perfil do usuario."""
 
+    if request.method == "POST":
+        if request.POST.get("acao") == "marcar_notificacao_lida":
+            try:
+                id_notificacao = int(request.POST.get("id_notificacao", ""))
+            except (TypeError, ValueError):
+                raise Http404("Notificacao nao encontrada.")
+            notificacao = get_object_or_404(
+                request.user.notificacoes, pk=id_notificacao,
+            )
+            request.user.notificacoes.filter(pk=notificacao.pk, lida=False).update(
+                lida=True, lida_em=timezone.now(),
+            )
+            return redirect("accounts:dashboard")
+        if request.user.perfil != Usuario.Perfil.DOADOR:
+            raise PermissionDenied("Somente Doadores podem configurar convocacoes.")
+        form = PreferenciaConvocacaoForm(request.POST)
+        if form.is_valid():
+            atualizar_preferencia_convocacao(
+                request.user, form.cleaned_data["aceita_convocacoes"], request,
+            )
+            messages.success(request, "Preferencia de convocacao salva.")
+            return redirect("accounts:dashboard")
+
+    preferencia_convocacao = None
+    if request.user.perfil == Usuario.Perfil.DOADOR:
+        consentimento_vigente = request.user.consentimentos_lgpd.filter(
+            tipo_termo=ConsentimentoLGPD.TipoTermo.NOTIFICACOES,
+            versao_termo=settings.CONVOCACAO_VERSAO_CONSENTIMENTO,
+            aceito=True, revogado_em__isnull=True,
+        ).exists()
+        preferencia_convocacao = PreferenciaConvocacaoForm(initial={
+            "aceita_convocacoes": request.user.aceita_notificacoes_pedidos and consentimento_vigente,
+        })
+
     painel = PAINEIS_POR_PERFIL.get(
         request.user.perfil,
         PAINEIS_POR_PERFIL[Usuario.Perfil.OBSERVADOR],
     )
+
+    if request.user.perfil == Usuario.Perfil.HEMOCENTRO and not hemocentro_aprovado(request.user):
+        painel = {**painel, "acoes": ["Acompanhar o status da validacao institucional."]}
+    elif hemocentro_aprovado(request.user):
+        painel = {**painel, "acoes": [*painel["acoes"], "Analisar e publicar solicitacoes destinadas ao proprio Hemocentro."]}
 
     # Busca a ultima analise administrativa do Hemocentro.
     validacao_atual = None
@@ -739,11 +789,9 @@ def dashboard(request):
         painel,
     )
 
-    notificacoes_dashboard = (
-        request.user.notificacoes
-        .select_related("estoque", "estoque__hemocentro")
-        .filter(lida=False)
-        .order_by("-criada_em")[:5]
+    notificacoes_usuario = request.user.notificacoes.order_by("-criada_em", "-pk")
+    notificacoes_dashboard = Paginator(notificacoes_usuario, 10).get_page(
+        request.GET.get("pagina_notificacoes"),
     )
 
     contexto = {
@@ -761,6 +809,10 @@ def dashboard(request):
         "validacao_atual": validacao_atual,
         "ultima_triagem": ultima_triagem,
         "notificacoes_dashboard": notificacoes_dashboard,
+        "notificacoes_nao_lidas": notificacoes_usuario.filter(lida=False).count(),
+        "preferencia_convocacao": preferencia_convocacao,
+        "convocacao_intervalo_horas": settings.CONVOCACAO_INTERVALO_HORAS,
+        "convocacao_limite": settings.CONVOCACAO_LIMITE_NOTIFICACOES,
     }
 
     return render(
@@ -992,6 +1044,14 @@ def triagem_historico(request):
             "A triagem de doacao nao esta disponivel para este perfil.",
         )
 
+        registrar_auditoria(
+            acao=AuditoriaAcaoCritica.Acao.MODERACAO,
+            resultado=AuditoriaAcaoCritica.Resultado.BLOQUEADO,
+            usuario=request.user, request=request,
+            descricao="Tentativa de acesso ao historico de triagens bloqueada.",
+            metadados={"evento": "TENTATIVA_ACESSO", "rota": "accounts:triagem_historico"},
+        )
+
         return redirect("accounts:dashboard")
 
     triagens = (
@@ -1063,6 +1123,9 @@ def triagem_iniciar(request, modalidade):
 
 def _triagem_do_usuario_ou_404(request, id_triagem):
     """Evita que uma conta consulte o questionário privado de outra."""
+
+    if not pode_responder(request.user):
+        raise PermissionDenied("Somente Doadores podem acessar a triagem.")
 
     return get_object_or_404(
         Triagem,
@@ -1475,20 +1538,24 @@ def atualizar_estoque_view(request, id_estoque):
     return redirect("accounts:estoque_hemocentro")
 
 
+@login_required
 def criar_pedido_sangue(request):
     """
     Recebe uma solicitação de divulgação, sem publicá-la.
 
-    O formulário é aberto para Visitantes, Doadores, Receptores e
-    Observadores. A decisão e a publicação acontecem somente no painel do
-    Hemocentro aprovado de destino.
+    Apenas Receptor/Solicitante pode enviar solicitacao de pedido.
+
+    Ao salvar, a solicitacao aguarda analise do Hemocentro.
     """
 
-    perfis_bloqueados = {
-        Usuario.Perfil.HEMOCENTRO,
-        Usuario.Perfil.ADMINISTRADOR,
-    }
-    if request.user.is_authenticated and request.user.perfil in perfis_bloqueados:
+    if request.user.perfil != Usuario.Perfil.RECEPTOR:
+        registrar_auditoria(
+            acao=AuditoriaAcaoCritica.Acao.MODERACAO,
+            resultado=AuditoriaAcaoCritica.Resultado.BLOQUEADO,
+            usuario=request.user, request=request,
+            descricao="Tentativa de enviar solicitacao de pedido bloqueada.",
+            metadados={"evento": "TENTATIVA_ACESSO", "rota": "accounts:pedido_publicar"},
+        )
         messages.error(
             request,
             "Este perfil não envia solicitações de divulgação.",
@@ -1735,7 +1802,7 @@ def painel_validacao_pedidos(request):
 def aprovar_pedido(request, id_pedido):
     """Publica uma solicitação após análise do Hemocentro de destino."""
 
-    exigir_hemocentro_aprovado(request.user)
+    validar_publicacao_hemocentro(request.user)
 
     pedido = get_object_or_404(
         PedidoSangue,
@@ -1751,7 +1818,8 @@ def aprovar_pedido(request, id_pedido):
 
     messages.success(
         request,
-        "Pedido aprovado com sucesso.",
+        "Pedido publicado com sucesso." if hemocentro_aprovado(request.user)
+        else "Pedido validado sem publicacao.",
     )
 
     return redirect("accounts:painel_pedidos_hemocentro")
@@ -1762,7 +1830,7 @@ def aprovar_pedido(request, id_pedido):
 def recusar_pedido(request, id_pedido):
     """Recusa uma solicitação pelo Hemocentro de destino."""
 
-    exigir_hemocentro_aprovado(request.user)
+    validar_publicacao_hemocentro(request.user)
 
     pedido = get_object_or_404(
         PedidoSangue,

@@ -89,6 +89,13 @@ class CadastroUsuarioForm(UserCreationForm):
         required=True,
     )
 
+    aceita_notificacoes_pedidos = forms.BooleanField(
+        label="Autorizo alertas internos de estoque e pedidos compativeis (para Doadores).",
+        required=False,
+        initial=False,
+        help_text="Opcional. Posso cancelar a autorizacao no meu painel.",
+    )
+
     class Meta:
         model = Usuario
 
@@ -106,6 +113,7 @@ class CadastroUsuarioForm(UserCreationForm):
             "password1",
             "password2",
             "aceite_lgpd",
+            "aceita_notificacoes_pedidos",
         ]
 
         labels = {
@@ -246,6 +254,8 @@ class CadastroUsuarioForm(UserCreationForm):
         dados = super().clean()
 
         perfil = dados.get("perfil")
+        if perfil != Usuario.Perfil.DOADOR:
+            dados["aceita_notificacoes_pedidos"] = False
         cpf = dados.get("cpf")
         cnpj = dados.get("cnpj")
         data_nascimento = dados.get("data_nascimento")
@@ -292,6 +302,14 @@ class CadastroUsuarioForm(UserCreationForm):
             )
 
         return dados
+
+
+class PreferenciaConvocacaoForm(forms.Form):
+    aceita_convocacoes = forms.BooleanField(
+        label="Autorizo receber alertas internos de estoque e pedidos compativeis.",
+        required=False,
+        help_text="Opcional. Desmarque para cancelar futuras convocacoes.",
+    )
 
 
 class LoginUsuarioForm(AuthenticationForm):

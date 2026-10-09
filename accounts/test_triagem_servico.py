@@ -134,7 +134,7 @@ class TriagemServicoTests(TestCase):
         self.assertEqual(simplificada.fluxo_perguntas[0], "SIM-01")
 
     def test_observador_nao_pode_iniciar_questionario(self):
-        """Falha se um perfil fora de Doador/Receptor responder à triagem."""
+        """Falha se um perfil fora de Doador responder à triagem."""
 
         observador = Usuario.objects.create_user(
             email="observador-servico@teste.com",

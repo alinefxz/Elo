@@ -83,7 +83,7 @@ não aparecem nesta página.
 {% endfor %}
 
 {% if user.is_authenticated %}
-    {% if user.perfil == "DOADOR" or user.perfil == "RECEPTOR" or user.perfil == "OBSERVADOR" %}
+    {% if user.perfil == "RECEPTOR" %}
         <p>
             <a href="{% url 'accounts:criar_pedido_sangue' %}">
                 Solicitar divulgação de necessidade

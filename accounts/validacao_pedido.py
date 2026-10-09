@@ -122,16 +122,8 @@ def criar_pedido_pendente(
     Cria o pedido sem publicá-lo.
     """
 
-    if getattr(solicitante, "is_authenticated", False) and solicitante.perfil in {
-        Usuario.Perfil.HEMOCENTRO,
-        Usuario.Perfil.ADMINISTRADOR,
-    }:
-        raise PermissionDenied(
-            "Este perfil não pode enviar solicitação de divulgação."
-        )
-
-    if not getattr(solicitante, "is_authenticated", False):
-        solicitante = None
+    if not getattr(solicitante, "is_authenticated", False) or solicitante.perfil != Usuario.Perfil.RECEPTOR:
+        raise PermissionDenied("Somente Receptor pode enviar solicitacao de pedido de sangue.")
 
     dados = dict(dados)
     hemocentro_destino = dados.get("hemocentro_destino")
@@ -232,12 +224,16 @@ def registrar_decisao_validacao_pedido(
     # carregadas sob demanda quando as notificações forem criadas.
     pedido = PedidoSangue.objects.select_for_update().get(pk=pedido.pk)
 
+    status_anterior = pedido.status
+    institucional = hemocentro_do_destino
+
     if pedido.status == PedidoSangue.Status.ENCERRADA:
         raise ValidationError("Não é possível validar um pedido encerrado.")
 
     if status_validacao == (
         ValidacaoPedido.StatusValidacao.APROVADO
     ):
+        validar_dados_pedido(pedido)
         novo_status = PedidoSangue.Status.PUBLICADA
 
         if not motivo:
@@ -304,10 +300,14 @@ def registrar_decisao_validacao_pedido(
         usuario=moderador,
         alvo=pedido,
         descricao=(
-            "Decisão administrativa sobre pedido de sangue."
+            "Decisao institucional sobre pedido de sangue." if institucional
+            else "Validacao administrativa de pedido de sangue."
         ),
         request=request,
         metadados={
+            "evento": "PUBLICACAO_PEDIDO" if institucional and status_validacao == ValidacaoPedido.StatusValidacao.APROVADO else "VALIDACAO_PEDIDO",
+            "status_anterior": status_anterior,
+            "perfil_responsavel": moderador.perfil,
             "id_pedido": pedido.pk,
             "id_validacao": validacao.pk,
             "status_validacao": status_validacao,

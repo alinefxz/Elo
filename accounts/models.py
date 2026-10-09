@@ -368,7 +368,7 @@ class ConsentimentoLGPD(models.Model):
 
 class AuditoriaAcaoCritica(models.Model):
     """
-    Registro imutavel de eventos sensiveis do Elo.
+    Registro de eventos sensiveis do Elo, somente leitura no painel administrativo.
 
     A auditoria guarda o contexto da acao sem copiar senhas, tokens ou dados
     sensiveis completos. Cada tela ou rotina critica deve chamar a funcao

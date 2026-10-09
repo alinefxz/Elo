@@ -52,7 +52,7 @@ def auditar_login_falho(sender, credentials, request, **kwargs):
     if falhas_recentes.count() >= LIMITE_LOGIN_SUSPEITO:
         registrar_auditoria(
             acao=AuditoriaAcaoCritica.Acao.LOGIN_SUSPEITO,
-            resultado=AuditoriaAcaoCritica.Resultado.BLOQUEADO,
+            resultado=AuditoriaAcaoCritica.Resultado.FALHA,
             descricao="Muitas tentativas de login falhas em curto periodo.",
             request=request,
             ip=ip,

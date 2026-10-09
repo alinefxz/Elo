@@ -107,7 +107,7 @@ Somente os formulários abaixo iniciam um registro no histórico.
 {% if pode_iniciar %}
     <p><a href="{% url 'accounts:triagem_historico' %}">Ver meu histórico de triagens</a></p>
 {% elif user.is_authenticated %}
-    <p>A triagem para doação está disponível para os perfis Doador e Receptor.</p>
+    <p>A triagem para doação está disponível para o perfil Doador.</p>
 {% else %}
     <p>Para responder e salvar sua triagem, crie uma conta ou entre no sistema.</p>
 {% endif %}

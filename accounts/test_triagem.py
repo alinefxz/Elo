@@ -146,9 +146,9 @@ class TriagemExtensaTests(TestCase):
 
         self.assertEqual(resposta.status_code, 403)
 
-    def test_receptor_pode_acessar_a_triagem(self):
+    def test_receptor_nao_pode_acessar_a_triagem(self):
         """
-        Receptor também pode responder à triagem para doação.
+        Receptor nao pode responder a triagem para doacao.
         """
 
         usuario = Usuario.objects.create_user(
@@ -170,7 +170,7 @@ class TriagemExtensaTests(TestCase):
 
         self.assertEqual(
             resposta.status_code,
-            302,
+            403,
         )
 
     def test_visitante_pode_ver_apresentacao_da_triagem(self):
