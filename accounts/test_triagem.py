@@ -1,3 +1,13 @@
+"""
+Testes automatizados da triagem extensa inicial.
+
+Verificam o cálculo dos resultados para respostas básicas, a
+classificação temporária para peso abaixo de 50 kg, o início da
+triagem com registro do consentimento, o bloqueio de perfis não
+autorizados (Observador e Receptor) e o acesso público à página
+de apresentação da triagem.
+"""
+
 from datetime import date
 
 from django.test import TestCase

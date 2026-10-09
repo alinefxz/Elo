@@ -1,4 +1,13 @@
-"""Testes das decisões e dos cálculos do motor orientativo."""
+"""
+Testes automatizados do motor de triagem orientativa.
+
+Verificam a prioridade dos resultados, a preservação dos achados,
+o cálculo de prazos e datas de liberação, a exigência de avaliação
+quando faltam informações, as regras para procedimentos estéticos e
+intervalos entre doações, os limites anuais de doação, a reutilização
+segura de respostas na triagem simplificada e a apresentação de
+mensagens que reforçam a necessidade de avaliação final pelo hemocentro.
+"""
 
 from datetime import date
 

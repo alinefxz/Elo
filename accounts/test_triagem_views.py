@@ -1,4 +1,12 @@
-"""Testes das páginas públicas e privadas da triagem."""
+"""
+Testes automatizados das páginas e dos fluxos da triagem.
+
+Verificam o acesso público e privado, as permissões dos perfis,
+o início da triagem, o consentimento, o salvamento e a edição
+das respostas, a privacidade do histórico, a conclusão da triagem
+e o encaminhamento da versão simplificada para a extensa quando
+as respostas indicam que o histórico anterior não é confiável.
+"""
 
 from django.test import TestCase
 from django.urls import reverse

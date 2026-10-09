@@ -1,4 +1,13 @@
-"""Testes do serviço que controla o andamento persistente da triagem."""
+"""
+Testes automatizados do serviço de triagem.
+
+Verificam o início e a retomada de triagens, o registro do consentimento,
+a reutilização de respostas anteriores, as permissões de acesso, o fluxo
+condicional das perguntas, o salvamento e a correção de respostas, a
+remoção de respostas inválidas, o encaminhamento da triagem simplificada
+para a extensa e a conclusão do processo, garantindo a integridade do
+histórico e o bloqueio de alterações após a finalização.
+"""
 
 from django.core.exceptions import PermissionDenied
 from django.test import TestCase
