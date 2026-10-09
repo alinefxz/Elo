@@ -45,6 +45,11 @@ class PedidoSangueTests(TestCase):
             nome="Doador Elo",
             perfil=Usuario.Perfil.DOADOR,
         )
+        self.observador = self.criar_usuario(
+            email="observador@elo.test",
+            nome="Observador Elo",
+            perfil=Usuario.Perfil.OBSERVADOR,
+        )
         self.administrador = self.criar_usuario(
             email="admin@elo.test",
             nome="Administrador Elo",
@@ -121,6 +126,15 @@ class PedidoSangueTests(TestCase):
     def test_doador_nao_pode_enviar_solicitacao(self):
         self.client.force_login(self.doador)
         resposta = self.client.post(reverse("accounts:pedido_publicar"), self.dados_validos())
+        self.assertRedirects(resposta, reverse("accounts:dashboard"))
+        self.assertFalse(PedidoSangue.objects.exists())
+
+    def test_observador_nao_pode_enviar_solicitacao(self):
+        self.client.force_login(self.observador)
+        resposta = self.client.post(
+            reverse("accounts:pedido_publicar"),
+            self.dados_validos(),
+        )
         self.assertRedirects(resposta, reverse("accounts:dashboard"))
         self.assertFalse(PedidoSangue.objects.exists())
 
