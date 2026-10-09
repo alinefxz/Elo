@@ -141,6 +141,17 @@ class PedidoSangueTests(TestCase):
         self.assertIsNone(pedido.solicitante)
         self.assertEqual(pedido.status, PedidoSangue.Status.ENVIADA)
 
+        confirmacao = self.client.get(reverse("accounts:pedido_registrado"))
+        self.assertEqual(confirmacao.status_code, 200)
+        self.assertContains(confirmacao, "Solicitação enviada com sucesso!")
+        self.assertContains(confirmacao, f"#{pedido.pk}")
+        self.assertContains(confirmacao, "Acompanhar o andamento")
+
+        # O visitante consegue consultar novamente o andamento nesta sessão.
+        segunda_consulta = self.client.get(reverse("accounts:pedido_registrado"))
+        self.assertEqual(segunda_consulta.status_code, 200)
+        self.assertContains(segunda_consulta, f"#{pedido.pk}")
+
     def test_formulario_rejeita_descricao_curta(self):
         form = PedidoSangueForm(self.dados_validos(descricao="Curto"))
 
