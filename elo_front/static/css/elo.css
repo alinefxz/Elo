@@ -84,7 +84,7 @@ textarea {
 .site-header .brand-mark {
     width: 42px;
     height: 42px;
-    background: url("logo-gota.png") center / contain no-repeat;
+    background: url("favicon.png") center / contain no-repeat;
 }
 
 .brand-name {
