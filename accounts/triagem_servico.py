@@ -1,22 +1,21 @@
-# Este arquivo controla o funcionamento da triagem.
+# Este arquivo controla o fluxo e o salvamento da triagem.
 
 # - Permite triagem somente para Doadores e Receptores.
-# - Inicia triagens extensas ou simplificadas após o aceite do termo.
-# - A triagem simplificada depende de uma triagem extensa concluída.
+# - Inicia triagens extensas e simplificadas após o aceite do termo.
+# - A simplificada utiliza uma triagem extensa concluída como base.
 # - Organiza as perguntas conforme as respostas anteriores.
 # - Mostra perguntas condicionais quando necessário.
-# - Valida se as respostas pertencem ao catálogo oficial.
-# - Salva e permite corrigir respostas enquanto a triagem está em andamento.
-# - Remove respostas que deixam de ser válidas após uma correção.
+# - Valida perguntas, alternativas e datas recebidas.
+# - Salva, atualiza e reutiliza respostas anteriores quando solicitado.
+# - Permite voltar ou editar enquanto a triagem está em andamento.
+# - Remove respostas que deixam de ser válidas após uma alteração.
 # - Impede alterações depois da conclusão.
 # - Exige confirmação final antes de calcular o resultado.
 # - Envia as respostas para o motor da triagem.
-# - Salva o resultado, os achados, a mensagem e a data de liberação.
+# - Salva resultado, mensagem, achados e data de liberação.
 # - Usa transações para evitar dados incompletos ou alterações simultâneas.
 
-# Os catálogos definem as perguntas, o motor calcula as regras e este arquivo
-# controla o fluxo e o armazenamento da triagem.
-# =============================================================================
+# Os catálogos fornecem as perguntas, o motor aplica as regras e este arquivo controla o fluxo, as respostas e a persistência da triagem.
 
 """Serviço transacional que controla o questionário e sua persistência."""
 

@@ -1,3 +1,21 @@
+#Este arquivo é o motor que calcula o resultado da triagem.
+
+# - Recebe as respostas e não acessa diretamente o banco de dados.
+# - Usa as regras declaradas no catálogo de perguntas.
+# - Cria achados para cada condição identificada.
+# - Calcula prazos em horas, dias, semanas, meses ou anos.
+# - Solicita avaliação quando falta uma data necessária.
+# - Aplica regras específicas de intervalo entre doações.
+# - Verifica limites de doações nos últimos 12 meses.
+# - Analisa procedimentos estéticos e prazos de segurança.
+# - Na triagem simplificada, reutiliza somente respostas estáveis da extensa.
+# - Mantém todos os achados encontrados.
+# - Escolhe sempre o resultado mais restritivo.
+# - Calcula a data de liberação mais distante, quando existir.
+# - Retorna resultado, mensagem, achados, data e versão das regras.
+
+# Este motor apenas calcula a orientação. O resultado não substitui a avaliação clínica final do Hemocentro.
+
 """Motor puro que transforma respostas em orientação de triagem.
 
 O módulo não acessa o banco. Isso torna os cálculos repetíveis e permite manter
