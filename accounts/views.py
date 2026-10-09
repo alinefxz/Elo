@@ -1547,19 +1547,18 @@ def criar_pedido_sangue(request):
     Ao salvar, a solicitacao aguarda analise do Hemocentro.
     """
 
+    # Visitantes podem preencher o formulário público; entre os usuários
+    # autenticados, somente o perfil Receptor pode enviar solicitações.
     if (
         request.user.is_authenticated
-        and request.user.perfil in {
-            Usuario.Perfil.HEMOCENTRO,
-            Usuario.Perfil.ADMINISTRADOR,
-        }
+        and request.user.perfil != Usuario.Perfil.RECEPTOR
     ):
         registrar_auditoria(
             acao=AuditoriaAcaoCritica.Acao.MODERACAO,
             resultado=AuditoriaAcaoCritica.Resultado.BLOQUEADO,
             usuario=request.user,
             request=request,
-            descricao="Tentativa de enviar solicitacao de pedido bloqueada.",
+            descricao="Tentativa de envio por perfil sem permissao bloqueada.",
             metadados={
                 "evento": "TENTATIVA_ACESSO",
                 "rota": "accounts:pedido_publicar",
