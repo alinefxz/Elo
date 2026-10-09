@@ -1538,73 +1538,84 @@ def atualizar_estoque_view(request, id_estoque):
     return redirect("accounts:estoque_hemocentro")
 
 
+
 def criar_pedido_sangue(request):
     """
     Recebe uma solicitação de divulgação, sem publicá-la.
-
-    Apenas Receptor/Solicitante pode enviar solicitacao de pedido.
-
-    Ao salvar, a solicitacao aguarda analise do Hemocentro.
+    A solicitação aguarda análise do Hemocentro.
     """
 
-    if (request.user.is_authenticated
+    # Hemocentros e administradores não enviam solicitações por este formulário.
+    if (
+        request.user.is_authenticated
         and request.user.perfil in {
             Usuario.Perfil.HEMOCENTRO,
             Usuario.Perfil.ADMINISTRADOR,
-    }):
+        }
+    ):
         registrar_auditoria(
             acao=AuditoriaAcaoCritica.Acao.MODERACAO,
             resultado=AuditoriaAcaoCritica.Resultado.BLOQUEADO,
-            usuario=request.user, request=request,
-            descricao="Tentativa de enviar solicitacao de pedido bloqueada.",
-            metadados={"evento": "TENTATIVA_ACESSO", "rota": "accounts:pedido_publicar"},
+            usuario=request.user,
+            request=request,
+            descricao=(
+                "Tentativa de enviar solicitacao de pedido bloqueada."
+            ),
+            metadados={
+                "evento": "TENTATIVA_ACESSO",
+                "rota": "accounts:pedido_publicar",
+            },
         )
+
         messages.error(
             request,
             "Este perfil não envia solicitações de divulgação.",
         )
-
         return redirect("accounts:dashboard")
 
+    # POST: o usuário enviou o formulário.
     if request.method == "POST":
         form = PedidoSangueForm(request.POST)
 
-        
-    if form.is_valid():
-        try:
-            pedido = criar_pedido_pendente(
-                dados=form.cleaned_data,
-                solicitante=(
-                    request.user if request.user.is_authenticated else None
-                ),
-            )
+        if form.is_valid():
+            try:
+                pedido = criar_pedido_pendente(
+                    dados=form.cleaned_data,
+                    solicitante=(
+                        request.user
+                        if request.user.is_authenticated
+                        else None
+                    ),
+                )
 
-            mensagem = (
-                "Solicitação enviada para análise do Hemocentro. "
-                f"Protocolo {pedido.pk}."
-            )
+                mensagem = (
+                    "Solicitação enviada para análise do Hemocentro. "
+                    f"Protocolo {pedido.pk}."
+                )
 
-            if pedido.duplicidade_suspeita:
-                mensagem += " Há uma solicitação semelhante; ela será analisada."
+                if pedido.duplicidade_suspeita:
+                    mensagem += (
+                        " Há uma solicitação semelhante; "
+                        "ela será analisada."
+                    )
 
-            messages.success(request, mensagem)
+                messages.success(request, mensagem)
 
-            request.session["pedido_registrado_id"] = pedido.pk
+                request.session["pedido_registrado_id"] = pedido.pk
 
-            return redirect("accounts:pedido_registrado")
+                return redirect("accounts:pedido_registrado")
 
-        except ValidationError as erro:
-            form.add_error(None, erro)
+            except ValidationError as erro:
+                form.add_error(None, erro)
 
+    # GET: o usuário está apenas abrindo a página.
     else:
         form = PedidoSangueForm()
 
     return render(
         request,
         "accounts/pedido_publicar.html",
-        {
-            "form": form,
-        },
+        {"form": form},
     )
 
 def pedido_registrado(request):
