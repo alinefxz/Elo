@@ -188,7 +188,6 @@ CONVOCACAO_VERSAO_CONSENTIMENTO = "1.0"
 # Prefixo de URL reservado para futuros arquivos CSS, JS e imagens.
 STATIC_URL = "static/"
 
-# Arquivos visuais preparados no pacote de front-end do projeto.
 STATICFILES_DIRS = [
     BASE_DIR / "elo_front" / "static",
 ]
