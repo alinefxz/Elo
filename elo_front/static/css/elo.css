@@ -1051,3 +1051,346 @@ main form.request-form {
         grid-template-columns: 1fr;
     }
 }
+
+
+
+/* ACOMPANHAMENTO POR PROTOCOLO */
+
+.tracking-page {
+    width: min(760px, calc(100% - 64px));
+    margin: 48px auto 72px;
+}
+
+.tracking-intro {
+    margin-bottom: 24px;
+}
+
+.tracking-intro h1 {
+    margin: 0;
+    color: var(--black);
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: clamp(32px, 4vw, 42px);
+    line-height: 1.15;
+}
+
+.tracking-intro > p:last-child {
+    max-width: 650px;
+    color: var(--muted);
+}
+
+.tracking-card,
+.tracking-result {
+    padding: 28px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--white);
+    box-shadow: var(--shadow);
+}
+
+main form.tracking-form {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+}
+
+.tracking-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-bottom: 20px;
+}
+
+.tracking-field label {
+    color: var(--black);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.tracking-field input {
+    width: 100%;
+    min-height: 46px;
+    padding: 11px 13px;
+    border: 1px solid #d8d8db;
+    border-radius: 5px;
+}
+
+.tracking-field small {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.tracking-error {
+    padding: 12px 14px;
+    border-left: 4px solid var(--red);
+    border-radius: 4px;
+    background: #fff3f4;
+    color: var(--red-dark);
+    font-size: 14px;
+}
+
+.tracking-form > .button {
+    cursor: pointer;
+}
+
+.tracking-result {
+    margin-top: 24px;
+    box-shadow: none;
+}
+
+.tracking-result-heading {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.tracking-result-heading h2 {
+    margin: 0;
+    color: var(--black);
+    font-size: 23px;
+}
+
+.tracking-result-heading .request-eyebrow {
+    margin-bottom: 4px;
+}
+
+.tracking-result-check {
+    display: flex;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #fbecee;
+    color: var(--red);
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.tracking-private-note {
+    margin-top: 20px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.tracking-back {
+    margin-top: 20px;
+    font-size: 14px;
+}
+
+.tracking-back a {
+    color: var(--red);
+    font-weight: 600;
+}
+
+.tracking-back a:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 520px) {
+    .tracking-page {
+        width: calc(100% - 32px);
+        margin-top: 32px;
+        margin-bottom: 48px;
+    }
+
+    .tracking-card,
+    .tracking-result {
+        padding: 20px 18px;
+    }
+}
+
+
+/* LINKS PARA DOCUMENTOS LEGAIS */
+
+.legal-link {
+    color: var(--red) !important;
+    font-weight: 700;
+    text-decoration: underline;
+    text-decoration-color: rgba(189, 16, 38, .45);
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.legal-link:hover {
+    color: var(--red-dark) !important;
+    text-decoration-color: currentColor;
+}
+
+.legal-link:focus-visible {
+    outline: 2px solid var(--red);
+    outline-offset: 3px;
+    border-radius: 2px;
+}
+
+
+/* MODAIS DE TERMOS DE USO E PRIVACIDADE */
+
+.legal-modal {
+    width: min(680px, calc(100% - 32px));
+    max-width: 680px;
+    max-height: min(82vh, 760px);
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--white);
+    color: var(--text);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, .22);
+}
+
+.legal-modal::backdrop {
+    background: rgba(23, 24, 27, .62);
+    backdrop-filter: blur(3px);
+}
+
+.legal-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 25px 28px 20px;
+    border-bottom: 1px solid var(--line);
+    background: #fff8f8;
+}
+
+.legal-modal-kicker {
+    margin: 0 0 5px;
+    color: var(--red);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+}
+
+.legal-modal-header h2 {
+    margin: 0;
+    color: var(--black);
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 29px;
+    line-height: 1.2;
+}
+
+.legal-modal-close {
+    display: flex;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--white);
+    color: var(--black);
+    font-size: 25px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.legal-modal-close:hover {
+    border-color: var(--red);
+    color: var(--red);
+}
+
+.legal-modal-body {
+    max-height: calc(82vh - 165px);
+    padding: 24px 28px;
+    overflow-y: auto;
+}
+
+.legal-modal-body h3 {
+    margin: 22px 0 6px;
+    color: var(--black);
+    font-size: 16px;
+}
+
+.legal-modal-body h3:first-child {
+    margin-top: 0;
+}
+
+.legal-modal-body p,
+.legal-modal-body li {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.75;
+}
+
+.legal-modal-body ul {
+    padding-left: 20px;
+}
+
+.legal-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 16px 28px 22px;
+    border-top: 1px solid var(--line);
+    background: var(--white);
+}
+
+.legal-modal-footer .button {
+    cursor: pointer;
+}
+
+@media (max-width: 520px) {
+    .legal-modal-header {
+        padding: 20px 18px 16px;
+    }
+
+    .legal-modal-header h2 {
+        font-size: 25px;
+    }
+
+    .legal-modal-body {
+        padding: 20px 18px;
+    }
+
+    .legal-modal-footer {
+        padding: 14px 18px 18px;
+    }
+}
+
+
+.footer-links .footer-legal-link {
+    color: #ff8a98;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.footer-links .footer-legal-link:hover {
+    color: #ffffff;
+}
+
+.footer-inner {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    row-gap: 14px;
+}
+
+.footer-inner .brand-footer {
+    grid-row: 1 / span 2;
+}
+
+.footer-inner > p,
+.footer-inner .footer-links {
+    grid-column: 2;
+}
+
+.footer-links {
+    gap: 12px 20px;
+}
+
+@media (max-width: 900px) {
+    .footer-inner {
+        grid-template-columns: 1fr;
+    }
+
+    .footer-inner .brand-footer {
+        grid-row: auto;
+    }
+
+    .footer-inner > p,
+    .footer-inner .footer-links {
+        grid-column: auto;
+    }
+}

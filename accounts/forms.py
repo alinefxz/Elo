@@ -579,13 +579,9 @@ class MovimentarEstoqueForm(forms.Form):
 
         return dados
 
-class PedidoSangueForm(forms.ModelForm):
-    """
-    Formulário para solicitar a divulgação de uma necessidade.
 
-    As validacoes mais sensiveis ficam em validacao_pedido.py.
-    Aqui ficam as validacoes de formulario.
-    """
+class PedidoSangueForm(forms.ModelForm):
+    """Formulário para solicitar a divulgação de uma necessidade."""
 
     contato = forms.EmailField(
         label="E-mail de contato",
@@ -616,17 +612,17 @@ class PedidoSangueForm(forms.ModelForm):
         ]
 
         labels = {
-            "para_quem": "Para quem e este pedido?",
+            "para_quem": "Para quem é este pedido?",
             "nome_solicitante": "Nome ou identificação do solicitante",
             "contato": "E-mail de contato",
             "hemocentro_destino": "Hemocentro de destino",
-            "titulo": "Titulo do pedido",
-            "tipo_sanguineo": "Tipo sanguineo",
-            "urgencia": "Urgencia",
+            "titulo": "Título do pedido",
+            "tipo_sanguineo": "Tipo sanguíneo",
+            "urgencia": "Urgência",
             "cidade": "Cidade",
             "nome_paciente": "Nome da pessoa (opcional)",
-            "descricao": "Descricao",
-            "justificativa_urgencia": "Justificativa da urgencia",
+            "descricao": "Descrição",
+            "justificativa_urgencia": "Justificativa da urgência",
             "informacoes_complementares": "Informações complementares",
         }
 
@@ -642,34 +638,62 @@ class PedidoSangueForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # Somente Hemocentros aprovados podem ser escolhidos como destino.
         self.fields["hemocentro_destino"].queryset = (
-            Usuario.objects
-            .filter(
+            Usuario.objects.filter(
                 perfil=Usuario.Perfil.HEMOCENTRO,
-                status_validacao=Usuario.StatusValidacaoHemocentro.APROVADO,
-            )
-            .order_by("nome")
+                status_validacao=(
+                    Usuario.StatusValidacaoHemocentro.APROVADO
+                ),
+            ).order_by("nome")
         )
+
+        # Texto em português para a opção vazia dos seletores.
+        for campo in self.fields.values():
+            if isinstance(campo, forms.ModelChoiceField):
+                if campo.empty_label is not None:
+                    campo.empty_label = "Selecione uma opção"
+
+        # Remove opções vazias dos grupos de rádio obrigatórios.
+        for campo in self.fields.values():
+            if isinstance(campo.widget, forms.RadioSelect) and campo.required:
+                campo.choices = [
+                    (valor, rotulo)
+                    for valor, rotulo in campo.choices
+                    if valor not in ("", None)
+                ]
 
     def clean_nome_paciente(self):
         return (self.cleaned_data.get("nome_paciente") or "").strip()
 
     def clean_nome_solicitante(self):
-        nome = (self.cleaned_data.get("nome_solicitante") or "").strip()
+        nome = (
+            self.cleaned_data.get("nome_solicitante") or ""
+        ).strip()
+
         if not nome:
             raise forms.ValidationError(
                 "Informe o nome ou uma identificação do solicitante."
             )
+
         return nome
 
     def clean_contato(self):
-        contato = (self.cleaned_data.get("contato") or "").strip()
+        contato = (
+            self.cleaned_data.get("contato") or ""
+        ).strip().lower()
+
         if not contato:
-            raise forms.ValidationError("Informe um e-mail para retorno.")
-        return contato.lower()
+            raise forms.ValidationError(
+                "Informe um e-mail para retorno."
+            )
+
+        return contato
 
     def clean_descricao(self):
-        descricao = (self.cleaned_data.get("descricao") or "").strip()
+        descricao = (
+            self.cleaned_data.get("descricao") or ""
+        ).strip()
 
         if len(descricao) < 10:
             raise forms.ValidationError(
@@ -686,16 +710,16 @@ class PedidoSangueForm(forms.ModelForm):
             dados.get("justificativa_urgencia") or ""
         ).strip()
 
-        if urgencia in [
+        if urgencia in (
             PedidoSangue.Urgencia.ALTA,
             PedidoSangue.Urgencia.CRITICA,
-        ]:
+        ):
             if len(justificativa) < 20:
                 self.add_error(
                     "justificativa_urgencia",
                     (
-                        "Pedidos de urgencia alta ou critica precisam "
-                        "de justificativa com pelo menos 20 caracteres."
+                        "Pedidos de urgência alta ou crítica precisam "
+                        "de uma justificativa com pelo menos 20 caracteres."
                     ),
                 )
 

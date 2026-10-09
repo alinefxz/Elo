@@ -52,8 +52,9 @@
             Li e aceito os
 
             <a
-                href="#"
-                onclick="document.getElementById('modal-termos').showModal(); return false;"
+                class="legal-link"
+                href="#modal-termos"
+                data-open-modal="modal-termos"
             >
                 Termos de Uso
             </a>
@@ -61,11 +62,12 @@
             e a
 
             <a
-                href="#"
-                onclick="document.getElementById('modal-privacidade').showModal(); return false;"
+                class="legal-link"
+                href="#modal-privacidade"
+                data-open-modal="modal-privacidade"
             >
                 Política de Privacidade
-            </a>.
+            </a>
         </label>
 
         {{ form.aceite_lgpd.errors }}
@@ -78,61 +80,115 @@
 </form>
 
 <!-- Janela dos Termos de Uso. Fica escondida até clicar na palavra. -->
-<dialog id="modal-termos">
 
-    <h2>Termos de Uso</h2>
+<dialog class="legal-modal" id="modal-termos"
+        aria-labelledby="modal-termos-titulo">
+    <header class="legal-modal-header">
+        <div>
+            <p class="legal-modal-kicker">ELO · TRANSPARÊNCIA</p>
+            <h2 id="modal-termos-titulo">Termos de Uso</h2>
+        </div>
+        <button class="legal-modal-close" type="button"
+                data-close-modal aria-label="Fechar Termos de Uso">
+            ×
+        </button>
+    </header>
 
-    <p>
-        Ao criar uma conta no Elo, o usuário concorda em utilizar
-        o sistema de maneira correta, legal e respeitosa.
-    </p>
+    <div class="legal-modal-body">
+        <p>
+            Estes termos explicam as condições de utilização da plataforma Elo.
+            Ao criar uma conta, a pessoa usuária concorda em utilizar o sistema
+            de forma responsável e fornecer informações verdadeiras.
+        </p>
 
-    <p>
-        O usuário é responsável pelas informações fornecidas no cadastro,
-        pela segurança da sua senha e pelas atividades realizadas em sua conta.
-    </p>
+        <h3>Uso responsável</h3>
+        <p>
+            A plataforma deve ser usada para finalidades legítimas relacionadas
+            à informação, às solicitações de sangue e à conexão com Hemocentros.
+            Não devem ser enviados dados falsos, conteúdo abusivo ou solicitações
+            que possam induzir outras pessoas a erro.
+        </p>
 
-    <p>
-        O sistema poderá suspender ou encerrar contas que violem as regras
-        de utilização ou a legislação aplicável.
-    </p>
+        <h3>Solicitações de sangue</h3>
+        <p>
+            Enviar uma solicitação não significa que ela será publicada
+            imediatamente. O Hemocentro responsável deve analisar os dados.
+            A publicação oficial depende da aprovação institucional.
+        </p>
 
-    <button
-        type="button"
-        onclick="document.getElementById('modal-termos').close();"
-    >
-        Fechar
-    </button>
+        <h3>Conta e segurança</h3>
+        <p>
+            Cada pessoa é responsável por manter suas credenciais de acesso
+            em segurança e pelas atividades realizadas em sua conta.
+            Suspeitas de uso indevido devem ser comunicadas aos responsáveis
+            pela plataforma.
+        </p>
+    </div>
 
+    <footer class="legal-modal-footer">
+        <button class="button button-primary" type="button" data-close-modal>
+            Entendi
+        </button>
+    </footer>
 </dialog>
 
-<!-- Janela da Política de Privacidade. Fica escondida até clicar na palavra. -->
-<dialog id="modal-privacidade">
 
-    <h2>Política de Privacidade</h2>
+<dialog class="legal-modal" id="modal-privacidade"
+        aria-labelledby="modal-privacidade-titulo">
+    <header class="legal-modal-header">
+        <div>
+            <p class="legal-modal-kicker">ELO · SEUS DADOS</p>
+            <h2 id="modal-privacidade-titulo">Política de Privacidade</h2>
+        </div>
+        <button class="legal-modal-close" type="button"
+                data-close-modal aria-label="Fechar Política de Privacidade">
+            ×
+        </button>
+    </header>
 
-    <p>
-        Os dados informados no cadastro poderão ser utilizados para criar,
-        administrar e proteger a conta do usuário.
-    </p>
+    <div class="legal-modal-body">
+        <p>
+            A plataforma Elo utiliza os dados informados para permitir o
+            funcionamento das contas e das funcionalidades solicitadas,
+            respeitando a legislação aplicável de proteção de dados.
+        </p>
 
-    <p>
-        As informações devem ser tratadas de acordo com a legislação aplicável,
-        incluindo a Lei Geral de Proteção de Dados.
-    </p>
+        <h3>Quais dados podem ser utilizados?</h3>
+        <p>
+            Conforme a funcionalidade, podem ser tratados dados de cadastro,
+            contato, perfil e informações fornecidas em solicitações.
+            Somente informe dados necessários e evite incluir informações
+            pessoais sensíveis no campo de descrição do pedido.
+        </p>
 
-    <p>
-        O usuário poderá solicitar informações sobre o uso dos seus dados
-        pelos canais oficiais do sistema.
-    </p>
+        <h3>Para que os dados são utilizados?</h3>
+        <p>
+            Os dados podem ser utilizados para autenticar a conta, processar
+            solicitações, permitir a análise pelo Hemocentro responsável,
+            proteger o sistema e cumprir obrigações legais.
+        </p>
 
-    <button
-        type="button"
-        onclick="document.getElementById('modal-privacidade').close();"
-    >
-        Fechar
-    </button>
+        <h3>Proteção e direitos</h3>
+        <p>
+            O tratamento dos dados deve observar a Lei Geral de Proteção
+            de Dados Pessoais (Lei nº 13.709/2018). Solicitações relacionadas
+            aos dados pessoais devem ser encaminhadas aos responsáveis pela
+            plataforma pelos canais oficiais disponíveis.
+        </p>
 
+        <p>
+            Este resumo apresenta as orientações gerais da plataforma.
+            Ele não substitui uma política completa que identifique o
+            controlador, os canais de contato, os prazos de retenção e
+            os demais detalhes aplicáveis ao tratamento de dados.
+        </p>
+    </div>
+
+    <footer class="legal-modal-footer">
+        <button class="button button-primary" type="button" data-close-modal>
+            Entendi
+        </button>
+    </footer>
 </dialog>
 
 <p>

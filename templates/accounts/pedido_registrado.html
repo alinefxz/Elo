@@ -39,10 +39,10 @@
                     Acompanhar minhas solicitações
                 </a>
             {% else %}
-                <a class="button button-primary"
-                   href="{% url 'accounts:pedido_registrado' %}">
-                    Acompanhar o andamento
-                </a>
+            <a class="button button-primary"
+                href="{% url 'accounts:acompanhar_pedido' %}?protocolo={{ pedido.pk }}">
+                    Acompanhar com protocolo
+            </a>
             {% endif %}
             <a class="button button-outline"
                href="{% url 'accounts:consultar_pedidos' %}">

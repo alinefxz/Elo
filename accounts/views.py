@@ -1595,7 +1595,66 @@ def criar_pedido_sangue(request):
         request,
         "accounts/pedido_publicar.html",
         {"form": form},
+
     )
+
+
+def acompanhar_pedido(request):
+    """Consulta o andamento de uma solicitação usando protocolo e e-mail."""
+
+    pedido = None
+    erro = None
+
+    if request.method == "POST":
+        protocolo = request.POST.get("protocolo", "").strip()
+        contato = request.POST.get("contato", "").strip().lower()
+
+        # Aceita que a pessoa digite, por exemplo, "#2" ou "2".
+        protocolo_limpo = protocolo.removeprefix("#").strip()
+
+        try:
+            pedido_id = int(protocolo_limpo)
+
+            if pedido_id <= 0:
+                raise ValueError
+
+        except (TypeError, ValueError):
+            erro = "Informe um protocolo válido, por exemplo: 2."
+
+        else:
+            if not contato:
+                erro = "Informe o e-mail utilizado na solicitação."
+            else:
+                pedido = (
+                    PedidoSangue.objects
+                    .filter(
+                        pk=pedido_id,
+                        contato__iexact=contato,
+                    )
+                    .first()
+                )
+
+                if pedido is None:
+                    erro = (
+                        "Não encontramos uma solicitação com esses dados. "
+                        "Confira o protocolo e o e-mail e tente novamente."
+                    )
+    else:
+        # Permite preencher o protocolo automaticamente ao vir da confirmação.
+        protocolo = request.GET.get("protocolo", "").strip()
+        contato = ""
+
+    return render(
+        request,
+        "accounts/pedido_acompanhar.html",
+        {
+            "pedido": pedido,
+            "erro": erro,
+            "protocolo": protocolo,
+            "contato": contato,
+        },
+    )
+
 def pedido_registrado(request):
     """Exibe a confirmação da solicitação recém-criada."""
 

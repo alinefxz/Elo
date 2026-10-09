@@ -122,9 +122,19 @@ def criar_pedido_pendente(
     Cria o pedido sem publicá-lo.
     """
 
-    if not getattr(solicitante, "is_authenticated", False) or solicitante.perfil != Usuario.Perfil.RECEPTOR:
-        raise PermissionDenied("Somente Receptor pode enviar solicitacao de pedido de sangue.")
-
+    # Visitantes podem enviar solicitações sem uma conta.
+    # Usuários autenticados precisam ter o perfil Receptor.
+    if solicitante is not None:
+        if (
+            not getattr(solicitante, "is_authenticated", False)
+            or getattr(solicitante, "perfil", None)
+            != Usuario.Perfil.RECEPTOR
+        ):
+            raise PermissionDenied(
+                "Somente visitantes ou usuários com perfil "
+                "Receptor podem enviar solicitações de pedido de sangue."
+            )
+        
     dados = dict(dados)
     hemocentro_destino = dados.get("hemocentro_destino")
     if hemocentro_destino and not hasattr(hemocentro_destino, "pk"):
