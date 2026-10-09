@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Solicitação enviada | Elo{% endblock %}
+
+{% block content %}
+<section class="confirmation-page" aria-labelledby="confirmation-title">
+    <div class="confirmation-card">
+        <div class="confirmation-mark" aria-hidden="true">✓</div>
+
+        <p class="confirmation-eyebrow">PEDIDO DE SANGUE</p>
+        <h1 id="confirmation-title">Solicitação enviada com sucesso!</h1>
+        <p class="confirmation-lead">
+            Recebemos os dados da sua solicitação. O pedido ainda não é público:
+            ele precisa passar pela análise do Hemocentro de referência.
+        </p>
+
+        <div class="confirmation-details">
+            <div>
+                <span class="confirmation-label">Protocolo</span>
+                <strong>#{{ pedido.pk }}</strong>
+            </div>
+            <div>
+                <span class="confirmation-label">Situação atual</span>
+                <strong>{{ pedido.get_status_display }}</strong>
+            </div>
+        </div>
+
+        {% if pedido.duplicidade_suspeita %}
+            <p class="confirmation-note" role="status">
+                Identificamos uma solicitação semelhante. O Hemocentro avaliará
+                os dados durante a análise.
+            </p>
+        {% endif %}
+
+        <div class="confirmation-actions">
+            {% if user.is_authenticated and pedido.solicitante_id == user.id %}
+                <a class="button button-primary"
+                   href="{% url 'accounts:minhas_solicitacoes' %}">
+                    Acompanhar minhas solicitações
+                </a>
+            {% else %}
+                <a class="button button-primary"
+                   href="{% url 'accounts:pedido_registrado' %}">
+                    Acompanhar o andamento
+                </a>
+            {% endif %}
+            <a class="button button-outline"
+               href="{% url 'accounts:consultar_pedidos' %}">
+                Ver pedidos publicados
+            </a>
+        </div>
+
+        {% if not user.is_authenticated %}
+            <p class="confirmation-footnote">
+                Guarde o protocolo acima. Enquanto estiver usando esta sessão,
+                o botão “Acompanhar o andamento” permite consultar a situação
+                desta solicitação. Ela só aparecerá na lista pública depois
+                de aprovada pelo Hemocentro.
+            </p>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
