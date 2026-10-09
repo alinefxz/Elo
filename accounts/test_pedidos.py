@@ -109,7 +109,7 @@ class PedidoSangueTests(TestCase):
             self.dados_validos(),
         )
 
-        self.assertRedirects(resposta, reverse("accounts:minhas_solicitacoes"))
+        self.assertRedirects(resposta, reverse("accounts:pedido_registrado"))
         pedido = PedidoSangue.objects.get()
         self.assertEqual(pedido.solicitante, self.receptor)
         self.assertEqual(pedido.hemocentro_destino, self.hemocentro)
@@ -124,10 +124,22 @@ class PedidoSangueTests(TestCase):
         self.assertRedirects(resposta, reverse("accounts:dashboard"))
         self.assertFalse(PedidoSangue.objects.exists())
 
-    def test_visitante_precisa_entrar(self):
-        url = reverse("accounts:pedido_publicar")
-        resposta = self.client.get(url)
-        self.assertRedirects(resposta, f"{reverse('accounts:login')}?next={url}")
+    def test_visitante_consegue_abrir_formulario_de_pedido(self):
+        resposta = self.client.get(reverse("accounts:pedido_publicar"))
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "form")
+
+    def test_visitante_pode_enviar_solicitacao_pendente(self):
+        resposta = self.client.post(
+            reverse("accounts:pedido_publicar"),
+            self.dados_validos(),
+        )
+
+        self.assertRedirects(resposta, reverse("accounts:pedido_registrado"))
+        pedido = PedidoSangue.objects.get()
+        self.assertIsNone(pedido.solicitante)
+        self.assertEqual(pedido.status, PedidoSangue.Status.ENVIADA)
 
     def test_formulario_rejeita_descricao_curta(self):
         form = PedidoSangueForm(self.dados_validos(descricao="Curto"))
