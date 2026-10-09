@@ -1,3 +1,23 @@
+{% comment %}
+
+
+Exibe o painel administrativo de moderação de pedidos de sangue.
+
+* Lista os pedidos disponíveis para acompanhamento e moderação.
+* Permite filtrar os pedidos pelo status.
+* Apresenta os dados da solicitação e do Hemocentro responsável.
+* Destaca possíveis duplicidades suspeitas.
+* Exibe informações da última validação registrada.
+* Permite registrar suspeitas mediante justificativa.
+* Disponibiliza links para o painel e a validação de Hemocentros.
+* Informa quando não existem pedidos para exibir.
+
+Os dados são fornecidos pela view responsável pela moderação.
+O template cuida da apresentação; as permissões e as operações
+de moderação devem ser verificadas no servidor.
+{% endcomment %}
+
+
 {% extends "base.html" %}
 
 {% block title %}Moderação de pedidos | Elo{% endblock %}

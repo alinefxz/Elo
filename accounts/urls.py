@@ -157,6 +157,12 @@ urlpatterns = [
         name="marcar_pedido_suspeito",
     ),
 
+    path(
+    "pedidos/registrado/",
+    views.pedido_registrado,
+    name="pedido_registrado",
+),
+
     # ==========================================================
     # TRIAGEM
     # ==========================================================

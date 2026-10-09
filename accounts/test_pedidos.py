@@ -1,3 +1,19 @@
+# Testa o fluxo de solicitações e publicação de pedidos de sangue.
+
+# - Verifica a validação dos formulários e dos dados obrigatórios.
+# - Confirma que somente Hemocentros aprovados são oferecidos como destino.
+# - Testa as permissões de Receptores, Doadores, Administradores e Hemocentros.
+# - Verifica a criação e o envio de solicitações por Receptores.
+# - Confere a validação, a moderação e a publicação oficial dos pedidos.
+# - Impede que um Hemocentro publique pedidos destinados a outra instituição.
+# - Verifica o registro das validações, publicações e tentativas bloqueadas
+#   no sistema de auditoria.
+# - Confere aspectos de privacidade dos metadados de auditoria.
+
+# O objetivo é garantir que cada perfil execute somente as operações
+# autorizadas e que a publicação oficial dos pedidos seja realizada
+# pelo Hemocentro responsável, com segurança e rastreabilidade.
+
 from django.test import TestCase
 from django.urls import reverse
 

@@ -82,14 +82,12 @@ não aparecem nesta página.
 
 {% endfor %}
 
-{% if user.is_authenticated %}
-    {% if user.perfil == "RECEPTOR" %}
-        <p>
-            <a href="{% url 'accounts:criar_pedido_sangue' %}">
-                Solicitar divulgação de necessidade
-            </a>
-        </p>
-    {% endif %}
+{% if not user.is_authenticated or user.perfil == "DOADOR" or user.perfil == "RECEPTOR" or user.perfil == "OBSERVADOR" %}
+    <p>
+        <a href="{% url 'accounts:pedido_publicar' %}">
+            Solicitar divulgação de necessidade
+        </a>
+    </p>
 {% endif %}
 
 <p>

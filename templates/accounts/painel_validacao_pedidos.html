@@ -1,3 +1,22 @@
+{% comment %}
+
+Exibe o painel de análise das solicitações de pedidos de sangue destinadas
+ao Hemocentro responsável.
+
+* Lista os pedidos recebidos e suas principais informações.
+* Permite filtrar solicitações por status.
+* Exibe informações complementares e alertas de possíveis duplicidades.
+* Disponibiliza ações para aprovar e publicar pedidos, solicitar correções,
+  recusar solicitações ou marcá-las como suspeitas.
+* Inclui links para o painel principal e para o gerenciamento do estoque.
+* Informa quando não existem solicitações para exibir.
+
+O template é responsável pela apresentação das solicitações e dos formulários
+de ação. A autorização, a validação e a execução das operações são
+responsabilidade das views e dos serviços do Django.
+{% endcomment %}
+
+
 {% extends "base.html" %}
 
 {% block title %}Análise de solicitações | Elo{% endblock %}
