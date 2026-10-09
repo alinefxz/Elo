@@ -69,6 +69,41 @@ class TriagemServicoTests(TestCase):
         self.assertEqual(primeira.pk, segunda.pk)
         self.assertEqual(self.usuario.triagens.count(), 1)
 
+    def test_nova_extensa_pode_reutilizar_respostas_concluidas(self):
+        """Copia respostas sem alterar a triagem concluída original."""
+
+        origem = Triagem.objects.create(
+            usuario=self.usuario,
+            modalidade=Triagem.Modalidade.EXTENSA,
+            status=Triagem.Status.CONCLUIDA,
+            resultado=Triagem.Resultado.SEM_IMPEDIMENTO,
+        )
+        pergunta = obter_pergunta("EXT-01")
+        RespostaTriagem.objects.create(
+            triagem=origem,
+            id_pergunta="EXT-01",
+            codigo_resposta="SIM",
+            resposta_label="Sim, entendo e quero continuar.",
+            valor={"codigos": ["SIM"], "datas": {}, "detalhes": ""},
+            rule_version=pergunta["regra_version"],
+            source_ref=pergunta["fonte"],
+        )
+
+        nova = iniciar_triagem(
+            self.usuario,
+            Triagem.Modalidade.EXTENSA,
+            ip=None,
+            reutilizar_respostas=True,
+        )
+
+        self.assertNotEqual(nova.pk, origem.pk)
+        self.assertEqual(
+            nova.respostas.get(id_pergunta="EXT-01").codigo_resposta,
+            "SIM",
+        )
+        self.assertEqual(origem.respostas.count(), 1)
+        self.assertEqual(nova.pergunta_atual, 0)
+
     def test_simplificada_exige_extensa_concluida_do_mesmo_usuario(self):
         """Falha se a versão rápida puder ser usada sem histórico completo."""
 

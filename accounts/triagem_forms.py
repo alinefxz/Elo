@@ -1,3 +1,19 @@
+# Este arquivo cria dinamicamente o formulário de cada pergunta da triagem.
+
+# - Recebe uma pergunta do catálogo e monta os campos necessários.
+# - Usa rádio para respostas únicas e checkbox para múltiplas respostas.
+# - Reaproveita respostas anteriores quando a pergunta está sendo editada.
+# - Cria campos de data para alternativas que exigem prazo.
+# - Permite informar detalhes complementares.
+# - Adiciona campos extras para segurança e inflamação quando necessários.
+# - Impede combinações inválidas, como marcar "Nenhuma" junto com uma doença.
+# - Exige datas e detalhes quando a alternativa selecionada precisar dessas informações.
+# - Impede datas futuras.
+# - Valida as condições de procedimentos e informações de segurança.
+# - Organiza tudo no campo "valor", contendo códigos, datas, detalhes e dados complementares, para ser salvo pela camada de serviço.
+
+# Este arquivo valida e organiza as respostas, mas não calcula o resultado médico da triagem. Essa responsabilidade pertence ao triagem_motor.py.
+
 """Formulário dinâmico usado por todas as perguntas da triagem."""
 
 from datetime import date

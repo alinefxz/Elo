@@ -1,3 +1,22 @@
+# Este arquivo controla o fluxo e o salvamento da triagem.
+
+# - Permite triagem somente para Doadores e Receptores.
+# - Inicia triagens extensas e simplificadas após o aceite do termo.
+# - A simplificada utiliza uma triagem extensa concluída como base.
+# - Organiza as perguntas conforme as respostas anteriores.
+# - Mostra perguntas condicionais quando necessário.
+# - Valida perguntas, alternativas e datas recebidas.
+# - Salva, atualiza e reutiliza respostas anteriores quando solicitado.
+# - Permite voltar ou editar enquanto a triagem está em andamento.
+# - Remove respostas que deixam de ser válidas após uma alteração.
+# - Impede alterações depois da conclusão.
+# - Exige confirmação final antes de calcular o resultado.
+# - Envia as respostas para o motor da triagem.
+# - Salva resultado, mensagem, achados e data de liberação.
+# - Usa transações para evitar dados incompletos ou alterações simultâneas.
+
+# Os catálogos fornecem as perguntas, o motor aplica as regras e este arquivo controla o fluxo, as respostas e a persistência da triagem.
+
 """Serviço transacional que controla o questionário e sua persistência."""
 
 from datetime import date
@@ -81,6 +100,20 @@ def obter_extensa_base(usuario):
     )
 
 
+def obter_extensa_reutilizavel(usuario):
+    """Retorna a extensa concluída atual que pode preencher uma nova triagem."""
+
+    return (
+        usuario.triagens.filter(
+            modalidade=Triagem.Modalidade.EXTENSA,
+            status=Triagem.Status.CONCLUIDA,
+            regra_version=TRIAGEM_RULE_VERSION,
+        )
+        .order_by("-finalizada_em", "-iniciada_em")
+        .first()
+    )
+
+
 def _respostas_da_triagem(triagem):
     """Transforma registros do banco no mapa esperado pelo catálogo e motor."""
 
@@ -104,6 +137,27 @@ def _condicao_atendida(pergunta, respostas):
             return False
 
     return True
+
+
+def _copiar_respostas_para_nova_triagem(origem, destino):
+    """Copia respostas para uma nova triagem sem alterar o histórico original."""
+
+    RespostaTriagem.objects.bulk_create(
+        [
+            RespostaTriagem(
+                triagem=destino,
+                id_pergunta=resposta.id_pergunta,
+                codigo_resposta=resposta.codigo_resposta,
+                resposta_label=resposta.resposta_label,
+                data_evento=resposta.data_evento,
+                metadata=resposta.metadata,
+                valor=resposta.valor,
+                rule_version=resposta.rule_version,
+                source_ref=resposta.source_ref,
+            )
+            for resposta in origem.respostas.order_by("id_resposta")
+        ]
+    )
 
 
 def calcular_fluxo(triagem):
@@ -150,7 +204,13 @@ def calcular_fluxo(triagem):
 
 
 @transaction.atomic
-def iniciar_triagem(usuario, modalidade, ip=None, aceite_termo=True):
+def iniciar_triagem(
+    usuario,
+    modalidade,
+    ip=None,
+    aceite_termo=True,
+    reutilizar_respostas=False,
+):
     """Cria/retoma a triagem após o aceite registrado pela camada de entrada.
 
     A view exige o checkbox explicitamente; o valor padrão preserva a API de
@@ -213,6 +273,12 @@ def iniciar_triagem(usuario, modalidade, ip=None, aceite_termo=True):
         regra_version=TRIAGEM_RULE_VERSION,
         triagem_base=extensa_base,
     )
+
+    if modalidade == Triagem.Modalidade.EXTENSA and reutilizar_respostas:
+        origem = obter_extensa_reutilizavel(usuario)
+        if origem is not None:
+            _copiar_respostas_para_nova_triagem(origem, triagem)
+
     triagem.fluxo_perguntas = calcular_fluxo(triagem)
     triagem.save(update_fields=["fluxo_perguntas", "atualizada_em"])
     return triagem

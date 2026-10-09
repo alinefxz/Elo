@@ -96,6 +96,7 @@ from .triagem_servico import (
     concluir_triagem,
     iniciar_triagem,
     obter_extensa_base,
+    obter_extensa_reutilizavel,
     editar_pergunta,
     obter_pergunta_atual,
     pode_responder,
@@ -986,6 +987,7 @@ def triagem_apresentacao(request):
     triagem_em_andamento = None
     ultima_triagem = None
     extensa_base = None
+    extensa_reutilizavel = None
 
     if request.user.is_authenticated:
         pode_iniciar = pode_responder(request.user)
@@ -1006,6 +1008,7 @@ def triagem_apresentacao(request):
             )
 
             extensa_base = obter_extensa_base(request.user)
+            extensa_reutilizavel = obter_extensa_reutilizavel(request.user)
 
             # A simplificada só fica disponível quando existe
             # uma triagem extensa concluída válida como base.
@@ -1020,6 +1023,7 @@ def triagem_apresentacao(request):
             "triagem_em_andamento": triagem_em_andamento,
             "ultima_triagem": ultima_triagem,
             "triagem_extensa_base": extensa_base,
+            "triagem_extensa_reutilizavel": extensa_reutilizavel,
         },
     )
 
@@ -1096,6 +1100,11 @@ def triagem_iniciar(request, modalidade):
             modalidades[modalidade],
             ip=obter_ip(request),
             aceite_termo=True,
+            reutilizar_respostas=(
+                modalidade == "extensa"
+                and request.POST.get("reutilizar_respostas")
+                in {"on", "1", "true"}
+            ),
         )
 
     except TriagemSimplificadaIndisponivel:
