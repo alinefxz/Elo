@@ -765,3 +765,15 @@ main .filtro-estoque button[type="submit"] {
         gap: 8px;
     }
 }
+
+body.page-login {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+body.page-login main {
+    flex: 1;
+    }
+
+
