@@ -66,6 +66,12 @@ Somente os formulários abaixo iniciam um registro no histórico.
                 Li e estou ciente de que a pré-triagem é orientativa e não
                 substitui a avaliação clínica presencial do hemocentro.
             </label>
+            {% if triagem_extensa_reutilizavel %}
+                <label>
+                    <input type="checkbox" name="reutilizar_respostas">
+                    Reutilizar respostas da última triagem extensa concluída.
+                </label>
+            {% endif %}
             <button type="submit">Iniciar ou continuar triagem extensa</button>
         </form>
     {% elif not user.is_authenticated %}

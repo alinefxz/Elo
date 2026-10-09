@@ -138,6 +138,19 @@ class TriagemViewsTests(TestCase):
                     ),
                 )
 
+    def test_apresentacao_oferece_reutilizar_extensa_concluida(self):
+        """A apresentação oferece o preenchimento a partir do histórico."""
+
+        self._criar_extensa_concluida()
+        self.client.force_login(self.doador)
+
+        resposta = self.client.get(reverse("accounts:triagem_apresentacao"))
+
+        self.assertContains(
+            resposta,
+            "Reutilizar respostas da última triagem extensa concluída.",
+        )
+
     def test_observador_nao_pode_iniciar(self):
         """Falha se um perfil não autorizado puder gravar dados de saúde."""
 
