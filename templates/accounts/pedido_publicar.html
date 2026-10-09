@@ -1,21 +1,54 @@
 {% extends "base.html" %}
 
-{% block title %}Solicitar divulgação | Elo{% endblock %}
+{% block title %}Solicitar pedido de sangue | Elo{% endblock %}
 
 {% block content %}
-<h1>Solicitar divulgação de necessidade</h1>
+<section class="request-page" aria-labelledby="request-title">
+    <header class="request-intro">
+        <p class="request-eyebrow">PEDIDO DE SANGUE</p>
+        <h1 id="request-title">Solicitar pedido de sangue</h1>
+        <p class="request-lead">
+            Preencha os dados abaixo para encaminhar sua solicitação ao Hemocentro
+            de referência.
+        </p>
+    </header>
 
-<p>
-    O envio cria uma solicitação. Ela só se torna um pedido público depois da
-    análise do Hemocentro de referência.
-</p>
+    <div class="request-note" role="note">
+        <strong>Como funciona?</strong>
+        <span>
+            Sua solicitação será analisada pelo Hemocentro. Ela só aparecerá
+            publicamente como pedido de sangue depois da aprovação.
+        </span>
+    </div>
 
-<form method="post">
-    {% csrf_token %}
-    {{ form.non_field_errors }}
-    {{ form.as_p }}
-    <button type="submit">Enviar para análise</button>
-</form>
+    <section class="request-form-card" aria-labelledby="request-form-title">
+        <header class="request-form-heading">
+            <h2 id="request-form-title">Dados da solicitação</h2>
+            <p>Confira as informações antes de enviar.</p>
+        </header>
 
-<p><a href="{% url 'accounts:dashboard' %}">Voltar ao painel</a></p>
+        <form method="post" class="request-form">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            {{ form.as_p }}
+
+            <div class="request-form-actions">
+                <button class="button button-primary" type="submit">
+                    Enviar para análise
+                </button>
+                <a class="button button-outline" href="{% url 'accounts:inicio' %}">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </section>
+
+    <p class="request-back-link">
+        {% if user.is_authenticated %}
+            <a href="{% url 'accounts:dashboard' %}">Voltar ao painel</a>
+        {% else %}
+            <a href="{% url 'accounts:inicio' %}">Voltar ao início</a>
+        {% endif %}
+    </p>
+</section>
 {% endblock %}
