@@ -34,9 +34,11 @@ Não são exibidos dados internos, como:
     Consulte a situação dos estoques disponíveis nos Hemocentros cadastrados e aprovados no Elo.
 </p>
 
-<form method="get">
+<div class="filtros-estoque">
+<form method="get" class="filtro-estoque">
     {{ form.as_p }}
 
+    <div class="filtro-estoque-acoes">
     <button type="submit">
         Filtrar estoque
     </button>
@@ -44,7 +46,9 @@ Não são exibidos dados internos, como:
     <a href="{% url 'accounts:estoque_publico' %}">
         Limpar filtros
     </a>
+    </div>
 </form>
+</div>
 
 <section>
     <h2>Indicadores</h2>

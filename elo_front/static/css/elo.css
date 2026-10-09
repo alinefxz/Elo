@@ -503,6 +503,124 @@ main button[type="submit"]:hover {
     text-align: center;
 }
 
+/* Conteudo das paginas internas, com margens iguais dos dois lados. */
+main > :where(h1, h2, h3, p, section, form, ul, ol, div):not(.hero):not(.stock-section):not(.info-section):not(.faq-section):not(.messages-wrap):not(.container) {
+    width: min(1280px, calc(100% - 64px));
+    margin-left: auto;
+    margin-right: auto;
+}
+
+main > h1 {
+    margin-top: 32px;
+}
+
+main > section {
+    margin-top: 24px;
+    margin-bottom: 28px;
+}
+
+/* Tabelas compactas e centralizadas, com rolagem quando necessario. */
+main table {
+    display: block;
+    width: fit-content;
+    max-width: min(960px, 100%);
+    margin: 18px auto;
+    overflow-x: auto;
+    border-collapse: collapse;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+main table.tabela-estoque-geral {
+    margin-left: 0;
+    margin-right: auto;
+}
+
+main th,
+main td {
+    padding: 8px 12px;
+    max-width: 260px;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+}
+
+main th {
+    background: var(--soft);
+    text-align: left;
+}
+
+@media (max-width: 520px) {
+    main > :where(h1, h2, h3, p, section, form, ul, ol, div):not(.hero):not(.stock-section):not(.info-section):not(.faq-section):not(.messages-wrap):not(.container) {
+        width: calc(100% - 32px);
+    }
+
+    main th,
+    main td {
+        padding: 6px 8px;
+    }
+}
+
+/* Filtro de estoque: campos proporcionais e alinhados ao conteudo. */
+main form.filtro-estoque {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px 18px;
+    width: 100%;
+    max-width: 860px;
+    margin: 20px 0 28px;
+}
+
+.filtro-estoque p {
+    margin: 0;
+    min-width: 0;
+}
+
+.filtro-estoque label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+main .filtro-estoque input,
+main .filtro-estoque select {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 10px;
+    font-size: 14px;
+}
+
+.filtro-estoque .helptext {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.filtro-estoque-acoes {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+main .filtro-estoque button[type="submit"] {
+    min-height: 40px;
+    padding: 9px 16px;
+    font-size: 14px;
+}
+
+@media (max-width: 720px) {
+    main form.filtro-estoque {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 520px) {
+    main form.filtro-estoque {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* RESPONSIVO */
 
 @media (max-width: 900px) {
