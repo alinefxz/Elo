@@ -1,3 +1,17 @@
+{% comment %}
+Exibe as solicitações de divulgação de pedidos de sangue do usuário.
+
+- Permite filtrar as solicitações pelo status.
+- Apresenta protocolo, título, tipo sanguíneo, cidade e Hemocentro de destino.
+- Exibe o status e a data de criação de cada solicitação.
+- Apresenta informações da última validação registrada, quando disponível.
+- Mostra uma mensagem quando não existem solicitações.
+- Disponibiliza links para enviar uma nova solicitação e retornar ao painel.
+
+Os dados são fornecidos pela view responsável por esta página.
+O template é responsável apenas pela apresentação das informações.
+{% endcomment %}
+
 {% extends "base.html" %}
 
 {% block title %}Minhas solicitações | Elo{% endblock %}

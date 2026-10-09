@@ -1538,7 +1538,6 @@ def atualizar_estoque_view(request, id_estoque):
     return redirect("accounts:estoque_hemocentro")
 
 
-@login_required
 def criar_pedido_sangue(request):
     """
     Recebe uma solicitação de divulgação, sem publicá-la.
@@ -1548,7 +1547,11 @@ def criar_pedido_sangue(request):
     Ao salvar, a solicitacao aguarda analise do Hemocentro.
     """
 
-    if request.user.perfil != Usuario.Perfil.RECEPTOR:
+    if (request.user.is_authenticated
+        and request.user.perfil in {
+            Usuario.Perfil.HEMOCENTRO,
+            Usuario.Perfil.ADMINISTRADOR,
+    }):
         registrar_auditoria(
             acao=AuditoriaAcaoCritica.Acao.MODERACAO,
             resultado=AuditoriaAcaoCritica.Resultado.BLOQUEADO,
@@ -1566,29 +1569,32 @@ def criar_pedido_sangue(request):
     if request.method == "POST":
         form = PedidoSangueForm(request.POST)
 
-        if form.is_valid():
-            try:
-                pedido = criar_pedido_pendente(
-                    dados=form.cleaned_data,
-                    solicitante=(
-                        request.user if request.user.is_authenticated else None
-                    ),
-                )
+        
+    if form.is_valid():
+        try:
+            pedido = criar_pedido_pendente(
+                dados=form.cleaned_data,
+                solicitante=(
+                    request.user if request.user.is_authenticated else None
+                ),
+            )
 
-                mensagem = (
-                    "Solicitação enviada para análise do Hemocentro. "
-                    f"Protocolo {pedido.pk}."
-                )
-                if pedido.duplicidade_suspeita:
-                    mensagem += " Há uma solicitação semelhante; ela será analisada."
-                messages.success(request, mensagem)
+            mensagem = (
+                "Solicitação enviada para análise do Hemocentro. "
+                f"Protocolo {pedido.pk}."
+            )
 
-                if request.user.is_authenticated:
-                    return redirect("accounts:minhas_solicitacoes")
-                return redirect("accounts:consultar_pedidos")
+            if pedido.duplicidade_suspeita:
+                mensagem += " Há uma solicitação semelhante; ela será analisada."
 
-            except ValidationError as erro:
-                form.add_error(None, erro)
+            messages.success(request, mensagem)
+
+            request.session["pedido_registrado_id"] = pedido.pk
+
+            return redirect("accounts:pedido_registrado")
+
+        except ValidationError as erro:
+            form.add_error(None, erro)
 
     else:
         form = PedidoSangueForm()
@@ -1599,6 +1605,28 @@ def criar_pedido_sangue(request):
         {
             "form": form,
         },
+    )
+
+def pedido_registrado(request):
+    """Exibe a confirmação da solicitação recém-criada."""
+
+    pedido_id = request.session.pop(
+        "pedido_registrado_id",
+        None,
+    )
+
+    if not pedido_id:
+        return redirect("accounts:consultar_pedidos")
+
+    pedido = get_object_or_404(
+        PedidoSangue,
+        pk=pedido_id,
+    )
+
+    return render(
+        request,
+        "accounts/pedido_registrado.html",
+        {"pedido": pedido},
     )
 
 

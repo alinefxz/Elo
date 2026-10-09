@@ -17,11 +17,16 @@
     <dd>{{ pedido.tipo_sanguineo }}</dd>
 
     <dt>Hemocentro</dt>
-    <dd>{{ pedido.hemocentro.nome }}</dd>
+    <dd>{{ pedido.hemocentro_destino.nome }}</dd>
 
     <dt>Cidade</dt>
-    <dd>{{ pedido.cidade }}{% if pedido.hemocentro.estado %} - {{ pedido.hemocentro.estado }}{% endif %}</dd>
-
+    <dd>
+        {{ pedido.cidade }}
+        {% if pedido.hemocentro_destino.estado %}
+            - {{ pedido.hemocentro_destino.estado }}
+        {% endif %}
+    </dd>
+    
     <dt>Urgência</dt>
     <dd>{{ pedido.get_urgencia_display }}</dd>
 

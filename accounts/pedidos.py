@@ -1,3 +1,19 @@
+# Este módulo gerencia a publicação oficial de pedidos de sangue e a
+# notificação de doadores compatíveis.
+
+# - Permite a publicação somente por Hemocentros autenticados e aprovados.
+# - Verifica se o pedido pertence ao Hemocentro responsável pela publicação.
+# - Define o status, a data de publicação e os dados institucionais do pedido.
+# - Valida e salva o pedido utilizando transações atômicas.
+# - Registra a publicação no sistema de auditoria.
+# - Identifica doadores compatíveis e aptos para convocação.
+# - Respeita os limites de convocação e evita notificações duplicadas.
+# - Cria notificações em lote com acesso à página de consulta de pedidos.
+
+# O objetivo é garantir que os pedidos sejam publicados institucionalmente,
+# que as notificações sejam direcionadas aos doadores elegíveis e que as
+# ações de publicação fiquem registradas para fins de auditoria.
+
 """Operações de publicação de pedidos de sangue."""
 
 from django.core.exceptions import PermissionDenied
