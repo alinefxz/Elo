@@ -1583,17 +1583,6 @@ def criar_pedido_sangue(request):
                     ),
                 )
 
-                mensagem = (
-                    "Solicitação enviada para análise do Hemocentro. "
-                    f"Protocolo {pedido.pk}."
-                )
-
-                if pedido.duplicidade_suspeita:
-                    mensagem += (
-                        " Há uma solicitação semelhante; ela será analisada."
-                    )
-
-                messages.success(request, mensagem)
                 request.session["pedido_registrado_id"] = pedido.pk
 
                 return redirect("accounts:pedido_registrado")
@@ -1611,10 +1600,9 @@ def criar_pedido_sangue(request):
 def pedido_registrado(request):
     """Exibe a confirmação da solicitação recém-criada."""
 
-    pedido_id = request.session.pop(
-        "pedido_registrado_id",
-        None,
-    )
+    # Mantém o protocolo na sessão para que o visitante possa
+    # consultar novamente a situação enquanto esta sessão estiver ativa.
+    pedido_id = request.session.get("pedido_registrado_id")
 
     if not pedido_id:
         return redirect("accounts:consultar_pedidos")
