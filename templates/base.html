@@ -1,3 +1,4 @@
+{% load static %}
 {% comment %}
 RESUMO DO ARQUIVO
 =================
@@ -17,116 +18,112 @@ A navegacao tambem respeita a particularizacao por perfil:
 <head>
     <meta charset="utf-8">
 
-    <!-- Faz o HTML respeitar a largura do dispositivo. -->
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Elo - sistema de doacao de sangue.">
 
-    <!-- Paginas filhas podem substituir o titulo dentro deste bloco. -->
     <title>{% block title %}Elo{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/elo.css' %}">
 </head>
 <body>
-    <nav>
-        <!-- user vem do context processor de autenticacao em settings.py. -->
-        {% if user.is_authenticated %}
-
-            <!-- Usuario logado volta para o painel, nao para a pagina publica. -->
-            <a href="{% url 'accounts:dashboard' %}">Elo</a>
-
-            <a href="{% url 'accounts:dashboard' %}">Painel</a>
-
-            <a href="{% url 'accounts:inicio' %}">Início</a>
-
-            <a href="{% url 'accounts:compatibilidade_sanguinea' %}">
-                Compatibilidade sanguinea
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="{% url 'accounts:inicio' %}" aria-label="Elo - pagina inicial">
+                <span class="brand-mark" aria-hidden="true"></span>
+                <span class="brand-name">elo</span>
             </a>
 
-            <a href="{% url 'accounts:estoque_publico' %}">
-                Estoques publicos
-            </a>
+            <button class="menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
 
-            {% if user.perfil == "RECEPTOR" %}
-                <a href="{% url 'accounts:pedido_publicar' %}">
-                    Solicitar divulgação de necessidade
-                </a>
-            {% endif %}
+            <nav class="main-nav" aria-label="Navegacao principal">
+                {% if user.is_authenticated %}
+                    <a href="{% url 'accounts:dashboard' %}">Painel</a>
+                    <a href="{% url 'accounts:inicio' %}">Início</a>
+                    <a href="{% url 'accounts:compatibilidade_sanguinea' %}">Compatibilidade sanguinea</a>
+                    <a href="{% url 'accounts:estoque_publico' %}">Estoques publicos</a>
 
-            {% if user.perfil == "HEMOCENTRO" and user.status_validacao == "APROVADO" %}
-                <a href="{% url 'accounts:painel_pedidos_hemocentro' %}">
-                    Analisar solicitações
-                </a>
-            {% endif %}
+                    {% if user.perfil == "RECEPTOR" %}
+                        <a href="{% url 'accounts:pedido_publicar' %}">Solicitar necessidade</a>
+                    {% endif %}
 
-            <!-- Somente Hemocentro aprovado gerencia estoque proprio. -->
-            {% if user.perfil == "HEMOCENTRO" and user.status_validacao == "APROVADO" %}
-                <a href="{% url 'accounts:estoque_hemocentro' %}">
-                    Meu estoque
-                </a>
-            {% endif %}
+                    {% if user.perfil == "HEMOCENTRO" and user.status_validacao == "APROVADO" %}
+                        <a href="{% url 'accounts:painel_pedidos_hemocentro' %}">Analisar solicitações</a>
+                        <a href="{% url 'accounts:estoque_hemocentro' %}">Meu estoque</a>
+                    {% endif %}
 
-            <!-- Administrador valida Hemocentros e pode acessar o admin Django. -->
-            {% if user.is_staff or user.is_superuser or user.perfil == "ADMINISTRADOR" %}
-                <a href="{% url 'accounts:painel_aprovacao_hemocentros' %}">
-                    Validar Hemocentros
-                </a>
+                    {% if user.is_staff or user.is_superuser or user.perfil == "ADMINISTRADOR" %}
+                        <a href="{% url 'accounts:painel_aprovacao_hemocentros' %}">Validar Hemocentros</a>
+                        <a href="{% url 'accounts:painel_validacao_pedidos' %}">Moderar pedidos</a>
+                        <a href="/admin/">Admin</a>
+                    {% endif %}
 
-                <a href="{% url 'accounts:painel_validacao_pedidos' %}">
-                    Moderar pedidos
-                </a>
+                    <span>{{ user.get_short_name }}</span>
 
-                <a href="/admin/">
-                    Admin
-                </a>
-            {% endif %}
-
-            <span>{{ user.get_short_name }}</span>
-
-            <!-- Logout usa POST para impedir encerramento acidental por links.
-                 csrf_token prova que o formulario veio do proprio sistema. -->
-            <form method="post" action="{% url 'accounts:logout' %}">
-                {% csrf_token %}
-                <button type="submit">Sair</button>
-            </form>
-
-        {% else %}
-
-            <!-- Visitante fica na pagina publica. -->
-            <a href="{% url 'accounts:inicio' %}">Elo</a>
-
-            <a href="{% url 'accounts:inicio' %}">
-                Acesso visitante
-            </a>
-
-            <a href="{% url 'accounts:compatibilidade_sanguinea' %}">
-                Compatibilidade sanguinea
-            </a>
-
-            <a href="{% url 'accounts:estoque_publico' %}">
-                Estoques publicos
-            </a>
-
-            <a href="{% url 'accounts:pedido_publicar' %}">
-                Solicitar divulgação de necessidade
-            </a>
-
-            <a href="{% url 'accounts:login' %}">
-                Entrar
-            </a>
-
-            <a href="{% url 'accounts:cadastro' %}">
-                Criar conta
-            </a>
-
-        {% endif %}
-    </nav>
+                    <form method="post" action="{% url 'accounts:logout' %}">
+                        {% csrf_token %}
+                        <button type="submit">Sair</button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'accounts:inicio' %}#sobre">Sobre o elo</a>
+                    <a href="{% url 'accounts:compatibilidade_sanguinea' %}">Compatibilidade sanguinea</a>
+                    <a href="{% url 'accounts:estoque_publico' %}">Estoques publicos</a>
+                    <a href="{% url 'accounts:pedido_publicar' %}">Solicitar necessidade</a>
+                    <a href="{% url 'accounts:login' %}">Entrar</a>
+                    <a class="nav-cta" href="{% url 'accounts:cadastro' %}">Criar conta</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
 
     <main>
-        <!-- messages recebe avisos criados com django.contrib.messages.
-             Cada mensagem e exibida uma vez e removida da sessao. -->
-        {% for message in messages %}
-            <p>{{ message }}</p>
-        {% endfor %}
+        {% if messages %}
+            <div class="messages-wrap">
+                {% for message in messages %}
+                    <div class="message message-{{ message.tags|default:'info' }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
 
-        <!-- Cada pagina filha coloca aqui seu conteudo principal. -->
         {% block content %}{% endblock %}
     </main>
+
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <a class="brand brand-footer" href="{% url 'accounts:inicio' %}">
+                <span class="brand-mark" aria-hidden="true"></span>
+                <span class="brand-name">elo</span>
+            </a>
+
+            <p>Conectando pessoas, hemocentros e vidas.</p>
+
+            <div class="footer-links">
+                <a href="{% url 'accounts:inicio' %}#sobre">Sobre o elo</a>
+                <a href="{% url 'accounts:triagem_apresentacao' %}">Como doar</a>
+                <a href="{% url 'accounts:estoque_publico' %}">Estoques</a>
+                {% if user.is_authenticated %}
+                    <a href="{% url 'accounts:dashboard' %}">Meu painel</a>
+                {% else %}
+                    <a href="{% url 'accounts:login' %}">Entrar</a>
+                {% endif %}
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        const menuToggle = document.querySelector(".menu-toggle");
+        const mainNav = document.querySelector(".main-nav");
+
+        if (menuToggle && mainNav) {
+            menuToggle.addEventListener("click", () => {
+                const opened = mainNav.classList.toggle("is-open");
+                menuToggle.setAttribute("aria-expanded", opened ? "true" : "false");
+            });
+        }
+    </script>
 </body>
 </html>

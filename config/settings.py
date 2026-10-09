@@ -188,6 +188,11 @@ CONVOCACAO_VERSAO_CONSENTIMENTO = "1.0"
 # Prefixo de URL reservado para futuros arquivos CSS, JS e imagens.
 STATIC_URL = "static/"
 
+# Arquivos visuais preparados no pacote de front-end do projeto.
+STATICFILES_DIRS = [
+    BASE_DIR / "elo_front" / "static",
+]
+
 # Enquanto nao existe servidor de e-mail, qualquer mensagem enviada pelo Django
 # aparece no terminal. Isso evita disparos reais durante o desenvolvimento.
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
