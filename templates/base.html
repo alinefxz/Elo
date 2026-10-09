@@ -23,12 +23,13 @@ A navegacao tambem respeita a particularizacao por perfil:
 
     <title>{% block title %}Elo{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/elo.css' %}">
+    <link rel="icon" type="image/png" href="{% static 'css/favicon.png' %}">
 </head>
 <body>
     <header class="site-header">
         <div class="header-inner">
             <a class="brand" href="{% url 'accounts:inicio' %}" aria-label="Elo - pagina inicial">
-                <span class="brand-mark" aria-hidden="true"></span>
+                <img class="brand-mark" src="{% static 'css/favicon.png' %}" alt="" aria-hidden="true">
                 <span class="brand-name">elo</span>
             </a>
 
@@ -95,7 +96,6 @@ A navegacao tambem respeita a particularizacao por perfil:
     <footer class="site-footer">
         <div class="footer-inner">
             <a class="brand brand-footer" href="{% url 'accounts:inicio' %}">
-                <span class="brand-mark" aria-hidden="true"></span>
                 <span class="brand-name">elo</span>
             </a>
 
