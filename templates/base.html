@@ -47,7 +47,7 @@ A navegacao tambem respeita a particularizacao por perfil:
                     <a href="{% url 'accounts:estoque_publico' %}">Estoques publicos</a>
 
                     {% if user.perfil == "RECEPTOR" %}
-                        <a href="{% url 'accounts:pedido_publicar' %}">Solicitar necessidade</a>
+                        <a href="{% url 'accounts:pedido_publicar' %}">Solicitar pedido de sangue</a>
                     {% endif %}
 
                     {% if user.perfil == "HEMOCENTRO" and user.status_validacao == "APROVADO" %}
@@ -71,7 +71,7 @@ A navegacao tambem respeita a particularizacao por perfil:
                     <a href="{% url 'accounts:inicio' %}#sobre">Sobre o elo</a>
                     <a href="{% url 'accounts:compatibilidade_sanguinea' %}">Compatibilidade sanguinea</a>
                     <a href="{% url 'accounts:estoque_publico' %}">Estoques publicos</a>
-                    <a href="{% url 'accounts:pedido_publicar' %}">Solicitar necessidade</a>
+                    <a href="{% url 'accounts:pedido_publicar' %}">Solicitar pedido de sangue</a>
                     <a href="{% url 'accounts:login' %}">Entrar</a>
                     <a class="nav-cta" href="{% url 'accounts:cadastro' %}">Criar conta</a>
                 {% endif %}
