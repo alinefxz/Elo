@@ -1,0 +1,6 @@
+{% include "django/forms/widgets/input.html" %}
+<datalist id="{{ widget.attrs.list }}">
+    {% for cidade, estado in widget.cidades %}
+        <option value="{{ cidade }}" data-uf="{{ estado }}">{{ estado }}</option>
+    {% endfor %}
+</datalist>

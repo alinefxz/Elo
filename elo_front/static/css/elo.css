@@ -504,7 +504,7 @@ main button[type="submit"]:hover {
 }
 
 /* Conteudo das paginas internas, com margens iguais dos dois lados. */
-main > :where(h1, h2, h3, p, section, form, ul, ol, div):not(.hero):not(.stock-section):not(.info-section):not(.faq-section):not(.messages-wrap):not(.container) {
+main > :where(h1, h2, h3, p, section, form, ul, ol, div):not(:where(.hero, .stock-section, .info-section, .faq-section, .messages-wrap, .container)) {
     width: min(1280px, calc(100% - 64px));
     margin-left: auto;
     margin-right: auto;
@@ -550,7 +550,7 @@ main th {
 }
 
 @media (max-width: 520px) {
-    main > :where(h1, h2, h3, p, section, form, ul, ol, div):not(.hero):not(.stock-section):not(.info-section):not(.faq-section):not(.messages-wrap):not(.container) {
+    main > :where(h1, h2, h3, p, section, form, ul, ol, div):not(:where(.hero, .stock-section, .info-section, .faq-section, .messages-wrap, .container)) {
         width: calc(100% - 32px);
     }
 
@@ -618,6 +618,322 @@ main .filtro-estoque button[type="submit"] {
 @media (max-width: 520px) {
     main form.filtro-estoque {
         grid-template-columns: 1fr;
+    }
+}
+
+/* Alinhamento exclusivo da pagina de compatibilidade sanguinea. */
+.compatibilidade-pagina {
+    padding-top: 28px;
+    padding-bottom: 32px;
+}
+
+.compatibilidade-pagina h1 {
+    margin-top: 0;
+}
+
+.compatibilidade-pagina > section {
+    margin-top: 28px;
+}
+
+main .compatibilidade-consulta {
+    display: grid;
+    grid-template-columns: minmax(180px, 260px) auto;
+    align-items: end;
+    justify-content: start;
+    gap: 8px 12px;
+    margin: 0;
+}
+
+.compatibilidade-consulta label {
+    grid-column: 1 / -1;
+}
+
+main .compatibilidade-consulta select {
+    width: 100%;
+    min-height: 48px;
+}
+
+.compatibilidade-resultado {
+    margin-top: 24px;
+}
+
+.compatibilidade-resultado h3,
+.compatibilidade-resultado p {
+    margin: 0 0 10px;
+}
+
+.compatibilidade-tabela-area {
+    width: 960px;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+main .compatibilidade-tabela {
+    display: table;
+    width: 100%;
+    min-width: 600px;
+    max-width: none;
+    margin: 0;
+}
+
+.compatibilidade-tabela caption {
+    text-align: left;
+    padding-bottom: 10px;
+}
+
+.compatibilidade-tabela th,
+.compatibilidade-tabela td {
+    vertical-align: middle;
+}
+
+.compatibilidade-pagina ul {
+    padding-left: 22px;
+}
+
+@media (max-width: 520px) {
+    main .compatibilidade-consulta {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .compatibilidade-consulta button {
+        justify-self: start;
+    }
+}
+
+/* Central, sino e avisos de notificacoes. */
+.header-inner:has(.notificacoes-widget) {
+    gap: 16px;
+}
+
+.header-inner:has(.notificacoes-widget) .main-nav {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px 16px;
+}
+
+.notificacoes-widget {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.notificacoes-sino {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--white);
+    color: var(--text);
+    list-style: none;
+    cursor: pointer;
+}
+
+.notificacoes-sino::-webkit-details-marker {
+    display: none;
+}
+
+.notificacoes-sino.tem-nao-lidas {
+    color: var(--red);
+    background: #fff0f2;
+    border-color: #e9a6af;
+}
+
+.notificacoes-sino:focus-visible,
+.notificacoes-widget a:focus-visible,
+.notificacoes-widget button:focus-visible {
+    outline: 3px solid var(--red);
+    outline-offset: 3px;
+}
+
+.notificacoes-contador {
+    position: absolute;
+    top: -6px;
+    right: -8px;
+    min-width: 22px;
+    padding: 1px 5px;
+    border-radius: 12px;
+    background: var(--red);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.notificacoes-painel {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    z-index: 60;
+    width: min(390px, calc(100vw - 32px));
+    max-height: min(70vh, 620px);
+    overflow-y: auto;
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 16px;
+    text-align: left;
+}
+
+.notificacoes-cabecalho,
+.notificacao-acoes,
+.notificacoes-paginacao {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+}
+
+.notificacoes-widget a,
+.central-notificacoes .notificacao-acoes a,
+.notificacoes-toast a {
+    color: var(--red);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.notificacoes-status,
+.notificacoes-erro {
+    font-size: 13px;
+    margin: 8px 0;
+}
+
+.notificacoes-lista,
+.central-notificacoes-lista {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.notificacao-item {
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    margin: 10px 0;
+    overflow-wrap: anywhere;
+}
+
+.notificacao-item.nao-lida {
+    border-left: 4px solid var(--red);
+    background: #fff7f8;
+}
+
+.notificacao-item time {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.notificacao-item p {
+    margin: 8px 0;
+    font-size: 14px;
+}
+
+.notificacao-item h2 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.notificacao-estado {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.notificacao-acoes form {
+    margin: 0;
+}
+
+.notificacao-acoes button,
+main .notificacao-acoes button[type="submit"] {
+    border: 1px solid var(--red);
+    border-radius: 5px;
+    background: var(--white);
+    color: var(--red);
+    min-height: 36px;
+    padding: 6px 10px;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.notificacao-acoes button:disabled {
+    opacity: .6;
+    cursor: wait;
+}
+
+.notificacoes-vazio {
+    padding: 18px 4px;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.central-notificacoes {
+    padding-top: 28px;
+    padding-bottom: 36px;
+}
+
+.central-notificacoes-lista,
+.notificacoes-paginacao {
+    max-width: 860px;
+}
+
+.notificacoes-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 80;
+    width: min(360px, calc(100vw - 32px));
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-left: 5px solid var(--red);
+    border-radius: 9px;
+    background: white;
+    color: var(--text);
+    box-shadow: var(--shadow);
+    overflow-wrap: anywhere;
+}
+
+.notificacoes-toast p {
+    margin: 8px 0;
+    font-size: 14px;
+}
+
+.notificacoes-toast button {
+    margin-left: 14px;
+    padding: 6px 8px;
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.notificacoes-toast[hidden],
+.notificacoes-contador[hidden],
+.notificacoes-erro[hidden] {
+    display: none;
+}
+
+@media (max-width: 520px) {
+    .notificacoes-painel {
+        position: fixed;
+        top: 92px;
+        left: 16px;
+        right: 16px;
+        width: auto;
+        max-height: calc(100vh - 116px);
+    }
+
+    .notificacoes-toast {
+        right: 16px;
+        bottom: 16px;
     }
 }
 
@@ -766,14 +1082,200 @@ main .filtro-estoque button[type="submit"] {
     }
 }
 
-body.page-login {
+/* Manutencao de layout: formularios fluidos e rodape ao fim da tela. */
+body {
     min-height: 100vh;
+    min-height: 100svh;
     display: flex;
     flex-direction: column;
 }
 
-body.page-login main {
+body > main {
     flex: 1;
+    min-width: 0;
+}
+
+.site-header,
+.site-footer {
+    flex-shrink: 0;
+}
+
+/* A mesma margem do titulo, sem centralizar o formulario separadamente. */
+main > form:not(.plain-form) {
+    width: min(760px, calc(100% - 64px));
+    margin-left: max(32px, calc((100% - 1280px) / 2));
+    margin-right: 0;
+    margin-bottom: 28px;
+}
+
+main form input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="submit"]):not([type="button"]),
+main form select,
+main form textarea {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+
+main form textarea {
+    resize: vertical;
+    min-height: 104px;
+}
+
+main form label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+main form label:has(input[type="checkbox"]),
+main form label:has(input[type="radio"]) {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-weight: 400;
+}
+
+main form input[type="checkbox"],
+main form input[type="radio"] {
+    flex-shrink: 0;
+    margin: 5px 0 0;
+    accent-color: var(--red);
+}
+
+main form > p,
+main form > div:has(> input),
+main form > div:has(> select),
+main form > div:has(> textarea) {
+    margin-top: 0;
+    margin-bottom: 18px;
+}
+
+main form small,
+main form .helptext {
+    display: block;
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* Checkbox separado do label no cadastro, com texto e ajuda alinhados. */
+main form p:has(> input[type="checkbox"]):has(> label) {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr);
+    column-gap: 8px;
+}
+
+main form p:has(> input[type="checkbox"]) > input[type="checkbox"] {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+main form p:has(> input[type="checkbox"]) > label {
+    grid-column: 2;
+    grid-row: 1;
+    font-weight: 400;
+}
+
+main form p:has(> input[type="checkbox"]) > small,
+main form p:has(> input[type="checkbox"]) > .errorlist {
+    grid-column: 2;
+}
+
+/* Mantem os componentes que ja possuem layout proprio. */
+main .filtro-estoque > p {
+    margin: 0;
+}
+
+main .filtro-estoque label {
+    margin-bottom: 5px;
+}
+
+main .compatibilidade-consulta label {
+    margin-bottom: 0;
+}
+
+main .notificacao-acoes form {
+    margin: 0;
+}
+
+/* Formularios e historicos dos estoques ficam separados por tipo. */
+.estoques-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+    gap: 24px;
+    margin: 20px 0 32px;
+}
+
+.estoque-card {
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+}
+
+.estoque-card h3 {
+    margin-top: 0;
+}
+
+.estoque-hemocentro > section {
+    margin-bottom: 32px;
+}
+
+main > section > table {
+    margin-left: 0;
+    margin-right: auto;
+}
+
+/* Acoes secundarias da triagem, sem mudar o comportamento dos botoes. */
+main button[type="submit"][name="acao"][value="anterior"],
+main button[type="submit"][name="acao"][value="salvar"] {
+    color: var(--red);
+    background: var(--white);
+    border: 1px solid var(--red);
+    margin: 0 8px 8px 0;
+}
+
+main button[type="submit"][name="acao"][value="anterior"]:hover,
+main button[type="submit"][name="acao"][value="salvar"]:hover {
+    background: #fff5f6;
+}
+
+main a:not(.button) {
+    color: var(--red);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.main-nav form button {
+    min-height: 40px;
+    padding: 8px 14px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: var(--soft);
+    color: var(--text);
+    cursor: pointer;
+}
+
+@media (min-width: 901px) and (max-width: 1100px) {
+    .header-inner {
+        gap: 20px;
     }
+
+    .main-nav {
+        gap: 18px;
+    }
+}
+
+@media (max-width: 520px) {
+    main > form:not(.plain-form) {
+        width: calc(100% - 32px);
+        margin-left: 16px;
+    }
+
+    .estoque-card {
+        padding: 16px;
+    }
+}
 
 

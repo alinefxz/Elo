@@ -1331,6 +1331,7 @@ def visualizacao_publica_estoque(request):
     if form.is_valid():
         tipo = form.cleaned_data.get("tipo_sanguineo")
         cidade = (form.cleaned_data.get("cidade") or "").strip().lower()
+        estado = form.cleaned_data.get("estado")
         hemocentro = (form.cleaned_data.get("hemocentro") or "").strip().lower()
         situacao = form.cleaned_data.get("situacao")
         busca = (form.cleaned_data.get("busca") or "").strip().lower()
@@ -1340,6 +1341,9 @@ def visualizacao_publica_estoque(request):
                 estoque for estoque in estoques
                 if estoque["tipo_sanguineo"] == tipo
             ]
+
+        if estado:
+            estoques = [estoque for estoque in estoques if estoque["estado"].upper() == estado]
 
         if cidade:
             estoques = [
@@ -1731,6 +1735,7 @@ def consultar_pedidos(request):
         tipo = form.cleaned_data.get("tipo_sanguineo")
         urgencia = form.cleaned_data.get("urgencia")
         cidade = form.cleaned_data.get("cidade")
+        estado = form.cleaned_data.get("estado")
         hemocentro = form.cleaned_data.get("hemocentro")
         data = form.cleaned_data.get("data")
         status = form.cleaned_data.get("status")
@@ -1742,6 +1747,9 @@ def consultar_pedidos(request):
 
         if tipo:
             pedidos = pedidos.filter(tipo_sanguineo=tipo)
+
+        if estado:
+            pedidos = pedidos.filter(hemocentro_destino__estado__iexact=estado)
 
         if urgencia:
             pedidos = pedidos.filter(urgencia=urgencia)

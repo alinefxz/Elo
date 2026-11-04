@@ -100,6 +100,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 # Disponibiliza a lista messages no HTML.
                 "django.contrib.messages.context_processors.messages",
+                "accounts.notificacoes.contexto_sino",
             ],
         },
     },

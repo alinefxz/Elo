@@ -559,11 +559,11 @@ class CentralNotificacoesTests(TestCase):
         self.client.post(self.url, dados)
         self.aviso.refresh_from_db()
         self.assertEqual(self.aviso.lida_em, data_leitura)
-        pagina = self.client.get(self.url)
+        pagina = self.client.get(reverse('accounts:notificacoes'))
         self.assertContains(pagina, 'Estoque urgente')
         self.assertContains(pagina, 'Ver estoque')
         self.assertContains(pagina, 'Lida')
-        self.assertEqual(pagina.context['notificacoes_nao_lidas'], 0)
+        self.assertEqual(pagina.context['sino_notificacoes']['nao_lidas'], 0)
 
     def test_nao_permite_marcar_notificacao_de_outro_usuario(self):
         aviso = Notificacao.objects.create(usuario=self.outro, titulo='Privada', mensagem='Privada')
@@ -577,10 +577,10 @@ class CentralNotificacoesTests(TestCase):
     def test_historico_paginado_mostra_notificacoes_mais_antigas(self):
         for numero in range(11):
             Notificacao.objects.create(usuario=self.usuario, titulo=f'Aviso {numero}', mensagem='Aviso')
-        pagina = self.client.get(self.url)
-        self.assertEqual(len(pagina.context['notificacoes_dashboard']), 10)
+        pagina = self.client.get(reverse('accounts:notificacoes'))
+        self.assertEqual(len(pagina.context['pagina_notificacoes']), 10)
         self.assertContains(pagina, 'Próxima')
-        self.assertContains(self.client.get(self.url, {'pagina_notificacoes': 2}), 'Estoque urgente')
+        self.assertContains(self.client.get(reverse('accounts:notificacoes'), {'pagina': 2}), 'Estoque urgente')
 
     def test_identificador_invalido_e_anonimo_nao_marcam_leitura(self):
         self.assertEqual(self.client.post(self.url, {

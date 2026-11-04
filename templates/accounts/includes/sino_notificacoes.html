@@ -1,0 +1,45 @@
+<div class="notificacoes-widget" data-notificacoes
+     data-atualizacoes="{% url 'accounts:notificacoes_atualizacoes' %}"
+     data-central="{% url 'accounts:notificacoes' %}"
+     data-usuario="{{ user.pk }}" data-ultimo-id="{{ sino_notificacoes.ultimo_id }}">
+    <form hidden aria-hidden="true">{% csrf_token %}</form>
+    <details class="notificacoes-menu">
+        <summary class="notificacoes-sino{% if sino_notificacoes.nao_lidas %} tem-nao-lidas{% endif %}"
+                 aria-label="Notificações: {{ sino_notificacoes.nao_lidas }} não lidas">
+            <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z" stroke-linejoin="round"/>
+                <path d="M10 21h4" stroke-linecap="round"/>
+            </svg>
+            <span class="notificacoes-contador" {% if not sino_notificacoes.nao_lidas %}hidden{% endif %}>{{ sino_notificacoes.nao_lidas }}</span>
+        </summary>
+        <div class="notificacoes-painel" aria-label="Lista rápida de notificações">
+            <div class="notificacoes-cabecalho">
+                <strong>Notificações</strong>
+                <a href="{% url 'accounts:notificacoes' %}">Ver todas</a>
+            </div>
+            <p class="notificacoes-status" aria-live="polite">{{ sino_notificacoes.nao_lidas }} não lida(s)</p>
+            <ul class="notificacoes-lista">
+                {% for aviso in sino_notificacoes.itens %}
+                    <li class="notificacao-item{% if not aviso.lida %} nao-lida{% endif %}">
+                        <strong>{{ aviso.titulo }}</strong>
+                        <time datetime="{{ aviso.data_iso }}">{{ aviso.data }}</time>
+                        <p>{{ aviso.mensagem }}</p>
+                        <span class="notificacao-estado">{% if aviso.lida %}Lida{% else %}Não lida{% endif %}</span>
+                        <div class="notificacao-acoes">
+                            {% if aviso.url %}<a href="{{ aviso.url }}">{{ aviso.acao }}</a>{% endif %}
+                            {% if not aviso.lida %}
+                                <form method="post" action="{{ aviso.url_leitura }}" class="notificacao-ler">
+                                    {% csrf_token %}
+                                    <button type="submit">Marcar como lida</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </li>
+                {% empty %}
+                    <li class="notificacoes-vazio">Você ainda não tem notificações.</li>
+                {% endfor %}
+            </ul>
+            <p class="notificacoes-erro" role="status" hidden></p>
+        </div>
+    </details>
+</div>

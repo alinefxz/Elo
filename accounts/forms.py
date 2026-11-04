@@ -20,6 +20,7 @@ from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 
 from .compatibilidade import TIPOS_SANGUINEOS
 from .models import EstoqueMovimentacao, PedidoSangue, Usuario
+from .localidades import ESTADOS, CidadeSugeridaInput, configurar_cidades_filtro
 
 
 def apenas_digitos(valor):
@@ -29,6 +30,16 @@ def apenas_digitos(valor):
 
 class CadastroUsuarioForm(UserCreationForm):
     """Formulario publico utilizado para criar contas."""
+
+    estado = forms.ChoiceField(
+        label="Estado (UF)", required=False,
+        choices=[('', 'Selecione o estado')] + [(uf, f'{nome} ({uf})') for uf, nome in ESTADOS],
+    )
+    cidade = forms.CharField(
+        label="Cidade", required=False, max_length=100,
+        help_text="Selecione uma sugestão ou digite sua cidade. Pessoas de outras regiões também podem participar.",
+        widget=CidadeSugeridaInput(attrs={'list': 'cidades-cadastro', 'autocomplete': 'address-level2'}),
+    )
 
     cpf = forms.CharField(
         label="CPF",
@@ -108,8 +119,8 @@ class CadastroUsuarioForm(UserCreationForm):
             "telefone",
             "data_nascimento",
             "sexo",
-            "cidade",
             "estado",
+            "cidade",
             "password1",
             "password2",
             "aceite_lgpd",
@@ -715,6 +726,13 @@ class FiltroPedidoSangueForm(forms.Form):
     - data.
     """
 
+    estado = forms.ChoiceField(label="Estado (UF)", required=False,
+        choices=[('', 'Todos os estados')] + [(uf, f'{nome} ({uf})') for uf, nome in ESTADOS])
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        configurar_cidades_filtro(self, 'pedidos')
+
     tipo_sanguineo = forms.ChoiceField(
         label="Tipo sanguineo",
         required=False,
@@ -758,6 +776,13 @@ class FiltroEstoquePublicoForm(forms.Form):
     A situação usa os códigos calculados pelo sistema. Os níveis mínimo e
     crítico continuam ocultos, pois são parâmetros internos do Hemocentro.
     """
+
+    estado = forms.ChoiceField(label="Estado (UF)", required=False,
+        choices=[('', 'Todos os estados')] + [(uf, f'{nome} ({uf})') for uf, nome in ESTADOS])
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        configurar_cidades_filtro(self, 'estoque')
 
     tipo_sanguineo = forms.ChoiceField(
         label="Tipo sanguíneo",

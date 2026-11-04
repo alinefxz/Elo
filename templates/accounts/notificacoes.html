@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Notificações | Elo{% endblock %}
+{% block content %}
+<div class="central-notificacoes">
+    <h1>Notificações</h1>
+    <p>Seus avisos e o histórico de leitura. Novos avisos também aparecem no sino.</p>
+    <ul class="central-notificacoes-lista">
+        {% for aviso in pagina_notificacoes %}
+            <li class="notificacao-item{% if not aviso.lida %} nao-lida{% endif %}">
+                <h2>{{ aviso.titulo }}</h2>
+                <time datetime="{{ aviso.criada_em|date:'c' }}">{{ aviso.criada_em|date:"d/m/Y H:i" }}</time>
+                <span>{{ aviso.get_tipo_display }}</span>
+                <p>{{ aviso.mensagem }}</p>
+                <span class="notificacao-estado">{% if aviso.lida %}Lida{% else %}Não lida{% endif %}</span>
+                <div class="notificacao-acoes">
+                    {% if aviso.url_acao %}<a href="{{ aviso.url_acao }}">{{ aviso.rotulo_acao }}</a>{% endif %}
+                    {% if not aviso.lida %}
+                        <form method="post" action="{% url 'accounts:notificacao_ler' aviso.pk %}">
+                            {% csrf_token %}
+                            <button type="submit">Marcar como lida</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </li>
+        {% empty %}
+            <li class="notificacoes-vazio">Você ainda não tem notificações.</li>
+        {% endfor %}
+    </ul>
+    {% if pagina_notificacoes.has_other_pages %}
+        <nav class="notificacoes-paginacao" aria-label="Páginas de notificações">
+            {% if pagina_notificacoes.has_previous %}<a href="?pagina={{ pagina_notificacoes.previous_page_number }}">Anterior</a>{% endif %}
+            <span>Página {{ pagina_notificacoes.number }} de {{ pagina_notificacoes.paginator.num_pages }}</span>
+            {% if pagina_notificacoes.has_next %}<a href="?pagina={{ pagina_notificacoes.next_page_number }}">Próxima</a>{% endif %}
+        </nav>
+    {% endif %}
+</div>
+{% endblock %}

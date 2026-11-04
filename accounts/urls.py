@@ -13,6 +13,7 @@ from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import path
 
 from . import views
+from . import notificacoes
 from .forms import LoginUsuarioForm
 
 
@@ -20,6 +21,9 @@ app_name = "accounts"
 
 
 urlpatterns = [
+    path('notificacoes/', notificacoes.central, name='notificacoes'),
+    path('notificacoes/atualizacoes/', notificacoes.atualizacoes, name='notificacoes_atualizacoes'),
+    path('notificacoes/<int:id_notificacao>/ler/', notificacoes.marcar_lida, name='notificacao_ler'),
 
     # ==========================================================
     # ACESSO PUBLICO

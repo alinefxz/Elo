@@ -3,6 +3,7 @@
 {% block title %}Compatibilidade sanguinea | Elo{% endblock %}
 
 {% block content %}
+<div class="compatibilidade-pagina">
 <h1>Compatibilidade sanguinea</h1>
 
 <p>
@@ -13,7 +14,7 @@
 <section>
     <h2>Consultar por tipo</h2>
 
-    <form method="get">
+    <form method="get" class="compatibilidade-consulta">
         <label for="tipo">Tipo sanguineo</label>
         <select id="tipo" name="tipo">
             <option value="">Selecione um tipo</option>
@@ -31,16 +32,19 @@
     {% endif %}
 
     {% if compatibilidade_selecionada %}
+        <div class="compatibilidade-resultado">
         <h3>Resultado para {{ compatibilidade_selecionada.tipo }}</h3>
         <p><strong>Pode doar para:</strong> {{ compatibilidade_selecionada.doar_para|join:", " }}</p>
         <p><strong>Pode receber de:</strong> {{ compatibilidade_selecionada.receber_de|join:", " }}</p>
+        </div>
     {% endif %}
 </section>
 
 <section>
     <h2>Tabela de compatibilidade</h2>
 
-    <table border="1" cellpadding="12" cellspacing="0" width="100%">
+    <div class="compatibilidade-tabela-area">
+    <table class="compatibilidade-tabela" border="1" cellpadding="12" cellspacing="0" width="100%">
         <caption>
             Compatibilidade sanguinea considerando sistema ABO e fator Rh
         </caption>
@@ -65,6 +69,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 </section>
 
 <section>
@@ -76,4 +81,5 @@
         <li>A compatibilidade real deve sempre ser confirmada por profissionais de saude e exames laboratoriais.</li>
     </ul>
 </section>
+</div>
 {% endblock %}
