@@ -13,22 +13,17 @@ O formulario de cadastro:
 """
 
 import re
-import json
 from datetime import date
 
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.core.exceptions import ValidationError
+from django.urls import reverse_lazy
 
 from .compatibilidade import TIPOS_SANGUINEOS
-from .localidades import (
-    CIDADES_POR_ESTADO,
-    ESTADOS_CHOICES,
-    cidades_choices,
-    validar_localidade,
-)
 from .models import EstoqueMovimentacao, PedidoSangue, Usuario
 from .localidades import ESTADOS, CidadeSugeridaInput, configurar_cidades_filtro
+from .localidades import CIDADES_POR_ESTADO, validar_localidade
 
 
 def apenas_digitos(valor):
@@ -40,26 +35,16 @@ class CadastroUsuarioForm(UserCreationForm):
     """Formulario publico utilizado para criar contas."""
 
     estado = forms.ChoiceField(
-<<<<<<< HEAD
         label="Estado (UF)", required=False,
         choices=[('', 'Selecione o estado')] + [(uf, f'{nome} ({uf})') for uf, nome in ESTADOS],
     )
     cidade = forms.CharField(
         label="Cidade", required=False, max_length=100,
-        help_text="Selecione uma sugestão ou digite sua cidade. Pessoas de outras regiões também podem participar.",
-        widget=CidadeSugeridaInput(attrs={'list': 'cidades-cadastro', 'autocomplete': 'address-level2'}),
-=======
-        label="Estado (UF)",
-        required=False,
-        choices=[("", "Selecione uma UF")] + ESTADOS_CHOICES,
-    )
-
-    cidade = forms.ChoiceField(
-        label="Cidade",
-        required=False,
-        choices=(),
-        widget=forms.Select(attrs={"data-estado": "estado"}),
->>>>>>> fix/unboundlocal-form-pedido-2026-10-09
+        help_text="Selecione o estado e busque seu município nas sugestões do IBGE.",
+        widget=CidadeSugeridaInput(attrs={
+            'list': 'cidades-cadastro', 'autocomplete': 'address-level2',
+            'data-municipios-url': reverse_lazy('accounts:localidades_cidades'),
+        }),
     )
 
     cpf = forms.CharField(
@@ -180,15 +165,6 @@ class CadastroUsuarioForm(UserCreationForm):
         )
 
         self.fields["password2"].label = "Confirme a senha"
-        self._configurar_cidades()
-
-    def _configurar_cidades(self):
-        estado = self.data.get("estado") if self.is_bound else self.initial.get("estado")
-        self.fields["cidade"].choices = cidades_choices(estado)
-        self.fields["cidade"].widget.attrs["data-cidades-por-estado"] = json.dumps(
-            {uf: list(cidades) for uf, cidades in CIDADES_POR_ESTADO.items()},
-            ensure_ascii=False,
-        )
 
     def clean_nome(self):
         """Remove espacos desnecessarios do nome."""
@@ -277,6 +253,11 @@ class CadastroUsuarioForm(UserCreationForm):
         dados = super().clean()
 
         perfil = dados.get("perfil")
+        if dados.get("estado") or dados.get("cidade"):
+            try:
+                validar_localidade(dados.get("estado"), dados.get("cidade"))
+            except ValidationError as erro:
+                self.add_error("cidade", erro)
         if perfil != Usuario.Perfil.DOADOR:
             dados["aceita_notificacoes_pedidos"] = False
         cpf = dados.get("cpf")
@@ -323,13 +304,6 @@ class CadastroUsuarioForm(UserCreationForm):
                 "cpf" if cpf else "cnpj",
                 "Observador não precisa informar CPF ou CNPJ.",
             )
-
-        cidade = dados.get("cidade")
-        estado = dados.get("estado")
-        try:
-            validar_localidade(estado, cidade)
-        except ValidationError as erro:
-            self.add_error("cidade", erro)
 
         return dados
 
@@ -615,14 +589,17 @@ class PedidoSangueForm(forms.ModelForm):
 
     estado = forms.ChoiceField(
         label="Estado (UF)",
-        required=False,
-        choices=[("", "Selecione uma UF")] + ESTADOS_CHOICES,
+        required=True,
+        choices=[("", "Selecione uma UF")] + [(uf, f"{nome} ({uf})") for uf, nome in ESTADOS],
     )
 
-    cidade = forms.ChoiceField(
+    cidade = forms.CharField(
         label="Cidade",
-        choices=(),
-        widget=forms.Select(attrs={"data-estado": "estado"}),
+        max_length=100,
+        widget=CidadeSugeridaInput(attrs={
+            "list": "cidades-pedido", "autocomplete": "address-level2",
+            "data-municipios-url": reverse_lazy("accounts:localidades_cidades"),
+        }),
     )
 
     contato = forms.EmailField(
@@ -683,6 +660,14 @@ class PedidoSangueForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         # Somente Hemocentros aprovados podem ser escolhidos como destino.
+        if self.is_bound and not self.data.get(self.add_prefix("estado")):
+            # Mantém os envios antigos sem UF quando o nome identifica um
+            # único município no catálogo oficial. Nomes ambíguos exigem UF.
+            cidade = (self.data.get(self.add_prefix("cidade")) or "").strip()
+            estados = [uf for uf, cidades in CIDADES_POR_ESTADO.items() if cidade in cidades]
+            if len(estados) == 1:
+                self.data = self.data.copy()
+                self.data[self.add_prefix("estado")] = estados[0]
         self.fields["hemocentro_destino"].queryset = (
             Usuario.objects.filter(
                 perfil=Usuario.Perfil.HEMOCENTRO,
@@ -707,12 +692,6 @@ class PedidoSangueForm(forms.ModelForm):
                     if valor not in ("", None)
                 ]
 
-        estado = self.data.get("estado") if self.is_bound else self.initial.get("estado")
-        self.fields["cidade"].choices = cidades_choices(estado)
-        self.fields["cidade"].widget.attrs["data-cidades-por-estado"] = json.dumps(
-            {uf: list(cidades) for uf, cidades in CIDADES_POR_ESTADO.items()},
-            ensure_ascii=False,
-        )
 
     def clean_nome_paciente(self):
         return (self.cleaned_data.get("nome_paciente") or "").strip()
@@ -756,10 +735,11 @@ class PedidoSangueForm(forms.ModelForm):
     def clean(self):
         dados = super().clean()
 
-        try:
-            validar_localidade(dados.get("estado"), dados.get("cidade"))
-        except ValidationError as erro:
-            self.add_error("cidade", erro)
+        if dados.get("estado") and dados.get("cidade"):
+            try:
+                validar_localidade(dados["estado"], dados["cidade"])
+            except ValidationError as erro:
+                self.add_error("cidade", erro)
 
         urgencia = dados.get("urgencia")
         justificativa = (

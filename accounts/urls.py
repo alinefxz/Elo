@@ -14,6 +14,8 @@ from django.urls import path
 
 from . import views
 from . import notificacoes
+from . import perfil_views
+from . import localidade_views
 from .forms import LoginUsuarioForm
 
 
@@ -21,6 +23,11 @@ app_name = "accounts"
 
 
 urlpatterns = [
+    path('localidades/cidades/', localidade_views.cidades, name='localidades_cidades'),
+    path('perfil/', perfil_views.perfil, name='perfil'),
+    path('perfil/editar/', perfil_views.perfil_editar, name='perfil_editar'),
+    path('perfil/senha/', perfil_views.perfil_senha, name='perfil_senha'),
+    path('perfil/preferencias/', perfil_views.perfil_preferencias, name='perfil_preferencias'),
     path('notificacoes/', notificacoes.central, name='notificacoes'),
     path('notificacoes/atualizacoes/', notificacoes.atualizacoes, name='notificacoes_atualizacoes'),
     path('notificacoes/<int:id_notificacao>/ler/', notificacoes.marcar_lida, name='notificacao_ler'),

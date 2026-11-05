@@ -23,6 +23,7 @@ ou esconde as secoes correspondentes.
 <p>
     <strong>{{ painel.rotulo }}</strong>
 </p>
+<p><a class="button button-primary" href="{% url 'accounts:perfil' %}">Acessar meu perfil</a></p>
 
 {% if preferencia_convocacao %}
     <section>
@@ -53,7 +54,7 @@ ou esconde as secoes correspondentes.
 =================================================================
 TRIAGEM
 =================================================================
-Doador e Receptor/Solicitante podem acessar a triagem. Outros perfis nao
+Somente o Doador pode acessar a triagem. Outros perfis nao
 devem ver esse bloco no dashboard.
 {% endcomment %}
 
@@ -66,13 +67,6 @@ devem ver esse bloco no dashboard.
 
             <p>
                 Responda à triagem inicial antes de procurar um posto de coleta.
-            </p>
-
-        {% elif user.perfil == "RECEPTOR" %}
-
-            <p>
-                Mesmo sendo Receptor, você pode responder à triagem
-                caso também queira doar sangue.
             </p>
 
         {% endif %}

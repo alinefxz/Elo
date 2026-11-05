@@ -1,6 +1,9 @@
-<<<<<<< HEAD
-"""Opcoes locais de localizacao, sem limitar a participacao por regiao."""
+"""Localidades brasileiras com catálogo oficial local e sugestões públicas."""
+import json
+from pathlib import Path
+
 from django import forms
+from django.core.exceptions import ValidationError
 
 ESTADOS = (
     ('AC', 'Acre'), ('AL', 'Alagoas'), ('AP', 'Amapá'), ('AM', 'Amazonas'),
@@ -47,17 +50,30 @@ def configurar_cidades_filtro(form, origem):
     if selecionada and selecionada not in opcoes:
         opcoes.append(selecionada)
     form.fields['cidade'].widget = forms.Select(choices=[('', 'Todas as cidades')] + [(c, c) for c in opcoes])
-=======
-"""Catálogo de localidades aceitas em novas submissões públicas."""
-
-from django.core.exceptions import ValidationError
 
 
-CIDADES_POR_ESTADO: dict[str, tuple[str, ...]] = {
-    "SP": ("São Paulo", "Campinas", "Santos"),
-}
+def _carregar_municipios():
+    """Lê o snapshot versionado, sem rede nem consultas a dados de usuários."""
+    caminho = Path(__file__).resolve().parent / "data" / "municipios_ibge.json"
+    try:
+        documento = json.loads(caminho.read_text(encoding="utf-8"))
+        catalogo = documento["municipios_por_estado"]
+        if not isinstance(catalogo, dict) or set(catalogo) != {uf for uf, _ in ESTADOS}:
+            raise ValueError("o catálogo deve conter todas as 27 UFs")
+        if sum(len(nomes) for nomes in catalogo.values()) < 5500:
+            raise ValueError("o catálogo municipal está incompleto")
+        for nomes in catalogo.values():
+            if not isinstance(nomes, list) or not all(isinstance(nome, str) and nome for nome in nomes):
+                raise ValueError("o catálogo contém nomes municipais inválidos")
+            if len(nomes) != len(set(nomes)):
+                raise ValueError("o catálogo contém municípios duplicados na mesma UF")
+    except (OSError, ValueError, KeyError, TypeError) as erro:
+        raise RuntimeError(f"Não foi possível carregar o catálogo oficial de municípios: {caminho}") from erro
+    return {uf: tuple(catalogo[uf]) for uf, _ in ESTADOS}
 
-ESTADOS_CHOICES = [(estado, estado) for estado in CIDADES_POR_ESTADO]
+
+CIDADES_POR_ESTADO: dict[str, tuple[str, ...]] = _carregar_municipios()
+ESTADOS_CHOICES = [(uf, nome) for uf, nome in ESTADOS]
 
 
 def cidades_choices(estado: str | None) -> list[tuple[str, str]]:
@@ -83,4 +99,3 @@ def validar_localidade(estado: str | None, cidade: str | None) -> None:
 
     if not cidade_pertence_ao_estado(estado, cidade):
         raise ValidationError("Selecione uma cidade compatível com a UF.")
->>>>>>> fix/unboundlocal-form-pedido-2026-10-09

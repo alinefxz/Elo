@@ -131,6 +131,8 @@ class UsuarioAdmin(UserAdmin):
                     "tipo_sanguineo_confirmado",
                     "cidade",
                     "estado",
+                    "endereco",
+                    "horario_funcionamento",
                     "status_validacao",
                     "email_verificado",
                 )

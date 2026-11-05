@@ -104,6 +104,9 @@ def registrar_decisao_validacao_hemocentro(
             parecer=parecer,
         )
 
+        from .notificacoes_eventos import validacao_institucional_registrada
+        validacao_institucional_registrada(validacao)
+
         registrar_auditoria(
             acao=AuditoriaAcaoCritica.Acao.APROVACAO_HEMOCENTRO,
             resultado=AuditoriaAcaoCritica.Resultado.SUCESSO,

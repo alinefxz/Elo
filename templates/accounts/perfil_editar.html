@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{% if perfil.institucional %}Editar instituição{% else %}Editar meu perfil{% endif %} | Elo{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/perfil.css' %}">{% endblock %}
+{% block body_class %}pagina-perfil{% endblock %}
+{% block content %}
+<div class="perfil-shell perfil-shell-form">
+    <nav class="perfil-breadcrumb" aria-label="Localização"><a href="{% url 'accounts:perfil' %}">{{ perfil.titulo }}</a><span aria-hidden="true">/</span><span aria-current="page">Editar dados</span></nav>
+    <header class="perfil-form-header"><p class="perfil-kicker">ELO · {{ perfil.rotulo }}</p><h1>{% if perfil.institucional %}Editar dados da instituição{% else %}Editar meu perfil{% endif %}</h1><p>Mantenha suas informações atualizadas para aproveitar os recursos da sua conta.</p></header>
+    <section class="perfil-card"><form class="perfil-form" method="post" novalidate>{% csrf_token %}
+        {% if form.errors %}<div class="perfil-form-alerta" role="alert"><strong>Confira os campos indicados abaixo.</strong>{{ form.non_field_errors }}</div>{% endif %}
+        <div class="perfil-form-campos">
+            {% for campo in form %}{% include 'accounts/includes/perfil_campo.html' with campo=campo only %}{% endfor %}
+        </div>
+        {% if perfil.institucional %}<p class="perfil-rodape-nota">O CNPJ e a situação de validação são protegidos e não podem ser alterados por este formulário.</p>{% elif user.tipo_sanguineo_confirmado %}<p class="perfil-rodape-nota">Seu tipo sanguíneo foi confirmado por um hemocentro. Esse dado permanece protegido.</p>{% endif %}
+        <div class="perfil-form-acoes"><button class="perfil-btn perfil-btn-primary" type="submit">Salvar alterações</button><a class="perfil-btn perfil-btn-secundario" href="{% url 'accounts:perfil' %}">Cancelar</a></div>
+    </form></section>
+</div>
+{% endblock %}

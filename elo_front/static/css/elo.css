@@ -1116,7 +1116,6 @@ main .notificacao-acoes button[type="submit"] {
     }
 }
 
-<<<<<<< HEAD
 /* Manutencao de layout: formularios fluidos e rodape ao fim da tela. */
 body {
     min-height: 100vh;
@@ -1278,7 +1277,10 @@ main button[type="submit"][name="acao"][value="salvar"]:hover {
 
 main a:not(.button) {
     color: var(--red);
-=======
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
 
 /* SOLICITACAO DE PEDIDO: organizacao dos campos sem alterar a identidade visual. */
 .request-page {
@@ -1866,12 +1868,10 @@ main form.tracking-form {
 
 .footer-links .footer-legal-link {
     color: #ff8a98;
->>>>>>> fix/unboundlocal-form-pedido-2026-10-09
     text-decoration: underline;
     text-underline-offset: 3px;
 }
 
-<<<<<<< HEAD
 .main-nav form button {
     min-height: 40px;
     padding: 8px 14px;
@@ -1904,7 +1904,6 @@ main form.tracking-form {
 }
 
 
-=======
 .footer-links .footer-legal-link:hover {
     color: #ffffff;
 }
@@ -1942,4 +1941,3 @@ main form.tracking-form {
         grid-column: auto;
     }
 }
->>>>>>> fix/unboundlocal-form-pedido-2026-10-09

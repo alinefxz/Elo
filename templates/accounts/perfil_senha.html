@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Alterar minha senha | Elo{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/perfil.css' %}">{% endblock %}
+{% block body_class %}pagina-perfil{% endblock %}
+{% block content %}
+<div class="perfil-shell perfil-shell-senha">
+    <nav class="perfil-breadcrumb" aria-label="Localização"><a href="{% url 'accounts:perfil' %}">{{ perfil.titulo }}</a><span aria-hidden="true">/</span><span aria-current="page">Alterar senha</span></nav>
+    <header class="perfil-form-header"><p class="perfil-kicker">ELO · SEGURANÇA DA CONTA</p><h1>Alterar minha senha</h1><p>Confirme sua senha atual e escolha uma nova senha para proteger sua conta.</p></header>
+    <section class="perfil-card"><form class="perfil-form" method="post" novalidate>{% csrf_token %}{% if form.errors %}<div class="perfil-form-alerta" role="alert"><strong>Confira os campos indicados abaixo.</strong>{{ form.non_field_errors }}</div>{% endif %}
+        <div class="perfil-form-campos perfil-form-campos-uma-coluna">
+            {% for campo in form %}{% include 'accounts/includes/perfil_campo.html' with campo=campo only %}{% endfor %}
+        </div>
+        <div class="perfil-form-acoes"><button class="perfil-btn perfil-btn-primary" type="submit">Salvar nova senha</button><a class="perfil-btn perfil-btn-secundario" href="{% url 'accounts:perfil' %}">Cancelar</a></div>
+    </form></section>
+</div>
+{% endblock %}

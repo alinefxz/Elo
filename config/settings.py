@@ -101,6 +101,7 @@ TEMPLATES = [
                 # Disponibiliza a lista messages no HTML.
                 "django.contrib.messages.context_processors.messages",
                 "accounts.notificacoes.contexto_sino",
+                "accounts.permissoes.contexto_permissoes",
             ],
         },
     },
@@ -207,5 +208,5 @@ AUTH_USER_MODEL = "accounts.Usuario"
 
 # Rotas usadas automaticamente por login_required, LoginView e LogoutView.
 LOGIN_URL = "accounts:login"
-LOGIN_REDIRECT_URL = "accounts:dashboard"
+LOGIN_REDIRECT_URL = "accounts:perfil"
 LOGOUT_REDIRECT_URL = "accounts:login"

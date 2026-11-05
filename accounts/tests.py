@@ -228,7 +228,9 @@ class ValidacaoHemocentroTests(TestCase):
             "<li>Aprovar Hemocentros.</li>",
             html=True,
         )
-        self.assertContains(resposta, 'href="/admin/"')
+        # O papel permite validar instituições; a administração técnica
+        # depende separadamente de staff e das permissões do Django.
+        self.assertNotContains(resposta, f'href="{reverse("admin:index")}"')
 
         painel = self.client.get(
             reverse("accounts:painel_aprovacao_hemocentros")
@@ -330,6 +332,8 @@ class ValidacaoHemocentroTests(TestCase):
             resposta,
             "Solicitar divulgação de necessidade",
         )
+        self.assertNotContains(resposta, f'href="{reverse("admin:index")}"')
+        self.assertContains(resposta, reverse("accounts:painel_aprovacao_hemocentros"))
 
 
 class AuditoriaTests(TestCase):

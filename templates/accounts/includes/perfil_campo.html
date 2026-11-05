@@ -1,0 +1,8 @@
+<div class="perfil-campo{% if campo.field.widget.input_type == 'checkbox' %} perfil-campo-check{% endif %}{% if campo.name == 'endereco' or campo.name == 'horario_funcionamento' %} perfil-campo-largo{% endif %}">
+    <label for="{{ campo.id_for_label }}">
+        {{ campo.label }}{% if campo.field.required %}<span class="perfil-obrigatorio" aria-hidden="true"> *</span><span class="perfil-sr-only"> (obrigatório)</span>{% endif %}
+    </label>
+    {{ campo }}
+    {% if campo.help_text %}<div class="perfil-ajuda" id="{{ campo.auto_id }}_helptext">{{ campo.help_text|safe }}</div>{% endif %}
+    {{ campo.errors }}
+</div>

@@ -124,20 +124,33 @@ class PedidoSangueTests(TestCase):
             PedidoSangue.Status.ENVIADA,
         )
 
-    def test_doador_nao_pode_enviar_solicitacao(self):
+    def _verificar_solicitacao_enviada_sem_publicacao(self, usuario):
+        pedido = PedidoSangue.objects.get()
+        self.assertEqual(pedido.solicitante, usuario)
+        self.assertEqual(pedido.hemocentro_destino, self.hemocentro)
+        self.assertEqual(pedido.status, PedidoSangue.Status.ENVIADA)
+        self.assertIsNone(pedido.publicado_por_id)
+        self.assertIsNone(pedido.publicado_em)
+        historico = self.client.get(reverse("accounts:minhas_solicitacoes"))
+        self.assertEqual(historico.status_code, 200)
+        self.assertEqual(list(historico.context["solicitacoes"].values_list("pk", flat=True)), [pedido.pk])
+        self.assertContains(historico, pedido.titulo)
+        self.assertNotContains(self.client.get(reverse("accounts:consultar_pedidos")), pedido.titulo)
+
+    def test_doador_pode_enviar_solicitacao_sem_publicar(self):
         self.client.force_login(self.doador)
         resposta = self.client.post(reverse("accounts:pedido_publicar"), self.dados_validos())
-        self.assertRedirects(resposta, reverse("accounts:dashboard"))
-        self.assertFalse(PedidoSangue.objects.exists())
+        self.assertRedirects(resposta, reverse("accounts:pedido_registrado"))
+        self._verificar_solicitacao_enviada_sem_publicacao(self.doador)
 
-    def test_observador_nao_pode_enviar_solicitacao(self):
+    def test_observador_pode_enviar_solicitacao_sem_publicar(self):
         self.client.force_login(self.observador)
         resposta = self.client.post(
             reverse("accounts:pedido_publicar"),
             self.dados_validos(),
         )
-        self.assertRedirects(resposta, reverse("accounts:dashboard"))
-        self.assertFalse(PedidoSangue.objects.exists())
+        self.assertRedirects(resposta, reverse("accounts:pedido_registrado"))
+        self._verificar_solicitacao_enviada_sem_publicacao(self.observador)
 
     def test_visitante_consegue_abrir_formulario_de_pedido(self):
         resposta = self.client.get(reverse("accounts:pedido_publicar"))

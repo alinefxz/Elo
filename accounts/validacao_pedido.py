@@ -113,6 +113,7 @@ def validar_dados_pedido(pedido):
         )
 
 
+@transaction.atomic
 def criar_pedido_pendente(
     *,
     dados,
@@ -181,6 +182,8 @@ def criar_pedido_pendente(
         pedido.duplicidade_suspeita = True
         pedido.save(update_fields=["duplicidade_suspeita", "atualizado_em"])
 
+    from .notificacoes_eventos import solicitacao_recebida
+    solicitacao_recebida(pedido)
     return pedido
 
 
@@ -307,6 +310,9 @@ def registrar_decisao_validacao_pedido(
         motivo=motivo,
         moderador=moderador,
     )
+
+    from .notificacoes_eventos import decisao_pedido_registrada
+    decisao_pedido_registrada(pedido, status_anterior=status_anterior)
 
     registrar_auditoria(
         acao=AuditoriaAcaoCritica.Acao.MODERACAO,

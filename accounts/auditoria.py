@@ -146,6 +146,7 @@ class AuditoriaAcessosMiddleware(MiddlewareMixin):
     """Audita respostas protegidas sem copiar formularios ou dados clinicos."""
 
     ROTAS_SENSIVEIS = {
+        "accounts:perfil", "accounts:perfil_editar", "accounts:perfil_senha",
         "accounts:triagem_pergunta", "accounts:triagem_resultado",
         "accounts:triagem_historico", "accounts:painel_validacao_pedidos",
         "accounts:triagem_revisao", "accounts:minhas_solicitacoes",

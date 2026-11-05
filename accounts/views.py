@@ -621,6 +621,8 @@ def cadastro(request):
                     usuario.save(
                         update_fields=["status_validacao"]
                     )
+                    from .notificacoes_eventos import cadastro_institucional_recebido
+                    cadastro_institucional_recebido(usuario)
 
                 # Registro do aceite da LGPD.
                 ConsentimentoLGPD.objects.create(
@@ -978,8 +980,7 @@ def triagem_apresentacao(request):
 
     Somente usuários com perfil permitido podem iniciar a triagem.
 
-    A modalidade simplificada é liberada quando existe uma triagem
-    extensa concluída que possa ser utilizada como base.
+    As duas modalidades podem ser iniciadas de forma independente por doadores.
     """
 
     pode_iniciar = False
@@ -1084,7 +1085,7 @@ def triagem_iniciar(request, modalidade):
 
     if not pode_responder(request.user):
         raise PermissionDenied(
-            "A triagem está disponível somente para Doador e Receptor."
+            "A triagem está disponível somente para doadores."
         )
 
     if request.POST.get("aceite_termo") not in {"on", "1", "true"}:
@@ -1110,7 +1111,7 @@ def triagem_iniciar(request, modalidade):
     except TriagemSimplificadaIndisponivel:
         messages.info(
             request,
-            "Conclua primeiro a triagem extensa para usar a versão simplificada.",
+            "Não foi possível iniciar a triagem simplificada. Tente novamente.",
         )
 
         return redirect("accounts:triagem_apresentacao")
@@ -1566,12 +1567,7 @@ def criar_pedido_sangue(request):
     A solicitação aguarda análise do Hemocentro.
     """
 
-<<<<<<< HEAD
     # Hemocentros e administradores não enviam solicitações por este formulário.
-=======
-    # Visitantes podem preencher o formulário público; entre os usuários
-    # autenticados, somente o perfil Receptor pode enviar solicitações.
->>>>>>> fix/unboundlocal-form-pedido-2026-10-09
     if (
         request.user.is_authenticated
         and request.user.perfil in {
@@ -1584,13 +1580,9 @@ def criar_pedido_sangue(request):
             resultado=AuditoriaAcaoCritica.Resultado.BLOQUEADO,
             usuario=request.user,
             request=request,
-<<<<<<< HEAD
             descricao=(
                 "Tentativa de enviar solicitacao de pedido bloqueada."
             ),
-=======
-            descricao="Tentativa de envio por perfil sem permissao bloqueada.",
->>>>>>> fix/unboundlocal-form-pedido-2026-10-09
             metadados={
                 "evento": "TENTATIVA_ACESSO",
                 "rota": "accounts:pedido_publicar",
@@ -1612,7 +1604,6 @@ def criar_pedido_sangue(request):
                 pedido = criar_pedido_pendente(
                     dados=form.cleaned_data,
                     solicitante=(
-<<<<<<< HEAD
                         request.user
                         if request.user.is_authenticated
                         else None
@@ -1640,18 +1631,6 @@ def criar_pedido_sangue(request):
                 form.add_error(None, erro)
 
     # GET: o usuário está apenas abrindo a página.
-=======
-                        request.user if request.user.is_authenticated else None
-                    ),
-                )
-
-                request.session["pedido_registrado_id"] = pedido.pk
-
-                return redirect("accounts:pedido_registrado")
-
-            except ValidationError as erro:
-                form.add_error(None, erro)
->>>>>>> fix/unboundlocal-form-pedido-2026-10-09
     else:
         form = PedidoSangueForm()
 
@@ -1659,8 +1638,6 @@ def criar_pedido_sangue(request):
         request,
         "accounts/pedido_publicar.html",
         {"form": form},
-<<<<<<< HEAD
-=======
 
     )
 
@@ -1719,7 +1696,6 @@ def acompanhar_pedido(request):
             "protocolo": protocolo,
             "contato": contato,
         },
->>>>>>> fix/unboundlocal-form-pedido-2026-10-09
     )
 
 def pedido_registrado(request):

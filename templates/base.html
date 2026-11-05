@@ -24,6 +24,7 @@ A navegacao tambem respeita a particularizacao por perfil:
     <title>{% block title %}Elo{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/elo.css' %}">
     <link rel="icon" type="image/png" href="{% static 'css/favicon.png' %}">
+    {% block extra_css %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
         <header class="site-header">
@@ -41,41 +42,45 @@ A navegacao tambem respeita a particularizacao por perfil:
 
             <nav class="main-nav" aria-label="Navegacao principal">
                 {% if user.is_authenticated %}
+                    <a href="{% url 'accounts:perfil' %}" {% if request.resolver_match.url_name == 'perfil' %}aria-current="page"{% endif %}>Meu perfil</a>
                     <a href="{% url 'accounts:dashboard' %}">Painel</a>
                     <a href="{% url 'accounts:inicio' %}">Início</a>
                     <a href="{% url 'accounts:compatibilidade_sanguinea' %}">Compatibilidade sanguinea</a>
                     <a href="{% url 'accounts:estoque_publico' %}">Estoques publicos</a>
 
-                    {% if user.perfil == "RECEPTOR" %}
+                    {% if acessos.responder_triagem %}
+                        <a href="{% url 'accounts:triagem_apresentacao' %}">Minhas triagens</a>
+                    {% endif %}
+                    {% if acessos.solicitar_pedido %}
                         <a href="{% url 'accounts:pedido_publicar' %}">Solicitar pedido de sangue</a>
+                        <a href="{% url 'accounts:minhas_solicitacoes' %}">Minhas solicitações</a>
                     {% endif %}
                     
-                {% if user.perfil == "HEMOCENTRO" %}
-                    {% if user.status_validacao == "APROVADO" %}
+                    {% if acessos.analisar_pedidos %}
                         <a class="nav-cta"
                         href="{% url 'accounts:painel_pedidos_hemocentro' %}">
                             Analisar solicitações
                         </a>
+                    {% endif %}
+                    {% if acessos.gerenciar_estoque %}
                         <a href="{% url 'accounts:estoque_hemocentro' %}">
                             Meu estoque
                         </a>
                     {% endif %}
 
-                {% elif user.is_staff or user.is_superuser or user.perfil == "ADMINISTRADOR" %}
+                    {% if acessos.validar_hemocentros %}
                     <a href="{% url 'accounts:painel_aprovacao_hemocentros' %}">
                         Validar Hemocentros
                     </a>
+                    {% endif %}
+                    {% if acessos.moderar_pedidos %}
                     <a href="{% url 'accounts:painel_validacao_pedidos' %}">
                         Moderar pedidos
                     </a>
-                    <a href="/admin/">Admin</a>
-
-                {% else %}
-                    <a class="nav-cta"
-                    href="{% url 'accounts:pedido_publicar' %}">
-                        Solicitar pedido de sangue
-                    </a>
-                {% endif %}
+                    {% endif %}
+                    {% if acessos.painel_django %}
+                        <a href="{% url 'admin:index' %}">Admin</a>
+                    {% endif %}
 
                     <span>{{ user.get_short_name }}</span>
 
@@ -156,6 +161,7 @@ A navegacao tambem respeita a particularizacao por perfil:
             </a>
 
             {% if user.is_authenticated %}
+                <a href="{% url 'accounts:perfil' %}">Meu perfil</a>
                 <a href="{% url 'accounts:dashboard' %}">
                     Meu painel
                 </a>

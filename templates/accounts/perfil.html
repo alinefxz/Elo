@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ perfil.titulo }} | Elo{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/perfil.css' %}">{% endblock %}
+{% block body_class %}pagina-perfil{% endblock %}
+{% block content %}
+<div class="perfil-shell">
+    <nav class="perfil-breadcrumb" aria-label="Localização"><a href="{% url 'accounts:dashboard' %}">Meu painel</a><span aria-hidden="true">/</span><span aria-current="page">{{ perfil.titulo }}</span></nav>
+    <header class="perfil-hero{% if perfil.institucional %} perfil-hero-institucional{% endif %}">
+        <div class="perfil-identidade">
+            <div class="perfil-avatar" aria-hidden="true">{% if perfil.institucional %}<svg viewBox="0 0 40 40" fill="none"><path d="M7 34V11h26v23M3 34h34M15 34v-9h10v9M16 9V5h8v4M17 16h6M20 13v6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>{% else %}{{ user.nome|slice:':1'|upper }}{% endif %}</div>
+            <div><p class="perfil-kicker">ELO · {{ perfil.rotulo }}</p><h1>{{ perfil.titulo }}</h1><p class="perfil-nome">{{ user.nome }}</p><p class="perfil-descricao">{{ perfil.descricao }}</p></div>
+        </div>
+        <a class="perfil-btn perfil-btn-primary" href="{% url 'accounts:perfil_editar' %}">{% if perfil.institucional %}Editar instituição{% else %}Editar meus dados{% endif %}<span aria-hidden="true">↗</span></a>
+    </header>
+
+    <nav class="perfil-atalhos" aria-label="Seções do perfil"><a href="#dados">{% if perfil.institucional %}Dados institucionais{% else %}Meus dados{% endif %}</a><a href="#atividades">Histórico de atividades</a><a href="#avisos">Notificações{% if notificacoes_nao_lidas %}<span class="perfil-contador">{{ notificacoes_nao_lidas }}</span>{% endif %}</a><a href="#configuracoes">Configurações</a></nav>
+
+    {% if resumo_perfil %}<div class="perfil-resumos" aria-label="Resumo da conta">{% for item in resumo_perfil %}<div><strong>{{ item.valor }}</strong><span>{{ item.rotulo }}</span></div>{% endfor %}</div>{% endif %}
+
+    <div class="perfil-layout">
+        <div class="perfil-coluna-principal">
+            <section class="perfil-card" id="dados" aria-labelledby="dados-titulo">
+                <div class="perfil-card-heading"><div><p class="perfil-kicker">{% if perfil.institucional %}IDENTIDADE INSTITUCIONAL{% else %}SUA CONTA{% endif %}</p><h2 id="dados-titulo">{% if perfil.institucional %}Dados do hemocentro{% elif perfil.administrador %}Informações da conta administrativa{% else %}Informações pessoais{% endif %}</h2></div><span class="perfil-badge">{{ perfil.rotulo }}</span></div>
+                <dl class="perfil-dados">
+                    <div class="perfil-dado-largo"><dt>{% if perfil.institucional %}Nome da instituição{% else %}Nome completo{% endif %}</dt><dd>{{ user.nome }}</dd></div>
+                    <div><dt>E-mail</dt><dd>{{ user.email }}</dd></div><div><dt>Telefone</dt><dd>{{ user.telefone|default:'Não informado' }}</dd></div>
+                    {% if perfil.institucional %}
+                        <div><dt>CNPJ</dt><dd>{{ user.cnpj|default:'Não informado' }}</dd></div><div><dt>Validação institucional</dt><dd>{{ user.get_status_validacao_display }}</dd></div>
+                        <div class="perfil-dado-largo"><dt>Endereço</dt><dd>{{ user.endereco|default:'Não informado'|linebreaksbr }}</dd></div>
+                        <div class="perfil-dado-largo"><dt>Horário de funcionamento</dt><dd>{{ user.horario_funcionamento|default:'Não informado'|linebreaksbr }}</dd></div>
+                    {% else %}
+                        {% if not perfil.administrador %}<div><dt>CPF</dt><dd>{{ user.cpf|default:'Não informado' }}</dd></div><div><dt>Data de nascimento</dt><dd>{{ user.data_nascimento|date:'d/m/Y'|default:'Não informada' }}</dd></div><div><dt>Sexo</dt><dd>{{ user.get_sexo_display|default:'Não informado' }}</dd></div>{% endif %}
+                        {% if perfil.doador or perfil.receptor %}<div><dt>Tipo sanguíneo</dt><dd>{{ user.tipo_sanguineo|default:'Não informado' }}{% if user.tipo_sanguineo_confirmado %}<span class="perfil-verificado">Confirmado pelo hemocentro</span>{% else %}<span class="perfil-meta">Informação autodeclarada</span>{% endif %}</dd></div>{% endif %}
+                    {% endif %}
+                    <div><dt>Estado</dt><dd>{{ user.estado|default:'Não informado' }}</dd></div><div><dt>Município</dt><dd>{{ user.cidade|default:'Não informado' }}</dd></div><div><dt>Cadastro no Elo</dt><dd>{{ user.date_joined|date:'d/m/Y' }}</dd></div><div><dt>Último acesso</dt><dd>{{ user.last_login|date:'d/m/Y H:i'|default:'Primeiro acesso' }}</dd></div>
+                </dl>
+                {% if perfil.institucional and validacao_atual %}<div class="perfil-nota"><strong>Última análise institucional</strong><p>{{ validacao_atual.parecer|default:'Nenhum parecer complementar registrado.' }}</p><time datetime="{{ validacao_atual.data_analise|date:'c' }}">{{ validacao_atual.data_analise|date:'d/m/Y H:i' }}</time></div>{% endif %}
+            </section>
+
+            <section class="perfil-card" aria-labelledby="recursos-titulo"><div class="perfil-card-heading"><div><p class="perfil-kicker">SEU ESPAÇO NO ELO</p><h2 id="recursos-titulo">{% if perfil.institucional %}Gestão institucional{% elif perfil.administrador %}Ferramentas administrativas{% elif perfil.doador %}Minha jornada de doação{% elif perfil.receptor %}Minhas solicitações{% else %}Explore a plataforma{% endif %}</h2></div></div>
+                <div class="perfil-acoes">{% for acao in acoes_perfil %}<a href="{{ acao.url }}" class="perfil-acao"><span><strong>{{ acao.titulo }}</strong><span>{{ acao.descricao }}</span></span><span aria-hidden="true">↗</span></a>{% empty %}<p class="perfil-vazio">Nenhuma ação adicional disponível para esta conta.</p>{% endfor %}</div>
+                {% if perfil.doador %}<p class="perfil-rodape-nota">As triagens simplificada e extensa são independentes. Cada modalidade tem seu próprio progresso e resultado.</p><p class="perfil-rodape-nota">O Elo ainda não possui registro de doações realizadas. Os resultados de triagem não comprovam uma doação.</p>{% elif perfil.receptor %}<p class="perfil-rodape-nota">Acompanhe aqui suas solicitações e os status registrados. O recebimento de doações ainda não é registrado pelo sistema.</p>{% elif perfil.comum %}<p class="perfil-rodape-nota">Sua conta de observador permite consultar informações e acompanhar suas atividades. A triagem para doação é exclusiva do perfil Doador.</p>{% elif perfil.administrador %}<p class="perfil-rodape-nota">Este é o perfil da sua conta. A gestão de usuários, instituições e operações acontece nas ferramentas autorizadas acima.</p>{% endif %}
+            </section>
+
+            <section class="perfil-card" id="atividades" aria-labelledby="atividades-titulo"><div class="perfil-card-heading"><div><p class="perfil-kicker">REGISTROS DA PLATAFORMA</p><h2 id="atividades-titulo">Histórico de atividades</h2></div>{% if acessos.responder_triagem %}<a class="perfil-text-link" href="{% url 'accounts:triagem_historico' %}">Todas as triagens</a>{% endif %}</div>
+                <ol class="perfil-timeline">{% for atividade in historico %}<li><div class="perfil-timeline-marca" aria-hidden="true"></div><div class="perfil-timeline-conteudo"><div class="perfil-timeline-topo"><h3>{% if atividade.url %}<a href="{{ atividade.url }}">{{ atividade.titulo }}</a>{% else %}{{ atividade.titulo }}{% endif %}</h3>{% if atividade.status %}<span class="perfil-badge">{{ atividade.status }}</span>{% endif %}</div><p>{{ atividade.descricao }}</p><time datetime="{{ atividade.data|date:'c' }}">{{ atividade.data|date:'d/m/Y H:i' }}</time>{% if atividade.url %}<a class="perfil-text-link" href="{{ atividade.url }}">Ver registro <span aria-hidden="true">→</span></a>{% endif %}</div></li>{% empty %}<li class="perfil-vazio"><strong>Seu histórico começa aqui</strong><p>As atividades disponíveis para seu perfil aparecerão quando forem registradas no Elo.</p></li>{% endfor %}</ol>
+                {% if historico.has_other_pages %}<nav class="perfil-paginacao" aria-label="Páginas do histórico">{% if historico.has_previous %}<a href="?pagina={{ historico.previous_page_number }}#atividades">← Anterior</a>{% endif %}<span>Página {{ historico.number }} de {{ historico.paginator.num_pages }}</span>{% if historico.has_next %}<a href="?pagina={{ historico.next_page_number }}#atividades">Próxima →</a>{% endif %}</nav>{% endif %}
+            </section>
+        </div>
+
+        <aside class="perfil-coluna-lateral">
+            <section class="perfil-card" id="avisos" aria-labelledby="avisos-titulo"><div class="perfil-card-heading"><div><p class="perfil-kicker">FIQUE POR DENTRO</p><h2 id="avisos-titulo">Notificações</h2></div>{% if notificacoes_nao_lidas %}<span class="perfil-badge perfil-badge-destaque">{{ notificacoes_nao_lidas }} não lida{{ notificacoes_nao_lidas|pluralize:'s' }}</span>{% endif %}</div>
+                <ul class="perfil-avisos">{% for aviso in notificacoes_perfil %}<li{% if not aviso.lida %} class="perfil-aviso-novo"{% endif %}><div class="perfil-aviso-topo"><strong>{{ aviso.titulo }}</strong><span class="perfil-meta">{% if aviso.lida %}Lida{% else %}Não lida{% endif %}</span></div><p>{{ aviso.mensagem }}</p><time datetime="{{ aviso.criada_em|date:'c' }}">{{ aviso.criada_em|date:'d/m/Y H:i' }}</time><div class="perfil-aviso-acoes">{% if aviso.url_acao %}<a class="perfil-text-link" href="{{ aviso.url_acao }}">{{ aviso.rotulo_acao }}</a>{% endif %}{% if not aviso.lida %}<form method="post" action="{% url 'accounts:notificacao_ler' aviso.pk %}">{% csrf_token %}<button class="perfil-text-link" type="submit">Marcar como lida</button></form>{% endif %}</div></li>{% empty %}<li class="perfil-vazio"><strong>Tudo em dia</strong><p>Você ainda não tem notificações. Seus avisos aparecerão aqui.</p></li>{% endfor %}</ul><a class="perfil-btn perfil-btn-secundario perfil-btn-completo" href="{% url 'accounts:notificacoes' %}">Abrir central de notificações <span aria-hidden="true">→</span></a>
+            </section>
+            <section class="perfil-card" id="configuracoes" aria-labelledby="configuracoes-titulo"><div class="perfil-card-heading"><div><p class="perfil-kicker">PREFERÊNCIAS E SEGURANÇA</p><h2 id="configuracoes-titulo">Configurações da conta</h2></div></div>
+                <a class="perfil-config-link" href="{% url 'accounts:perfil_editar' %}"><span>Atualizar {% if perfil.institucional %}dados institucionais{% else %}meus dados{% endif %}</span><span aria-hidden="true">→</span></a><a class="perfil-config-link" href="{% url 'accounts:perfil_senha' %}"><span>Alterar minha senha</span><span aria-hidden="true">→</span></a>
+                {% if preferencia_convocacao %}<form class="perfil-preferencias" method="post" action="{% url 'accounts:perfil_preferencias' %}">{% csrf_token %}<h3>Alertas de doação</h3>{{ preferencia_convocacao.non_field_errors }}{% for campo in preferencia_convocacao %}<div class="perfil-check">{{ campo }}<label for="{{ campo.id_for_label }}">{{ campo.label }}</label></div>{{ campo.errors }}{% if campo.help_text %}<p class="perfil-meta">{{ campo.help_text }}</p>{% endif %}{% endfor %}<button class="perfil-btn perfil-btn-secundario perfil-btn-completo" type="submit">Salvar preferência</button></form>{% endif %}
+                <p class="perfil-privacidade"><span aria-hidden="true">◈</span> Seus dados de perfil e seu histórico são privados. As ações disponíveis respeitam as permissões da sua conta.</p>
+            </section>
+        </aside>
+    </div>
+</div>
+{% endblock %}

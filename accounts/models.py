@@ -149,6 +149,8 @@ class Usuario(AbstractUser):
 
     cidade = models.CharField(max_length=100, blank=True, default="")
     estado = models.CharField(max_length=2, blank=True, default="")
+    endereco = models.CharField(max_length=255, blank=True, default="")
+    horario_funcionamento = models.TextField(max_length=1000, blank=True, default="")
 
     perfil = models.CharField(
         max_length=20,
