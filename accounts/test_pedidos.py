@@ -85,7 +85,8 @@ class PedidoSangueTests(TestCase):
             "titulo": "Doacao para paciente internado",
             "tipo_sanguineo": "O-",
             "urgencia": PedidoSangue.Urgencia.BAIXA,
-            "cidade": "Muzambinho",
+            "estado": "SP",
+            "cidade": "São Paulo",
             "nome_paciente": "Paciente de exemplo",
             "descricao": (
                 "Precisamos de doadores para auxiliar um paciente internado."
@@ -171,6 +172,16 @@ class PedidoSangueTests(TestCase):
 
         self.assertFalse(form.is_valid())
         self.assertIn("descricao", form.errors)
+
+    def test_formulario_rejeita_cidade_incompativel_com_uf(self):
+        """Protege o POST contra combinações manipuladas fora do seletor."""
+
+        form = PedidoSangueForm(
+            self.dados_validos(estado="SP", cidade="Belo Horizonte")
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("cidade", form.errors)
 
     def test_formulario_exige_email_no_contato(self):
         form_invalido = PedidoSangueForm(

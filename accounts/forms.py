@@ -13,12 +13,20 @@ O formulario de cadastro:
 """
 
 import re
+import json
 from datetime import date
 
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.core.exceptions import ValidationError
 
 from .compatibilidade import TIPOS_SANGUINEOS
+from .localidades import (
+    CIDADES_POR_ESTADO,
+    ESTADOS_CHOICES,
+    cidades_choices,
+    validar_localidade,
+)
 from .models import EstoqueMovimentacao, PedidoSangue, Usuario
 
 
@@ -29,6 +37,19 @@ def apenas_digitos(valor):
 
 class CadastroUsuarioForm(UserCreationForm):
     """Formulario publico utilizado para criar contas."""
+
+    estado = forms.ChoiceField(
+        label="Estado (UF)",
+        required=False,
+        choices=[("", "Selecione uma UF")] + ESTADOS_CHOICES,
+    )
+
+    cidade = forms.ChoiceField(
+        label="Cidade",
+        required=False,
+        choices=(),
+        widget=forms.Select(attrs={"data-estado": "estado"}),
+    )
 
     cpf = forms.CharField(
         label="CPF",
@@ -137,13 +158,6 @@ class CadastroUsuarioForm(UserCreationForm):
                     "inputmode": "tel",
                 }
             ),
-            "estado": forms.TextInput(
-                attrs={
-                    "maxlength": 2,
-                    "placeholder": "MG",
-                    "style": "text-transform: uppercase;",
-                }
-            ),
         }
 
     def __init__(self, *args, **kwargs):
@@ -155,6 +169,15 @@ class CadastroUsuarioForm(UserCreationForm):
         )
 
         self.fields["password2"].label = "Confirme a senha"
+        self._configurar_cidades()
+
+    def _configurar_cidades(self):
+        estado = self.data.get("estado") if self.is_bound else self.initial.get("estado")
+        self.fields["cidade"].choices = cidades_choices(estado)
+        self.fields["cidade"].widget.attrs["data-cidades-por-estado"] = json.dumps(
+            {uf: list(cidades) for uf, cidades in CIDADES_POR_ESTADO.items()},
+            ensure_ascii=False,
+        )
 
     def clean_nome(self):
         """Remove espacos desnecessarios do nome."""
@@ -207,17 +230,6 @@ class CadastroUsuarioForm(UserCreationForm):
             )
 
         return cnpj or None
-
-    def clean_estado(self):
-        """Padroniza a UF."""
-        estado = (self.cleaned_data.get("estado") or "").strip().upper()
-
-        if estado and len(estado) != 2:
-            raise forms.ValidationError(
-                "Informe a UF com 2 letras, por exemplo: MG."
-            )
-
-        return estado
 
     def clean_password1(self):
         """Valida a senha."""
@@ -300,6 +312,13 @@ class CadastroUsuarioForm(UserCreationForm):
                 "cpf" if cpf else "cnpj",
                 "Observador não precisa informar CPF ou CNPJ.",
             )
+
+        cidade = dados.get("cidade")
+        estado = dados.get("estado")
+        try:
+            validar_localidade(estado, cidade)
+        except ValidationError as erro:
+            self.add_error("cidade", erro)
 
         return dados
 
@@ -583,6 +602,18 @@ class MovimentarEstoqueForm(forms.Form):
 class PedidoSangueForm(forms.ModelForm):
     """Formulário para solicitar a divulgação de uma necessidade."""
 
+    estado = forms.ChoiceField(
+        label="Estado (UF)",
+        required=False,
+        choices=[("", "Selecione uma UF")] + ESTADOS_CHOICES,
+    )
+
+    cidade = forms.ChoiceField(
+        label="Cidade",
+        choices=(),
+        widget=forms.Select(attrs={"data-estado": "estado"}),
+    )
+
     contato = forms.EmailField(
         label="E-mail de contato",
         widget=forms.EmailInput(
@@ -604,6 +635,7 @@ class PedidoSangueForm(forms.ModelForm):
             "titulo",
             "tipo_sanguineo",
             "urgencia",
+            "estado",
             "cidade",
             "nome_paciente",
             "descricao",
@@ -619,6 +651,7 @@ class PedidoSangueForm(forms.ModelForm):
             "titulo": "Título do pedido",
             "tipo_sanguineo": "Tipo sanguíneo",
             "urgencia": "Urgência",
+            "estado": "Estado (UF)",
             "cidade": "Cidade",
             "nome_paciente": "Nome da pessoa (opcional)",
             "descricao": "Descrição",
@@ -663,6 +696,13 @@ class PedidoSangueForm(forms.ModelForm):
                     if valor not in ("", None)
                 ]
 
+        estado = self.data.get("estado") if self.is_bound else self.initial.get("estado")
+        self.fields["cidade"].choices = cidades_choices(estado)
+        self.fields["cidade"].widget.attrs["data-cidades-por-estado"] = json.dumps(
+            {uf: list(cidades) for uf, cidades in CIDADES_POR_ESTADO.items()},
+            ensure_ascii=False,
+        )
+
     def clean_nome_paciente(self):
         return (self.cleaned_data.get("nome_paciente") or "").strip()
 
@@ -704,6 +744,11 @@ class PedidoSangueForm(forms.ModelForm):
 
     def clean(self):
         dados = super().clean()
+
+        try:
+            validar_localidade(dados.get("estado"), dados.get("cidade"))
+        except ValidationError as erro:
+            self.add_error("cidade", erro)
 
         urgencia = dados.get("urgencia")
         justificativa = (
