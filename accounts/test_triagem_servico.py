@@ -113,15 +113,15 @@ class TriagemServicoTests(TestCase):
         self.assertEqual(origem.respostas.count(), 1)
         self.assertEqual(nova.pergunta_atual, 0)
 
-    def test_simplificada_exige_extensa_concluida_do_mesmo_usuario(self):
-        """Falha se a versão rápida puder ser usada sem histórico completo."""
+    def test_simplificada_pode_comecar_sem_extensa_concluida(self):
+        """A versão rápida também funciona para uma primeira avaliação."""
 
-        with self.assertRaises(TriagemSimplificadaIndisponivel):
-            iniciar_triagem(
-                self.usuario,
-                Triagem.Modalidade.SIMPLIFICADA,
-                ip=None,
-            )
+        triagem = iniciar_triagem(
+            self.usuario,
+            Triagem.Modalidade.SIMPLIFICADA,
+            ip=None,
+        )
+        self.assertIsNone(triagem.triagem_base)
 
     def test_simplificada_registra_a_extensa_base(self):
         """Falha se o resultado rápido perder a origem das respostas reutilizadas."""

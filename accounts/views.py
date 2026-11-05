@@ -1010,9 +1010,9 @@ def triagem_apresentacao(request):
             extensa_base = obter_extensa_base(request.user)
             extensa_reutilizavel = obter_extensa_reutilizavel(request.user)
 
-            # A simplificada só fica disponível quando existe
-            # uma triagem extensa concluída válida como base.
-            pode_simplificada = extensa_base is not None
+            # A versão rápida também pode ser iniciada sem histórico; quando
+            # houver uma extensa, ela será usada como contexto adicional.
+            pode_simplificada = True
 
     return render(
         request,
@@ -1177,6 +1177,22 @@ def triagem_pergunta(request, id_triagem):
         id_pergunta=pergunta["id"]
     ).first()
 
+    respostas_salvas = set(
+        triagem.respostas.values_list("id_pergunta", flat=True)
+    )
+    progresso_triagem = []
+    for indice, id_pergunta in enumerate(triagem.fluxo_perguntas):
+        respondida = id_pergunta in respostas_salvas
+        atual = indice == triagem.pergunta_atual
+        progresso_triagem.append(
+            {
+                "id": id_pergunta,
+                "indice": indice + 1,
+                "estado": "atual" if atual else "respondida" if respondida else "disponivel",
+                "editavel": atual or respondida,
+            }
+        )
+
     valor_inicial = resposta_anterior.valor if resposta_anterior else None
 
     form = FormularioPerguntaTriagem(
@@ -1236,6 +1252,7 @@ def triagem_pergunta(request, id_triagem):
             "form": form,
             "numero_pergunta": triagem.pergunta_atual + 1,
             "total_perguntas": len(triagem.fluxo_perguntas),
+            "progresso_triagem": progresso_triagem,
         },
     )
 

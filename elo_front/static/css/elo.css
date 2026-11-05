@@ -15,6 +15,40 @@
     --shadow: 0 16px 40px rgba(20, 20, 20, .06);
 }
 
+.triagem-progresso {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+    margin: 1rem 0 1.5rem;
+}
+
+.triagem-etapa {
+    align-items: center;
+    border: 1px solid var(--border, #ccd6df);
+    border-radius: 999px;
+    display: inline-flex;
+    height: 2rem;
+    justify-content: center;
+    min-width: 2rem;
+    padding: 0 .55rem;
+    text-decoration: none;
+}
+
+.triagem-etapa-respondida {
+    background: var(--primary, #176b87);
+    color: #fff;
+}
+
+.triagem-etapa-atual {
+    border: 2px solid var(--primary, #176b87);
+    font-weight: 700;
+}
+
+.triagem-etapa-disponivel {
+    color: #6b7280;
+    opacity: .7;
+}
+
 * {
     box-sizing: border-box;
 }

@@ -164,6 +164,32 @@ A navegacao tambem respeita a particularizacao por perfil:
         </div>
     </footer>
 
+    <dialog class="legal-modal" id="modal-termos" aria-labelledby="modal-termos-titulo">
+        <header class="legal-modal-header">
+            <div><p class="legal-modal-kicker">ELO · TRANSPARÊNCIA</p><h2 id="modal-termos-titulo">Termos de Uso</h2></div>
+            <button class="legal-modal-close" type="button" data-close-modal aria-label="Fechar Termos de Uso">×</button>
+        </header>
+        <div class="legal-modal-body">
+            <p>Use o Elo de forma responsável e forneça informações verdadeiras. A plataforma conecta pessoas, hemocentros e solicitações, mas não substitui a avaliação clínica presencial.</p>
+            <h3>Solicitações e triagens</h3>
+            <p>Solicitações podem passar por análise antes da publicação. As orientações de triagem são informativas; a decisão final cabe à equipe do hemocentro.</p>
+        </div>
+        <footer class="legal-modal-footer"><button class="button button-primary" type="button" data-close-modal>Entendi</button></footer>
+    </dialog>
+
+    <dialog class="legal-modal" id="modal-privacidade" aria-labelledby="modal-privacidade-titulo">
+        <header class="legal-modal-header">
+            <div><p class="legal-modal-kicker">ELO · SEUS DADOS</p><h2 id="modal-privacidade-titulo">Política de Privacidade</h2></div>
+            <button class="legal-modal-close" type="button" data-close-modal aria-label="Fechar Política de Privacidade">×</button>
+        </header>
+        <div class="legal-modal-body">
+            <p>Os dados informados são usados para autenticar contas, processar solicitações, apoiar a análise dos hemocentros e proteger o sistema, conforme a legislação aplicável.</p>
+            <h3>Proteção e direitos</h3>
+            <p>Informe apenas os dados necessários. Solicitações sobre dados pessoais devem ser encaminhadas pelos canais oficiais da plataforma.</p>
+        </div>
+        <footer class="legal-modal-footer"><button class="button button-primary" type="button" data-close-modal>Entendi</button></footer>
+    </dialog>
+
     <script>
         const menuToggle = document.querySelector(".menu-toggle");
         const mainNav = document.querySelector(".main-nav");

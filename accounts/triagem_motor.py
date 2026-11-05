@@ -457,9 +457,17 @@ def avaliar_triagem(
         if achado.get("data_liberacao")
     ]
 
+    mensagem = MENSAGENS_RESULTADO[resultado]
+    if modalidade == Triagem.Modalidade.SIMPLIFICADA and not respostas_base:
+        mensagem = (
+            "Esta é uma orientação inicial baseada apenas nas respostas rápidas. "
+            "Ela é limitada e não substitui a entrevista, a avaliação clínica "
+            "nem a decisão presencial da equipe do hemocentro."
+        )
+
     return {
         "resultado": resultado,
-        "mensagem": MENSAGENS_RESULTADO[resultado],
+        "mensagem": mensagem,
         "data_liberacao": max(datas) if datas else None,
         "achados": achados,
         "regra_version": TRIAGEM_RULE_VERSION,

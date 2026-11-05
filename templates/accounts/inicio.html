@@ -7,11 +7,23 @@ Tela publica do ator Visitante. Ela permite pesquisar postos de coleta,
 consultar estoque geral e ver pedidos ativos sem exigir cadastro ou login.
 {% endcomment %}
 
-{% block title %}Acesso visitante | Elo{% endblock %}
+{% block title %}Elo | Conectando pessoas e vidas{% endblock %}
 
 {% block content %}
-<h1>Acesso visitante</h1>
-<p>Pesquise postos de coleta, consulte o estoque geral e acompanhe pedidos ativos.</p>
+<section class="hero" id="sobre">
+    <p class="eyebrow">Cuidado que aproxima</p>
+    <h1>Conectando pessoas, hemocentros e vidas.</h1>
+    <p>O Elo ajuda você a encontrar informação confiável, entender a doação e acompanhar caminhos para ajudar quem precisa.</p>
+    <p>
+        <a class="button button-primary" href="{% url 'accounts:triagem_apresentacao' %}">Conhecer a triagem</a>
+        <a class="button" href="{% url 'accounts:estoque_publico' %}">Consultar estoques</a>
+    </p>
+</section>
+
+<section class="info-section">
+    <h2>Como o Elo ajuda</h2>
+    <p>Você pode se preparar para doar, consultar estoques disponíveis e encontrar pedidos publicados por hemocentros.</p>
+</section>
 
 <section>
     <h2>Triagem para doação</h2>
@@ -25,6 +37,12 @@ consultar estoque geral e ver pedidos ativos sem exigir cadastro ou login.
             Conhecer a triagem
         </a>
     </p>
+</section>
+
+<section class="faq-section" id="duvidas">
+    <h2>Dúvidas frequentes</h2>
+    <details><summary>A triagem confirma se posso doar?</summary><p>Não. Ela é orientativa e deve sempre ser confirmada pela equipe do hemocentro.</p></details>
+    <details><summary>Preciso de conta para consultar informações?</summary><p>Não. Estoques, postos e pedidos publicados podem ser consultados publicamente.</p></details>
 </section>
 
 <section>

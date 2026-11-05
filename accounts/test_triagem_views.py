@@ -167,20 +167,21 @@ class TriagemViewsTests(TestCase):
         self.assertEqual(resposta.status_code, 403)
         self.assertFalse(Triagem.objects.filter(usuario=self.observador).exists())
 
-    def test_simplificada_exige_extensa_anterior(self):
-        """Falha se a versão rápida for iniciada sem histórico completo."""
+    def test_simplificada_pode_ser_iniciada_sem_extensa_anterior(self):
+        """A versão rápida pode começar sem histórico anterior."""
 
         resposta = self._iniciar_pela_rota("simplificada")
 
+        triagem = Triagem.objects.get(
+            usuario=self.doador,
+            modalidade=Triagem.Modalidade.SIMPLIFICADA,
+        )
         self.assertRedirects(
             resposta,
-            reverse("accounts:triagem_apresentacao"),
-        )
-        self.assertFalse(
-            Triagem.objects.filter(
-                usuario=self.doador,
-                modalidade=Triagem.Modalidade.SIMPLIFICADA,
-            ).exists()
+            reverse(
+                "accounts:triagem_pergunta",
+                kwargs={"id_triagem": triagem.pk},
+            ),
         )
 
     def test_pagina_mostra_uma_pergunta_e_salva_resposta(self):
