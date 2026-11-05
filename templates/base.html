@@ -49,17 +49,33 @@ A navegacao tambem respeita a particularizacao por perfil:
                     {% if user.perfil == "RECEPTOR" %}
                         <a href="{% url 'accounts:pedido_publicar' %}">Solicitar pedido de sangue</a>
                     {% endif %}
-
-                    {% if user.perfil == "HEMOCENTRO" and user.status_validacao == "APROVADO" %}
-                        <a href="{% url 'accounts:painel_pedidos_hemocentro' %}">Analisar solicitações</a>
-                        <a href="{% url 'accounts:estoque_hemocentro' %}">Meu estoque</a>
+                    
+                {% if user.perfil == "HEMOCENTRO" %}
+                    {% if user.status_validacao == "APROVADO" %}
+                        <a class="nav-cta"
+                        href="{% url 'accounts:painel_pedidos_hemocentro' %}">
+                            Analisar solicitações
+                        </a>
+                        <a href="{% url 'accounts:estoque_hemocentro' %}">
+                            Meu estoque
+                        </a>
                     {% endif %}
 
-                    {% if user.is_staff or user.is_superuser or user.perfil == "ADMINISTRADOR" %}
-                        <a href="{% url 'accounts:painel_aprovacao_hemocentros' %}">Validar Hemocentros</a>
-                        <a href="{% url 'accounts:painel_validacao_pedidos' %}">Moderar pedidos</a>
-                        <a href="/admin/">Admin</a>
-                    {% endif %}
+                {% elif user.is_staff or user.is_superuser or user.perfil == "ADMINISTRADOR" %}
+                    <a href="{% url 'accounts:painel_aprovacao_hemocentros' %}">
+                        Validar Hemocentros
+                    </a>
+                    <a href="{% url 'accounts:painel_validacao_pedidos' %}">
+                        Moderar pedidos
+                    </a>
+                    <a href="/admin/">Admin</a>
+
+                {% else %}
+                    <a class="nav-cta"
+                    href="{% url 'accounts:pedido_publicar' %}">
+                        Solicitar pedido de sangue
+                    </a>
+                {% endif %}
 
                     <span>{{ user.get_short_name }}</span>
 
@@ -71,7 +87,10 @@ A navegacao tambem respeita a particularizacao por perfil:
                     <a href="{% url 'accounts:inicio' %}#sobre">Sobre o elo</a>
                     <a href="{% url 'accounts:compatibilidade_sanguinea' %}">Compatibilidade sanguinea</a>
                     <a href="{% url 'accounts:estoque_publico' %}">Estoques publicos</a>
-                    <a href="{% url 'accounts:pedido_publicar' %}">Solicitar pedido de sangue</a>
+                    <a class="nav-cta"
+                        href="{% url 'accounts:pedido_publicar' %}">
+                            Solicitar pedido de sangue
+                    </a>
                     <a href="{% url 'accounts:login' %}">Entrar</a>
                     <a class="nav-cta" href="{% url 'accounts:cadastro' %}">Criar conta</a>
                 {% endif %}

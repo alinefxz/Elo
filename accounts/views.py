@@ -1551,7 +1551,10 @@ def criar_pedido_sangue(request):
     # autenticados, somente o perfil Receptor pode enviar solicitações.
     if (
         request.user.is_authenticated
-        and request.user.perfil != Usuario.Perfil.RECEPTOR
+        and request.user.perfil in {
+            Usuario.Perfil.HEMOCENTRO,
+            Usuario.Perfil.ADMINISTRADOR,
+        }
     ):
         registrar_auditoria(
             acao=AuditoriaAcaoCritica.Acao.MODERACAO,
