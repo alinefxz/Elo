@@ -1,0 +1,120 @@
+
+{% extends "base.html" %}
+
+{% block title %}Acompanhar solicitação | Elo{% endblock %}
+
+{% block content %}
+<section class="tracking-page" aria-labelledby="tracking-title">
+
+    <header class="tracking-intro">
+        <p class="request-eyebrow">PEDIDO DE SANGUE</p>
+        <h1 id="tracking-title">Acompanhe sua solicitação</h1>
+        <p>
+            Consulte a situação atual informando o protocolo recebido
+            após o envio e o mesmo e-mail usado na solicitação.
+        </p>
+    </header>
+
+    <div class="tracking-card">
+        <form method="post" class="tracking-form">
+            {% csrf_token %}
+
+            <div class="tracking-field">
+                <label for="protocolo">Número do protocolo</label>
+                <input
+                    type="text"
+                    id="protocolo"
+                    name="protocolo"
+                    inputmode="numeric"
+                    placeholder="Ex.: 2"
+                    value="{{ protocolo|default:'' }}"
+                    required
+                >
+                <small>Você encontra esse número na confirmação do pedido.</small>
+            </div>
+
+            <div class="tracking-field">
+                <label for="contato">E-mail usado na solicitação</label>
+                <input
+                    type="email"
+                    id="contato"
+                    name="contato"
+                    autocomplete="email"
+                    placeholder="seuemail@exemplo.com"
+                    value="{{ contato|default:'' }}"
+                    required
+                >
+            </div>
+
+            {% if erro %}
+                <p class="tracking-error" role="alert">{{ erro }}</p>
+            {% endif %}
+
+            <button class="button button-primary" type="submit">
+                Consultar protocolo
+            </button>
+        </form>
+    </div>
+
+    {% if pedido %}
+        <section class="tracking-result" aria-live="polite">
+            <div class="tracking-result-heading">
+                <span class="tracking-result-check" aria-hidden="true">✓</span>
+                <div>
+                    <p class="request-eyebrow">PROTOCOLO #{{ pedido.pk }}</p>
+                    <h2>{{ pedido.get_status_display }}</h2>
+                </div>
+            </div>
+
+            <p>
+                Solicitação registrada em
+                {{ pedido.data_criacao|date:"d/m/Y H:i" }}.
+            </p>
+
+            {% if pedido.status == "ENVIADA" %}
+                <p>
+                    A solicitação foi recebida e aguarda a análise
+                    do Hemocentro de referência.
+                </p>
+            {% elif pedido.status == "EM_ANALISE" %}
+                <p>
+                    O Hemocentro está analisando as informações.
+                    O pedido ainda não está publicado.
+                </p>
+            {% elif pedido.status == "PUBLICADA" %}
+                <p>
+                    A solicitação foi aprovada e publicada pelo
+                    Hemocentro responsável.
+                </p>
+            {% elif pedido.status == "CORRECAO_SOLICITADA" %}
+                <p>
+                    O Hemocentro solicitou uma correção. Entre em contato
+                    com a instituição responsável para saber como proceder.
+                </p>
+            {% elif pedido.status == "RECUSADA" %}
+                <p>
+                    A solicitação não foi aprovada pelo Hemocentro.
+                </p>
+            {% elif pedido.status == "ENCERRADA" %}
+                <p>
+                    Esta solicitação foi encerrada.
+                </p>
+            {% endif %}
+
+            <p class="tracking-private-note">
+                Por privacidade, esta consulta exibe somente a situação
+                da solicitação.
+            </p>
+        </section>
+    {% endif %}
+
+    <p class="tracking-back">
+        <a href="{% url 'accounts:consultar_pedidos' %}">
+            Ver pedidos publicados
+        </a>
+        <span aria-hidden="true"> · </span>
+        <a href="{% url 'accounts:inicio' %}">Voltar ao início</a>
+    </p>
+
+</section>
+{% endblock %}

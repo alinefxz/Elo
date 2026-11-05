@@ -83,7 +83,11 @@ Somente os formulários abaixo iniciam um registro no histórico.
 
 <section>
     <h2>Triagem simplificada</h2>
-    <p>Verificação mais rápida para quem já concluiu a extensa e deseja informar mudanças.</p>
+    <p>
+        Verificação mais rápida para informar mudanças. Ela pode ser iniciada
+        mesmo sem uma triagem extensa anterior, mas nesse caso a orientação será
+        limitada e deverá ser confirmada presencialmente no hemocentro.
+    </p>
 
     {% if pode_simplificada %}
         <form method="post" action="{% url 'accounts:triagem_iniciar' modalidade='simplificada' %}">
@@ -96,7 +100,7 @@ Somente os formulários abaixo iniciam um registro no histórico.
             <button type="submit">Iniciar ou continuar triagem simplificada</button>
         </form>
     {% elif pode_iniciar %}
-        <p>Conclua uma triagem extensa para liberar esta opção.</p>
+        <p>A triagem simplificada está disponível para você.</p>
     {% elif not user.is_authenticated %}
         <form method="get" action="{% url 'accounts:login' %}">
             <button type="submit">Entrar para continuar uma triagem</button>

@@ -1013,6 +1013,7 @@ class PedidoSangue(models.Model):
     )
 
     cidade = models.CharField(max_length=100)
+    estado = models.CharField(max_length=2, blank=True, default="")
     nome_paciente = models.CharField(
         max_length=150,
         blank=True,

@@ -45,6 +45,11 @@ class PedidoSangueTests(TestCase):
             nome="Doador Elo",
             perfil=Usuario.Perfil.DOADOR,
         )
+        self.observador = self.criar_usuario(
+            email="observador@elo.test",
+            nome="Observador Elo",
+            perfil=Usuario.Perfil.OBSERVADOR,
+        )
         self.administrador = self.criar_usuario(
             email="admin@elo.test",
             nome="Administrador Elo",
@@ -80,7 +85,8 @@ class PedidoSangueTests(TestCase):
             "titulo": "Doacao para paciente internado",
             "tipo_sanguineo": "O-",
             "urgencia": PedidoSangue.Urgencia.BAIXA,
-            "cidade": "Muzambinho",
+            "estado": "SP",
+            "cidade": "São Paulo",
             "nome_paciente": "Paciente de exemplo",
             "descricao": (
                 "Precisamos de doadores para auxiliar um paciente internado."
@@ -109,7 +115,7 @@ class PedidoSangueTests(TestCase):
             self.dados_validos(),
         )
 
-        self.assertRedirects(resposta, reverse("accounts:minhas_solicitacoes"))
+        self.assertRedirects(resposta, reverse("accounts:pedido_registrado"))
         pedido = PedidoSangue.objects.get()
         self.assertEqual(pedido.solicitante, self.receptor)
         self.assertEqual(pedido.hemocentro_destino, self.hemocentro)
@@ -124,16 +130,58 @@ class PedidoSangueTests(TestCase):
         self.assertRedirects(resposta, reverse("accounts:dashboard"))
         self.assertFalse(PedidoSangue.objects.exists())
 
-    def test_visitante_precisa_entrar(self):
-        url = reverse("accounts:pedido_publicar")
-        resposta = self.client.get(url)
-        self.assertRedirects(resposta, f"{reverse('accounts:login')}?next={url}")
+    def test_observador_nao_pode_enviar_solicitacao(self):
+        self.client.force_login(self.observador)
+        resposta = self.client.post(
+            reverse("accounts:pedido_publicar"),
+            self.dados_validos(),
+        )
+        self.assertRedirects(resposta, reverse("accounts:dashboard"))
+        self.assertFalse(PedidoSangue.objects.exists())
+
+    def test_visitante_consegue_abrir_formulario_de_pedido(self):
+        resposta = self.client.get(reverse("accounts:pedido_publicar"))
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "form")
+
+    def test_visitante_pode_enviar_solicitacao_pendente(self):
+        resposta = self.client.post(
+            reverse("accounts:pedido_publicar"),
+            self.dados_validos(),
+        )
+
+        self.assertRedirects(resposta, reverse("accounts:pedido_registrado"))
+        pedido = PedidoSangue.objects.get()
+        self.assertIsNone(pedido.solicitante)
+        self.assertEqual(pedido.status, PedidoSangue.Status.ENVIADA)
+
+        confirmacao = self.client.get(reverse("accounts:pedido_registrado"))
+        self.assertEqual(confirmacao.status_code, 200)
+        self.assertContains(confirmacao, "Solicitação enviada com sucesso!")
+        self.assertContains(confirmacao, f"#{pedido.pk}")
+        self.assertContains(confirmacao, "Acompanhar o andamento")
+
+        # O visitante consegue consultar novamente o andamento nesta sessão.
+        segunda_consulta = self.client.get(reverse("accounts:pedido_registrado"))
+        self.assertEqual(segunda_consulta.status_code, 200)
+        self.assertContains(segunda_consulta, f"#{pedido.pk}")
 
     def test_formulario_rejeita_descricao_curta(self):
         form = PedidoSangueForm(self.dados_validos(descricao="Curto"))
 
         self.assertFalse(form.is_valid())
         self.assertIn("descricao", form.errors)
+
+    def test_formulario_rejeita_cidade_incompativel_com_uf(self):
+        """Protege o POST contra combinações manipuladas fora do seletor."""
+
+        form = PedidoSangueForm(
+            self.dados_validos(estado="SP", cidade="Belo Horizonte")
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("cidade", form.errors)
 
     def test_formulario_exige_email_no_contato(self):
         form_invalido = PedidoSangueForm(

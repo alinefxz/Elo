@@ -12,6 +12,23 @@ de data e complemento somente quando a regra da pergunta precisa deles.
 
 <p>Triagem {{ triagem.id_triagem }} — Pergunta {{ numero_pergunta }} de {{ total_perguntas }}</p>
 
+<nav class="triagem-progresso" aria-label="Progresso da triagem">
+    {% for etapa in progresso_triagem %}
+        {% if etapa.editavel %}
+            <a class="triagem-etapa triagem-etapa-{{ etapa.estado }}"
+               href="{% url 'accounts:triagem_pergunta' triagem.id_triagem %}?pergunta={{ etapa.id }}"
+               aria-label="Pergunta {{ etapa.indice }}{% if etapa.estado == 'respondida' %}, respondida{% else %}, atual{% endif %}">
+                {{ etapa.indice }}
+            </a>
+        {% else %}
+            <span class="triagem-etapa triagem-etapa-{{ etapa.estado }}"
+                  aria-label="Pergunta {{ etapa.indice }}, ainda não disponível">
+                {{ etapa.indice }}
+            </span>
+        {% endif %}
+    {% endfor %}
+</nav>
+
 <h2>{{ pergunta.titulo }}</h2>
 <p>{{ pergunta.explicacao }}</p>
 

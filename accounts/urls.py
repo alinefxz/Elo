@@ -165,7 +165,14 @@ urlpatterns = [
     "pedidos/registrado/",
     views.pedido_registrado,
     name="pedido_registrado",
-),
+    ),
+
+    
+    path(
+        "pedidos/acompanhar/",
+        views.acompanhar_pedido,
+        name="acompanhar_pedido",
+    ),
 
     # ==========================================================
     # TRIAGEM

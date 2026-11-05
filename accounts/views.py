@@ -1010,9 +1010,9 @@ def triagem_apresentacao(request):
             extensa_base = obter_extensa_base(request.user)
             extensa_reutilizavel = obter_extensa_reutilizavel(request.user)
 
-            # A simplificada só fica disponível quando existe
-            # uma triagem extensa concluída válida como base.
-            pode_simplificada = extensa_base is not None
+            # A versão rápida também pode ser iniciada sem histórico; quando
+            # houver uma extensa, ela será usada como contexto adicional.
+            pode_simplificada = True
 
     return render(
         request,
@@ -1177,6 +1177,22 @@ def triagem_pergunta(request, id_triagem):
         id_pergunta=pergunta["id"]
     ).first()
 
+    respostas_salvas = set(
+        triagem.respostas.values_list("id_pergunta", flat=True)
+    )
+    progresso_triagem = []
+    for indice, id_pergunta in enumerate(triagem.fluxo_perguntas):
+        respondida = id_pergunta in respostas_salvas
+        atual = indice == triagem.pergunta_atual
+        progresso_triagem.append(
+            {
+                "id": id_pergunta,
+                "indice": indice + 1,
+                "estado": "atual" if atual else "respondida" if respondida else "disponivel",
+                "editavel": atual or respondida,
+            }
+        )
+
     valor_inicial = resposta_anterior.valor if resposta_anterior else None
 
     form = FormularioPerguntaTriagem(
@@ -1236,6 +1252,7 @@ def triagem_pergunta(request, id_triagem):
             "form": form,
             "numero_pergunta": triagem.pergunta_atual + 1,
             "total_perguntas": len(triagem.fluxo_perguntas),
+            "progresso_triagem": progresso_triagem,
         },
     )
 
@@ -1549,7 +1566,12 @@ def criar_pedido_sangue(request):
     A solicitação aguarda análise do Hemocentro.
     """
 
+<<<<<<< HEAD
     # Hemocentros e administradores não enviam solicitações por este formulário.
+=======
+    # Visitantes podem preencher o formulário público; entre os usuários
+    # autenticados, somente o perfil Receptor pode enviar solicitações.
+>>>>>>> fix/unboundlocal-form-pedido-2026-10-09
     if (
         request.user.is_authenticated
         and request.user.perfil in {
@@ -1562,9 +1584,13 @@ def criar_pedido_sangue(request):
             resultado=AuditoriaAcaoCritica.Resultado.BLOQUEADO,
             usuario=request.user,
             request=request,
+<<<<<<< HEAD
             descricao=(
                 "Tentativa de enviar solicitacao de pedido bloqueada."
             ),
+=======
+            descricao="Tentativa de envio por perfil sem permissao bloqueada.",
+>>>>>>> fix/unboundlocal-form-pedido-2026-10-09
             metadados={
                 "evento": "TENTATIVA_ACESSO",
                 "rota": "accounts:pedido_publicar",
@@ -1586,6 +1612,7 @@ def criar_pedido_sangue(request):
                 pedido = criar_pedido_pendente(
                     dados=form.cleaned_data,
                     solicitante=(
+<<<<<<< HEAD
                         request.user
                         if request.user.is_authenticated
                         else None
@@ -1613,6 +1640,18 @@ def criar_pedido_sangue(request):
                 form.add_error(None, erro)
 
     # GET: o usuário está apenas abrindo a página.
+=======
+                        request.user if request.user.is_authenticated else None
+                    ),
+                )
+
+                request.session["pedido_registrado_id"] = pedido.pk
+
+                return redirect("accounts:pedido_registrado")
+
+            except ValidationError as erro:
+                form.add_error(None, erro)
+>>>>>>> fix/unboundlocal-form-pedido-2026-10-09
     else:
         form = PedidoSangueForm()
 
@@ -1620,15 +1659,75 @@ def criar_pedido_sangue(request):
         request,
         "accounts/pedido_publicar.html",
         {"form": form},
+<<<<<<< HEAD
+=======
+
+    )
+
+
+def acompanhar_pedido(request):
+    """Consulta o andamento de uma solicitação usando protocolo e e-mail."""
+
+    pedido = None
+    erro = None
+
+    if request.method == "POST":
+        protocolo = request.POST.get("protocolo", "").strip()
+        contato = request.POST.get("contato", "").strip().lower()
+
+        # Aceita que a pessoa digite, por exemplo, "#2" ou "2".
+        protocolo_limpo = protocolo.removeprefix("#").strip()
+
+        try:
+            pedido_id = int(protocolo_limpo)
+
+            if pedido_id <= 0:
+                raise ValueError
+
+        except (TypeError, ValueError):
+            erro = "Informe um protocolo válido, por exemplo: 2."
+
+        else:
+            if not contato:
+                erro = "Informe o e-mail utilizado na solicitação."
+            else:
+                pedido = (
+                    PedidoSangue.objects
+                    .filter(
+                        pk=pedido_id,
+                        contato__iexact=contato,
+                    )
+                    .first()
+                )
+
+                if pedido is None:
+                    erro = (
+                        "Não encontramos uma solicitação com esses dados. "
+                        "Confira o protocolo e o e-mail e tente novamente."
+                    )
+    else:
+        # Permite preencher o protocolo automaticamente ao vir da confirmação.
+        protocolo = request.GET.get("protocolo", "").strip()
+        contato = ""
+
+    return render(
+        request,
+        "accounts/pedido_acompanhar.html",
+        {
+            "pedido": pedido,
+            "erro": erro,
+            "protocolo": protocolo,
+            "contato": contato,
+        },
+>>>>>>> fix/unboundlocal-form-pedido-2026-10-09
     )
 
 def pedido_registrado(request):
     """Exibe a confirmação da solicitação recém-criada."""
 
-    pedido_id = request.session.pop(
-        "pedido_registrado_id",
-        None,
-    )
+    # Mantém o protocolo na sessão para que o visitante possa
+    # consultar novamente a situação enquanto esta sessão estiver ativa.
+    pedido_id = request.session.get("pedido_registrado_id")
 
     if not pedido_id:
         return redirect("accounts:consultar_pedidos")

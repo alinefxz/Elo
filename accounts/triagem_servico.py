@@ -2,7 +2,7 @@
 
 # - Permite triagem somente para Doadores e Receptores.
 # - Inicia triagens extensas e simplificadas após o aceite do termo.
-# - A simplificada utiliza uma triagem extensa concluída como base.
+# - A simplificada pode começar sem uma triagem extensa como base.
 # - Organiza as perguntas conforme as respostas anteriores.
 # - Mostra perguntas condicionais quando necessário.
 # - Valida perguntas, alternativas e datas recebidas.
@@ -246,11 +246,10 @@ def iniciar_triagem(
 
     extensa_base = None
     if modalidade == Triagem.Modalidade.SIMPLIFICADA:
+        # A versão rápida pode ser usada por quem ainda não tem histórico.
+        # Quando houver uma extensa concluída, ela continua sendo aproveitada
+        # pelo motor para complementar a orientação.
         extensa_base = obter_extensa_base(usuario)
-        if extensa_base is None:
-            raise TriagemSimplificadaIndisponivel(
-                "Conclua primeiro uma triagem extensa."
-            )
 
     consentimento, _ = ConsentimentoLGPD.objects.get_or_create(
         usuario=usuario,
@@ -542,7 +541,11 @@ def concluir_triagem(triagem, hoje=None):
         )
         if "ENTENDO" not in confirmacao:
             raise TriagemIncompleta("Confirme a limitação da versão rápida.")
-        respostas_base = _respostas_da_triagem(triagem.triagem_base)
+        respostas_base = (
+            _respostas_da_triagem(triagem.triagem_base)
+            if triagem.triagem_base is not None
+            else None
+        )
 
     calculo = avaliar_triagem(
         triagem.modalidade,

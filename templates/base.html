@@ -47,19 +47,35 @@ A navegacao tambem respeita a particularizacao por perfil:
                     <a href="{% url 'accounts:estoque_publico' %}">Estoques publicos</a>
 
                     {% if user.perfil == "RECEPTOR" %}
-                        <a href="{% url 'accounts:pedido_publicar' %}">Solicitar necessidade</a>
+                        <a href="{% url 'accounts:pedido_publicar' %}">Solicitar pedido de sangue</a>
+                    {% endif %}
+                    
+                {% if user.perfil == "HEMOCENTRO" %}
+                    {% if user.status_validacao == "APROVADO" %}
+                        <a class="nav-cta"
+                        href="{% url 'accounts:painel_pedidos_hemocentro' %}">
+                            Analisar solicitações
+                        </a>
+                        <a href="{% url 'accounts:estoque_hemocentro' %}">
+                            Meu estoque
+                        </a>
                     {% endif %}
 
-                    {% if user.perfil == "HEMOCENTRO" and user.status_validacao == "APROVADO" %}
-                        <a href="{% url 'accounts:painel_pedidos_hemocentro' %}">Analisar solicitações</a>
-                        <a href="{% url 'accounts:estoque_hemocentro' %}">Meu estoque</a>
-                    {% endif %}
+                {% elif user.is_staff or user.is_superuser or user.perfil == "ADMINISTRADOR" %}
+                    <a href="{% url 'accounts:painel_aprovacao_hemocentros' %}">
+                        Validar Hemocentros
+                    </a>
+                    <a href="{% url 'accounts:painel_validacao_pedidos' %}">
+                        Moderar pedidos
+                    </a>
+                    <a href="/admin/">Admin</a>
 
-                    {% if user.is_staff or user.is_superuser or user.perfil == "ADMINISTRADOR" %}
-                        <a href="{% url 'accounts:painel_aprovacao_hemocentros' %}">Validar Hemocentros</a>
-                        <a href="{% url 'accounts:painel_validacao_pedidos' %}">Moderar pedidos</a>
-                        <a href="/admin/">Admin</a>
-                    {% endif %}
+                {% else %}
+                    <a class="nav-cta"
+                    href="{% url 'accounts:pedido_publicar' %}">
+                        Solicitar pedido de sangue
+                    </a>
+                {% endif %}
 
                     <span>{{ user.get_short_name }}</span>
 
@@ -71,7 +87,10 @@ A navegacao tambem respeita a particularizacao por perfil:
                     <a href="{% url 'accounts:inicio' %}#sobre">Sobre o elo</a>
                     <a href="{% url 'accounts:compatibilidade_sanguinea' %}">Compatibilidade sanguinea</a>
                     <a href="{% url 'accounts:estoque_publico' %}">Estoques publicos</a>
-                    <a href="{% url 'accounts:pedido_publicar' %}">Solicitar necessidade</a>
+                    <a class="nav-cta"
+                        href="{% url 'accounts:pedido_publicar' %}">
+                            Solicitar pedido de sangue
+                    </a>
                     <a href="{% url 'accounts:login' %}">Entrar</a>
                     <a class="nav-cta" href="{% url 'accounts:cadastro' %}">Criar conta</a>
                 {% endif %}
@@ -104,18 +123,75 @@ A navegacao tambem respeita a particularizacao por perfil:
 
             <p>Conectando pessoas, hemocentros e vidas.</p>
 
-            <div class="footer-links">
-                <a href="{% url 'accounts:inicio' %}#sobre">Sobre o elo</a>
-                <a href="{% url 'accounts:triagem_apresentacao' %}">Como doar</a>
-                <a href="{% url 'accounts:estoque_publico' %}">Estoques</a>
-                {% if user.is_authenticated %}
-                    <a href="{% url 'accounts:dashboard' %}">Meu painel</a>
-                {% else %}
-                    <a href="{% url 'accounts:login' %}">Entrar</a>
-                {% endif %}
-            </div>
+            
+        <div class="footer-links">
+            <a href="{% url 'accounts:inicio' %}#sobre">Sobre o Elo</a>
+
+            <a href="{% url 'accounts:triagem_apresentacao' %}">
+                Como doar
+            </a>
+
+            <a href="{% url 'accounts:estoque_publico' %}">
+                Estoques públicos
+            </a>
+
+            <a href="{% url 'accounts:consultar_pedidos' %}">
+                Pedidos publicados
+            </a>
+
+            <a href="{% url 'accounts:acompanhar_pedido' %}">
+                Acompanhar pedido
+            </a>
+
+            <a class="footer-legal-link"
+            href="#modal-termos"
+            data-open-modal="modal-termos">
+                Termos de Uso
+            </a>
+
+            <a class="footer-legal-link"
+            href="#modal-privacidade"
+            data-open-modal="modal-privacidade">
+                Política de Privacidade
+            </a>
+
+            {% if user.is_authenticated %}
+                <a href="{% url 'accounts:dashboard' %}">
+                    Meu painel
+                </a>
+            {% else %}
+                <a href="{% url 'accounts:login' %}">Entrar</a>
+                <a href="{% url 'accounts:cadastro' %}">Criar conta</a>
+            {% endif %}
+        </div>
         </div>
     </footer>
+
+    <dialog class="legal-modal" id="modal-termos" aria-labelledby="modal-termos-titulo">
+        <header class="legal-modal-header">
+            <div><p class="legal-modal-kicker">ELO · TRANSPARÊNCIA</p><h2 id="modal-termos-titulo">Termos de Uso</h2></div>
+            <button class="legal-modal-close" type="button" data-close-modal aria-label="Fechar Termos de Uso">×</button>
+        </header>
+        <div class="legal-modal-body">
+            <p>Use o Elo de forma responsável e forneça informações verdadeiras. A plataforma conecta pessoas, hemocentros e solicitações, mas não substitui a avaliação clínica presencial.</p>
+            <h3>Solicitações e triagens</h3>
+            <p>Solicitações podem passar por análise antes da publicação. As orientações de triagem são informativas; a decisão final cabe à equipe do hemocentro.</p>
+        </div>
+        <footer class="legal-modal-footer"><button class="button button-primary" type="button" data-close-modal>Entendi</button></footer>
+    </dialog>
+
+    <dialog class="legal-modal" id="modal-privacidade" aria-labelledby="modal-privacidade-titulo">
+        <header class="legal-modal-header">
+            <div><p class="legal-modal-kicker">ELO · SEUS DADOS</p><h2 id="modal-privacidade-titulo">Política de Privacidade</h2></div>
+            <button class="legal-modal-close" type="button" data-close-modal aria-label="Fechar Política de Privacidade">×</button>
+        </header>
+        <div class="legal-modal-body">
+            <p>Os dados informados são usados para autenticar contas, processar solicitações, apoiar a análise dos hemocentros e proteger o sistema, conforme a legislação aplicável.</p>
+            <h3>Proteção e direitos</h3>
+            <p>Informe apenas os dados necessários. Solicitações sobre dados pessoais devem ser encaminhadas pelos canais oficiais da plataforma.</p>
+        </div>
+        <footer class="legal-modal-footer"><button class="button button-primary" type="button" data-close-modal>Entendi</button></footer>
+    </dialog>
 
     <script>
         const menuToggle = document.querySelector(".menu-toggle");
@@ -127,6 +203,39 @@ A navegacao tambem respeita a particularizacao por perfil:
                 menuToggle.setAttribute("aria-expanded", opened ? "true" : "false");
             });
         }
+        
+        
+        document.querySelectorAll("[data-open-modal]").forEach((link) => {
+            link.addEventListener("click", (event) => {
+                event.preventDefault();
+
+                const modalId = link.dataset.openModal;
+                const modal = document.getElementById(modalId);
+
+                if (modal && typeof modal.showModal === "function") {
+                    modal.showModal();
+                }
+            });
+        });
+
+        document.querySelectorAll("[data-close-modal]").forEach((button) => {
+            button.addEventListener("click", () => {
+                const modal = button.closest("dialog");
+
+                if (modal) {
+                    modal.close();
+                }
+            });
+        });
+
+        // Permite fechar ao clicar na área escura fora da janela.
+        document.querySelectorAll(".legal-modal").forEach((modal) => {
+            modal.addEventListener("click", (event) => {
+                if (event.target === modal) {
+                    modal.close();
+                }
+            });
+        });
     </script>
     <script src="{% static 'js/localidades.js' %}" defer></script>
     {% if user.is_authenticated %}
