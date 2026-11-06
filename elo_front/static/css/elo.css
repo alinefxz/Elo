@@ -1058,6 +1058,301 @@ main .notificacao-acoes button[type="submit"] {
     }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Camada visual compartilhada                                                 */
+/* -------------------------------------------------------------------------- */
+
+:root {
+    --surface: #ffffff;
+    --surface-alt: #fff8f9;
+    --ink: #202126;
+    --ink-soft: #5f626b;
+    --border: #eadfe2;
+    --border-strong: #ddc9ce;
+    --accent-soft: #fff0f2;
+    --shadow-sm: 0 6px 18px rgba(44, 24, 29, .05);
+    --shadow-md: 0 18px 50px rgba(44, 24, 29, .08);
+}
+
+body {
+    min-width: 320px;
+    background: #fcfbfb;
+    color: var(--ink);
+}
+
+main {
+    min-height: 55vh;
+}
+
+/* A homepage usa seções diretas; esta regra também transforma as telas
+   internas antigas em blocos consistentes sem exigir mudanças de backend. */
+main > section:not(.hero):not(.info-section):not(.faq-section):not(.stock-section) {
+    width: min(1160px, calc(100% - 64px));
+    margin: 0 auto 22px;
+    padding: 28px 32px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+}
+
+main > section:not(.hero):not(.info-section):not(.faq-section):not(.stock-section) h2 {
+    margin: 0 0 10px;
+    color: var(--ink);
+    font-size: clamp(21px, 2.2vw, 28px);
+    line-height: 1.25;
+}
+
+main > section:not(.hero):not(.info-section):not(.faq-section):not(.stock-section) h3 {
+    margin: 20px 0 6px;
+    color: var(--red-dark);
+    font-size: 16px;
+}
+
+main > section:not(.hero):not(.info-section):not(.faq-section):not(.stock-section) > p:last-child,
+main > section:not(.hero):not(.info-section):not(.faq-section):not(.stock-section) > ul:last-child {
+    margin-bottom: 0;
+}
+
+main > h1 {
+    width: min(1160px, calc(100% - 64px));
+    margin: 42px auto 8px;
+    color: var(--ink);
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: clamp(32px, 4vw, 48px);
+    line-height: 1.1;
+}
+
+main > h1 + p,
+main > h1 + p + p {
+    width: min(1160px, calc(100% - 64px));
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Página inicial */
+.hero {
+    width: 100%;
+    min-height: 560px;
+    padding: clamp(70px, 10vw, 128px) max(32px, calc((100% - 1160px) / 2));
+    background: radial-gradient(circle at 80% 22%, #ffe8ec 0, transparent 28%),
+        linear-gradient(135deg, #fff 0%, #fff8f9 100%);
+}
+
+.hero > .eyebrow,
+.hero > h1,
+.hero > p {
+    max-width: 650px;
+}
+
+.hero > h1 {
+    margin: 0;
+    color: var(--ink);
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: clamp(42px, 6vw, 76px);
+    line-height: 1.02;
+    letter-spacing: -2px;
+}
+
+.hero > p:not(.eyebrow) {
+    color: var(--ink-soft);
+    font-size: 17px;
+}
+
+.hero > p:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 30px;
+}
+
+.info-section,
+.faq-section {
+    width: min(1160px, calc(100% - 64px));
+    margin: 22px auto;
+    padding: 58px 0;
+}
+
+.faq-section details {
+    height: 100%;
+}
+
+/* Listas, tabelas e formulários sem classes específicas */
+main > section ul:not(.triagem-progresso) {
+    display: grid;
+    gap: 10px;
+    padding-left: 0;
+    list-style: none;
+}
+
+main > section li:not(.triagem-etapa) {
+    padding: 13px 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+}
+
+main form:not(.plain-form) {
+    width: 100%;
+    max-width: 760px;
+    padding: 22px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-alt);
+}
+
+main form:not(.plain-form) p {
+    margin: 0 0 14px;
+}
+
+main form:not(.plain-form) label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+main input,
+main select,
+main textarea {
+    width: 100%;
+    min-height: 46px;
+    border: 1px solid var(--border-strong);
+    border-radius: 9px;
+    background: #fff;
+    transition: border-color .2s, box-shadow .2s;
+}
+
+main input:focus,
+main select:focus,
+main textarea:focus {
+    outline: none;
+    border-color: var(--red);
+    box-shadow: 0 0 0 4px rgba(189, 16, 38, .11);
+}
+
+main table {
+    width: 100%;
+    max-width: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    overflow: hidden;
+}
+
+main th {
+    color: var(--ink);
+    background: var(--accent-soft);
+    font-size: 12px;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+}
+
+main td {
+    border-top: 1px solid var(--border);
+    color: var(--ink-soft);
+}
+
+/* Triagem: formulário longo com leitura guiada e estados visíveis. */
+.triagem-progresso {
+    max-width: 1160px;
+    margin: 28px auto 18px;
+}
+
+main .triagem-etapa {
+    min-height: 36px;
+    border-color: var(--border-strong);
+    background: #fff;
+    color: var(--ink-soft);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+main .triagem-etapa-respondida,
+main .triagem-etapa-atual {
+    border-color: var(--red);
+}
+
+main .triagem-etapa-respondida {
+    background: var(--red);
+    color: #fff;
+}
+
+/* Estados acessíveis e navegação móvel */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+    outline: 3px solid rgba(189, 16, 38, .35);
+    outline-offset: 3px;
+}
+
+@media (max-width: 900px) {
+    main > section:not(.hero):not(.info-section):not(.faq-section):not(.stock-section),
+    .info-section,
+    .faq-section,
+    main > h1,
+    main > h1 + p,
+    main > h1 + p + p {
+        width: min(100% - 40px, 720px);
+    }
+
+    .hero {
+        min-height: 500px;
+        padding: 74px max(20px, calc((100% - 720px) / 2));
+    }
+}
+
+@media (max-width: 560px) {
+    main > section:not(.hero):not(.info-section):not(.faq-section):not(.stock-section),
+    .info-section,
+    .faq-section,
+    main > h1,
+    main > h1 + p,
+    main > h1 + p + p {
+        width: calc(100% - 32px);
+    }
+
+    main > section:not(.hero):not(.info-section):not(.faq-section):not(.stock-section) {
+        padding: 22px 18px;
+        border-radius: 12px;
+    }
+
+    .hero {
+        min-height: auto;
+        padding: 64px 16px 72px;
+    }
+
+    .hero > h1 {
+        font-size: clamp(39px, 13vw, 58px);
+        letter-spacing: -1px;
+    }
+
+    .hero > p:last-child,
+    .hero .button {
+        width: 100%;
+    }
+
+    main form:not(.plain-form) {
+        padding: 16px;
+    }
+
+    main table {
+        display: table;
+        min-width: 560px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+    }
+}
+
 @media (max-width: 520px) {
     .container,
     .header-inner,
