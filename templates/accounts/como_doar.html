@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Como doar sangue? | Elo{% endblock %}
+{% block body_class %}pagina-como-doar{% endblock %}
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/como-doar.css' %}?v=20261106-guide-4">
+{% endblock %}
+
+{% block content %}
+<article class="doar-page">
+    <header class="doar-hero doar-reveal">
+        <div class="doar-hero-copy">
+            <p class="doar-kicker">GUIA DO ELO · DOAÇÃO DE SANGUE</p>
+            <h1>Como doar sangue?</h1>
+            <p class="doar-hero-lead">
+                Doar sangue é um gesto de solidariedade que pode fazer a diferença na vida de muitas pessoas. Mas, antes de realizar uma doação, é importante conhecer os requisitos, entender as etapas do processo e saber onde encontrar um local de coleta.
+            </p>
+            <p>
+                O Elo foi pensado para acompanhar você durante esse caminho, reunindo orientações, pré-triagem, informações sobre os estoques e pontos de coleta em um só lugar.
+            </p>
+        </div>
+    </header>
+
+    <section class="doar-journey" aria-labelledby="doar-journey-title">
+        <div class="doar-section-heading doar-reveal">
+            <p class="doar-kicker">PASSO A PASSO</p>
+            <h2 id="doar-journey-title">Sua jornada no Elo</h2>
+            <p>
+                Acompanhe o caminho desde o primeiro acesso até o hemocentro. Cada etapa ajuda você a se preparar com mais clareza, segurança e tranquilidade.
+            </p>
+        </div>
+
+        <div class="journey-track" data-journey-track>
+            <div class="journey-track-line" aria-hidden="true"><span></span></div>
+
+            <article class="journey-step journey-step-left doar-reveal" data-step="1">
+                <div class="journey-marker" aria-hidden="true">
+                    <span>01</span>
+                    <svg viewBox="0 0 24 24"><path d="M12 3 5 7v6c0 4.5 3 7 7 8 4-1 7-3.5 7-8V7l-7-4Z"/><path d="m9 12 2 2 4-4"/></svg>
+                </div>
+                <div class="journey-card">
+                    <p class="journey-card-kicker">PRIMEIRO PASSO</p>
+                    <h3>Comece pelo seu cadastro</h3>
+                    <p>
+                        Para utilizar os recursos destinados aos doadores, crie sua conta no Elo e selecione o perfil de doador. Complete suas informações, incluindo dados como tipo sanguíneo, peso e histórico de doações. Esses dados ajudam a personalizar sua experiência e permitem que a plataforma apresente informações mais adequadas ao seu perfil.
+                    </p>
+                    <div class="journey-actions">
+                        {% if user.is_authenticated %}
+                            <a class="doar-button doar-button-primary" href="{% url 'accounts:perfil' %}">Acessar perfil <span aria-hidden="true">↗</span></a>
+                        {% else %}
+                            <a class="doar-button doar-button-primary" href="{% url 'accounts:cadastro' %}">Criar minha conta <span aria-hidden="true">↗</span></a>
+                        {% endif %}
+                    </div>
+                </div>
+            </article>
+
+            <article class="journey-step journey-step-right doar-reveal" data-step="2">
+                <div class="journey-marker" aria-hidden="true">
+                    <span>02</span>
+                    <svg viewBox="0 0 24 24"><path d="M12 3 5 7v6c0 4.5 3 7 7 8 4-1 7-3.5 7-8V7l-7-4Z"/><path d="M8.5 12h7M12 8.5v7"/></svg>
+                </div>
+                <div class="journey-card">
+                    <p class="journey-card-kicker">ORIENTAÇÃO</p>
+                    <h3>Faça sua pré-triagem</h3>
+                    <p>
+                        Está em dúvida se pode doar? A pré-triagem do Elo foi desenvolvida para ajudar você a entender os principais requisitos antes de ir até um hemocentro.
+                    </p>
+                    <p>O questionário é dividido em etapas que abordam diferentes aspectos:</p>
+                    <ul class="journey-list">
+                        <li><strong>Sobre sua saúde:</strong> perguntas sobre sintomas recentes, doenças e uso de medicamentos.</li>
+                        <li><strong>Dados físicos:</strong> informações como idade e peso.</li>
+                        <li><strong>Histórico recente:</strong> questões relacionadas a procedimentos, viagens e outras situações que podem influenciar temporariamente a possibilidade de doação.</li>
+                        <li><strong>Revisão:</strong> conferência das respostas antes de finalizar a avaliação.</li>
+                    </ul>
+                    <p>
+                        Ao concluir, você recebe uma orientação de acordo com suas respostas: apto, inapto temporariamente, inapto permanentemente ou necessidade de avaliação presencial.
+                    </p>
+                    <p class="journey-note">
+                        É importante lembrar que essa pré-triagem tem caráter exclusivamente orientativo. Ela não substitui a entrevista e a avaliação clínica realizadas pelos profissionais do hemocentro, que são responsáveis pela decisão final sobre a doação.
+                    </p>
+                    <div class="journey-actions">
+                        <a class="doar-button doar-button-primary" href="{% url 'accounts:triagem_apresentacao' %}">Fazer pré-triagem <span aria-hidden="true">↗</span></a>
+                    </div>
+                </div>
+            </article>
+
+            <article class="journey-step journey-step-left doar-reveal" data-step="3">
+                <div class="journey-marker" aria-hidden="true">
+                    <span>03</span>
+                    <svg viewBox="0 0 24 24"><path d="M4 19h16M6 16V8l6-4 6 4v8"/><path d="M9 19v-5h6v5M9 9h.01M12 9h.01M15 9h.01"/></svg>
+                </div>
+                <div class="journey-card">
+                    <p class="journey-card-kicker">OPORTUNIDADES</p>
+                    <h3>Descubra onde sua doação é necessária</h3>
+                    <p>
+                        Depois de conhecer sua situação, explore a plataforma para encontrar oportunidades de ajudar.
+                    </p>
+                    <p>
+                        Na área de estoques, você pode acompanhar a disponibilidade de cada tipo sanguíneo nos hemocentros cadastrados e identificar aqueles que precisam de atenção. Também é possível consultar pedidos de doação e campanhas disponíveis, com informações sobre as necessidades e os locais envolvidos.
+                    </p>
+                    <p>
+                        O Elo também conta com uma ferramenta de localização para ajudar você a encontrar pontos de coleta e consultar informações sobre as unidades.
+                    </p>
+                    <div class="journey-actions">
+                        <a class="doar-button doar-button-secondary" href="{% url 'accounts:estoque_publico' %}">Consultar estoques <span aria-hidden="true">↗</span></a>
+                        <a class="doar-button doar-button-secondary" href="{% url 'accounts:consultar_pedidos' %}">Ver pedidos <span aria-hidden="true">↗</span></a>
+                        <a class="doar-button doar-button-secondary" href="{% url 'accounts:inicio' %}#postos">Encontrar postos <span aria-hidden="true">↗</span></a>
+                    </div>
+                </div>
+            </article>
+
+            <article class="journey-step journey-step-right doar-reveal" data-step="4">
+                <div class="journey-marker" aria-hidden="true">
+                    <span>04</span>
+                    <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg>
+                </div>
+                <div class="journey-card">
+                    <p class="journey-card-kicker">INTENÇÃO</p>
+                    <h3>Demonstre seu interesse em doar</h3>
+                    <p>
+                        Encontrou um pedido ou uma campanha compatível com seu perfil? Você pode registrar sua intenção de doação diretamente pela plataforma.
+                    </p>
+                    <p>
+                        Ao demonstrar interesse em ajudar, sua manifestação é encaminhada ao hemocentro responsável, que poderá acompanhar essa intenção e orientar os próximos passos.
+                    </p>
+                    <p>
+                        A plataforma também permite que você receba notificações quando estiver próximo do período indicado para uma nova doação ou quando houver necessidade de um tipo sanguíneo compatível com o seu.
+                    </p>
+                    <div class="journey-actions">
+                        <a class="doar-button doar-button-primary" href="{% url 'accounts:consultar_pedidos' %}">Encontrar oportunidades <span aria-hidden="true">↗</span></a>
+                        <a class="doar-button doar-button-quiet" href="{% url 'accounts:notificacoes' %}">Ver notificações <span aria-hidden="true">↗</span></a>
+                    </div>
+                </div>
+            </article>
+
+            <article class="journey-step journey-step-left doar-reveal" data-step="5">
+                <div class="journey-marker" aria-hidden="true">
+                    <span>05</span>
+                    <svg viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.2A7 7 0 0 0 5 9.8C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.2"/></svg>
+                </div>
+                <div class="journey-card">
+                    <p class="journey-card-kicker">NO LOCAL</p>
+                    <h3>Compareça ao hemocentro</h3>
+                    <p>
+                        Com as orientações em mãos, procure o ponto de coleta indicado e siga as instruções da instituição.
+                    </p>
+                    <p>
+                        No local, você passará pelas etapas presenciais do processo, incluindo a avaliação clínica realizada pelos profissionais responsáveis. Mesmo que a pré-triagem do Elo indique que você está apto, a confirmação da possibilidade de doar acontece somente após essa avaliação.
+                    </p>
+                    <p>
+                        Quando a doação for realizada, o hemocentro poderá registrá-la na plataforma, atualizando seu histórico e contribuindo para o acompanhamento dos estoques.
+                    </p>
+                    <div class="journey-actions">
+                        <a class="doar-button doar-button-primary" href="{% url 'accounts:inicio' %}#postos">Encontrar ponto de coleta <span aria-hidden="true">↗</span></a>
+                    </div>
+                </div>
+            </article>
+        </div>
+    </section>
+
+    <section class="doar-closing doar-reveal" aria-labelledby="doar-closing-title">
+        <div class="doar-closing-mark" aria-hidden="true">
+            <span></span><span></span><span></span>
+        </div>
+        <p class="doar-kicker">A REDE CONTINUA</p>
+        <h2 id="doar-closing-title">Uma atitude pode fazer a diferença</h2>
+        <p>
+            A doação de sangue não precisa acontecer somente quando alguém próximo precisa de ajuda. Manter-se informado, acompanhar as necessidades dos hemocentros e doar regularmente, respeitando os intervalos e as condições estabelecidas pelos profissionais de saúde, são atitudes que ajudam a fortalecer essa rede de solidariedade.
+        </p>
+        <p class="doar-closing-final"><strong>No Elo, cada informação aproxima, cada intenção mobiliza e cada doação pode representar uma nova oportunidade de vida.</strong></p>
+    </section>
+</article>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/como-doar.js' %}?v=20261106-guide-4" defer></script>
+{% endblock %}

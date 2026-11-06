@@ -1,0 +1,34 @@
+/* Página de compatibilidade: carregada somente nesta rota. */
+.compatibilidade-pagina {
+    padding-top: 28px;
+    padding-bottom: 32px;
+}
+
+.compatibilidade-pagina h1 { margin-top: 0; }
+.compatibilidade-pagina > section { margin-top: 28px; }
+
+main .compatibilidade-consulta {
+    display: grid;
+    grid-template-columns: minmax(180px, 260px) auto;
+    align-items: end;
+    justify-content: start;
+    gap: 8px 12px;
+    margin: 0;
+}
+
+.compatibilidade-consulta label { grid-column: 1 / -1; }
+main .compatibilidade-consulta select { width: 100%; min-height: 48px; }
+.compatibilidade-resultado { margin-top: 24px; }
+.compatibilidade-resultado h3,
+.compatibilidade-resultado p { margin: 0 0 10px; }
+.compatibilidade-tabela-area { width: 960px; max-width: 100%; overflow-x: auto; }
+main .compatibilidade-tabela { display: table; width: 100%; min-width: 600px; max-width: none; margin: 0; }
+.compatibilidade-tabela caption { padding-bottom: 10px; text-align: left; }
+.compatibilidade-tabela th,
+.compatibilidade-tabela td { vertical-align: middle; }
+.compatibilidade-pagina ul { padding-left: 22px; }
+
+@media (max-width: 520px) {
+    main .compatibilidade-consulta { grid-template-columns: minmax(0, 1fr); }
+    .compatibilidade-consulta button { justify-self: start; }
+}

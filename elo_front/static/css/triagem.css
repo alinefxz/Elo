@@ -1,0 +1,24 @@
+/* Componentes exclusivos das telas de triagem. */
+.triagem-progresso {
+    max-width: 1160px;
+    margin: 28px auto 18px;
+}
+
+main .triagem-etapa {
+    min-height: 36px;
+    border-color: var(--border-strong);
+    background: #fff;
+    color: var(--ink-soft);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+main .triagem-etapa-respondida,
+main .triagem-etapa-atual {
+    border-color: var(--red);
+}
+
+main .triagem-etapa-respondida {
+    background: var(--red);
+    color: #fff;
+}

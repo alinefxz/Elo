@@ -42,6 +42,13 @@ urlpatterns = [
         name="inicio",
     ),
 
+    # Guia publico que apresenta a jornada de doacao no Elo.
+    path(
+        "como-doar/",
+        views.como_doar,
+        name="como_doar",
+    ),
+
     # Cadastro.
     path(
         "cadastro/",

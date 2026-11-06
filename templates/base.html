@@ -22,7 +22,7 @@ A navegacao tambem respeita a particularizacao por perfil:
     <meta name="description" content="Elo - sistema de doacao de sangue.">
 
     <title>{% block title %}Elo{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/elo.css' %}">
+    <link rel="stylesheet" href="{% static 'css/shared.css' %}?v=20261106-modular-2">
     <link rel="icon" type="image/png" href="{% static 'css/favicon.png' %}">
     {% block extra_css %}{% endblock %}
 </head>
@@ -34,77 +34,102 @@ A navegacao tambem respeita a particularizacao por perfil:
                 <span class="brand-name">elo</span>
             </a>
 
-            <button class="menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false">
-                <span></span>
-                <span></span>
-                <span></span>
-            </button>
+            <div class="header-actions">
+                {% if not user.is_authenticated %}
+                    <a class="header-auth-link" href="{% url 'accounts:login' %}">Entrar</a>
+                    <a class="header-auth-cta" href="{% url 'accounts:cadastro' %}">Cadastrar</a>
+                {% endif %}
 
-            <nav class="main-nav" aria-label="Navegacao principal">
+                <button class="menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="site-menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+
+            <nav class="main-nav" id="site-menu" aria-label="Navegacao principal" aria-hidden="true">
+                <div class="nav-panel-top">
+                    <div>
+                        <span class="nav-panel-kicker">ELO</span>
+                        <strong>Menu principal</strong>
+                    </div>
+                </div>
+                <p class="nav-heading">Explorar</p>
+                <div class="nav-primary">
                 {% if user.is_authenticated %}
-                    <a href="{% url 'accounts:perfil' %}" {% if request.resolver_match.url_name == 'perfil' %}aria-current="page"{% endif %}>Meu perfil</a>
-                    <a href="{% url 'accounts:dashboard' %}">Painel</a>
-                    <a href="{% url 'accounts:inicio' %}">Início</a>
-                    <a href="{% url 'accounts:compatibilidade_sanguinea' %}">Compatibilidade sanguinea</a>
-                    <a href="{% url 'accounts:estoque_publico' %}">Estoques publicos</a>
+                    <a data-icon="⌂" href="{% url 'accounts:dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}><span>Painel</span></a>
+                    <a data-icon="✦" href="{% url 'accounts:inicio' %}" {% if request.resolver_match.url_name == 'inicio' %}aria-current="page"{% endif %}><span>Início</span></a>
+                    <a data-icon="♡" href="{% url 'accounts:como_doar' %}" {% if request.resolver_match.url_name == 'como_doar' %}aria-current="page"{% endif %}><span>Como doar</span></a>
+                    <a data-icon="◉" href="{% url 'accounts:estoque_publico' %}" {% if request.resolver_match.url_name == 'estoque_publico' %}aria-current="page"{% endif %}><span>Estoques</span></a>
+                    <a data-icon="↔" href="{% url 'accounts:compatibilidade_sanguinea' %}" {% if request.resolver_match.url_name == 'compatibilidade_sanguinea' %}aria-current="page"{% endif %}><span>Compatibilidade</span></a>
 
                     {% if acessos.responder_triagem %}
-                        <a href="{% url 'accounts:triagem_apresentacao' %}">Minhas triagens</a>
+                        <a data-icon="✓" href="{% url 'accounts:triagem_apresentacao' %}" {% if request.resolver_match.url_name == 'triagem_apresentacao' %}aria-current="page"{% endif %}><span>Triagem</span></a>
                     {% endif %}
+                {% else %}
+                    <a data-icon="✦" href="{% url 'accounts:inicio' %}#sobre"><span>Início</span></a>
+                    <a data-icon="♡" href="{% url 'accounts:como_doar' %}" {% if request.resolver_match.url_name == 'como_doar' %}aria-current="page"{% endif %}><span>Como doar</span></a>
+                    <a data-icon="✓" href="{% url 'accounts:triagem_apresentacao' %}"><span>Triagem</span></a>
+                    <a data-icon="↔" href="{% url 'accounts:compatibilidade_sanguinea' %}"><span>Compatibilidade</span></a>
+                    <a data-icon="◉" href="{% url 'accounts:estoque_publico' %}"><span>Estoques</span></a>
+                    <a data-icon="!" href="{% url 'accounts:consultar_pedidos' %}"><span>Pedidos ativos</span></a>
+                {% endif %}
+                </div>
+
+                <p class="nav-heading nav-heading-actions">Atalhos e conta</p>
+                <div class="nav-actions">
+                {% if user.is_authenticated %}
                     {% if acessos.solicitar_pedido %}
-                        <a href="{% url 'accounts:pedido_publicar' %}">Solicitar pedido de sangue</a>
-                        <a href="{% url 'accounts:minhas_solicitacoes' %}">Minhas solicitações</a>
+                        <a class="nav-secondary" data-icon="+" href="{% url 'accounts:pedido_publicar' %}"><span>Solicitar sangue</span></a>
+                        <a class="nav-secondary" data-icon="≡" href="{% url 'accounts:minhas_solicitacoes' %}"><span>Minhas solicitações</span></a>
                     {% endif %}
                     
                     {% if acessos.analisar_pedidos %}
-                        <a class="nav-cta"
+                        <a class="nav-cta" data-icon="→"
                         href="{% url 'accounts:painel_pedidos_hemocentro' %}">
-                            Analisar solicitações
+                            <span>Analisar solicitações</span>
                         </a>
                     {% endif %}
                     {% if acessos.gerenciar_estoque %}
-                        <a href="{% url 'accounts:estoque_hemocentro' %}">
-                            Meu estoque
+                        <a data-icon="◈" href="{% url 'accounts:estoque_hemocentro' %}">
+                            <span>Meu estoque</span>
                         </a>
                     {% endif %}
 
                     {% if acessos.validar_hemocentros %}
-                    <a href="{% url 'accounts:painel_aprovacao_hemocentros' %}">
-                        Validar Hemocentros
+                    <a data-icon="✓" href="{% url 'accounts:painel_aprovacao_hemocentros' %}">
+                        <span>Validar Hemocentros</span>
                     </a>
                     {% endif %}
                     {% if acessos.moderar_pedidos %}
-                    <a href="{% url 'accounts:painel_validacao_pedidos' %}">
-                        Moderar pedidos
+                    <a data-icon="!" href="{% url 'accounts:painel_validacao_pedidos' %}">
+                        <span>Moderar pedidos</span>
                     </a>
                     {% endif %}
                     {% if acessos.painel_django %}
-                        <a href="{% url 'admin:index' %}">Admin</a>
+                        <a data-icon="⚙" href="{% url 'admin:index' %}"><span>Admin</span></a>
                     {% endif %}
 
-                    <span>{{ user.get_short_name }}</span>
+                    {% include "accounts/includes/sino_notificacoes.html" %}
+
+                    <a class="nav-user" data-icon="●" href="{% url 'accounts:perfil' %}" {% if request.resolver_match.url_name == 'perfil' %}aria-current="page"{% endif %}>
+                        <span class="nav-user-avatar" aria-hidden="true">{{ user.get_short_name|first|upper }}</span>
+                        <span>{{ user.get_short_name }}</span>
+                    </a>
 
                     <form method="post" action="{% url 'accounts:logout' %}">
                         {% csrf_token %}
                         <button type="submit">Sair</button>
                     </form>
                 {% else %}
-                    <a href="{% url 'accounts:inicio' %}#sobre">Sobre o elo</a>
-                    <a href="{% url 'accounts:compatibilidade_sanguinea' %}">Compatibilidade sanguinea</a>
-                    <a href="{% url 'accounts:estoque_publico' %}">Estoques publicos</a>
-                    <a class="nav-cta"
-                        href="{% url 'accounts:pedido_publicar' %}">
-                            Solicitar pedido de sangue
-                    </a>
-                    <a href="{% url 'accounts:login' %}">Entrar</a>
-                    <a class="nav-cta" href="{% url 'accounts:cadastro' %}">Criar conta</a>
+                    <a class="nav-login" data-icon="→" href="{% url 'accounts:login' %}"><span>Entrar</span></a>
+                    <a class="nav-cta" data-icon="+" href="{% url 'accounts:cadastro' %}"><span>Criar conta</span></a>
                 {% endif %}
+                </div>
             </nav>
-            {% if user.is_authenticated %}
-                {% include "accounts/includes/sino_notificacoes.html" %}
-            {% endif %}
         </div>
     </header>
+    <button class="menu-backdrop" type="button" aria-label="Fechar menu" tabindex="-1"></button>
 
     <main>
         {% if messages %}
@@ -130,22 +155,8 @@ A navegacao tambem respeita a particularizacao por perfil:
 
             
         <div class="footer-links">
-            <a href="{% url 'accounts:inicio' %}#sobre">Sobre o Elo</a>
-
-            <a href="{% url 'accounts:triagem_apresentacao' %}">
+            <a href="{% url 'accounts:como_doar' %}">
                 Como doar
-            </a>
-
-            <a href="{% url 'accounts:estoque_publico' %}">
-                Estoques públicos
-            </a>
-
-            <a href="{% url 'accounts:consultar_pedidos' %}">
-                Pedidos publicados
-            </a>
-
-            <a href="{% url 'accounts:acompanhar_pedido' %}">
-                Acompanhar pedido
             </a>
 
             <a class="footer-legal-link"
@@ -199,18 +210,9 @@ A navegacao tambem respeita a particularizacao por perfil:
         <footer class="legal-modal-footer"><button class="button button-primary" type="button" data-close-modal>Entendi</button></footer>
     </dialog>
 
+    <script src="{% static 'js/navigation.js' %}" defer></script>
+    {% block extra_js %}{% endblock %}
     <script>
-        const menuToggle = document.querySelector(".menu-toggle");
-        const mainNav = document.querySelector(".main-nav");
-
-        if (menuToggle && mainNav) {
-            menuToggle.addEventListener("click", () => {
-                const opened = mainNav.classList.toggle("is-open");
-                menuToggle.setAttribute("aria-expanded", opened ? "true" : "false");
-            });
-        }
-        
-        
         document.querySelectorAll("[data-open-modal]").forEach((link) => {
             link.addEventListener("click", (event) => {
                 event.preventDefault();

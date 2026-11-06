@@ -1,114 +1,101 @@
 {% extends "base.html" %}
+{% load static %}
 
-{% comment %}
-RESUMO DO ARQUIVO
-=================
-Tela publica do ator Visitante. Ela permite pesquisar postos de coleta,
-consultar estoque geral e ver pedidos ativos sem exigir cadastro ou login.
-{% endcomment %}
-
-{% block title %}Elo | Conectando pessoas e vidas{% endblock %}
+{% block title %}Elo | Conectando pessoas, aproximando doadores e salvando vidas{% endblock %}
+{% block body_class %}pagina-inicial{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/inicio.css' %}?v=20261106-home-5">{% endblock %}
 
 {% block content %}
-<section class="hero" id="sobre">
-    <p class="eyebrow">Cuidado que aproxima</p>
-    <h1>Conectando pessoas, hemocentros e vidas.</h1>
-    <p>O Elo ajuda você a encontrar informação confiável, entender a doação e acompanhar caminhos para ajudar quem precisa.</p>
-    <p>
-        <a class="button button-primary" href="{% url 'accounts:triagem_apresentacao' %}">Conhecer a triagem</a>
-        <a class="button" href="{% url 'accounts:estoque_publico' %}">Consultar estoques</a>
-    </p>
-</section>
+<div class="home-page">
+    <section class="home-section home-hero" id="sobre" aria-labelledby="home-hero-title">
+        <div class="home-section-inner home-hero-inner">
+            <div class="home-hero-copy home-reveal">
+                <h1 id="home-hero-title">Conectando pessoas, aproximando doadores e salvando vidas.</h1>
+            </div>
 
-<section class="info-section">
-    <h2>Como o Elo ajuda</h2>
-    <p>Você pode se preparar para doar, consultar estoques disponíveis e encontrar pedidos publicados por hemocentros.</p>
-</section>
+            <div class="home-bag-art home-reveal home-reveal-delay">
+                <iframe src="{% static 'animations/bolsa-sangue.html' %}" title="Bolsa de sangue hospitalar animada" scrolling="no"></iframe>
+            </div>
+        </div>
+        <span class="home-wave home-wave-to-red" aria-hidden="true"></span>
+    </section>
 
-<section>
-    <h2>Triagem para doação</h2>
+    <section class="home-section home-about" aria-labelledby="home-about-title">
+        <div class="home-section-inner home-about-inner">
+            <div class="home-about-content home-reveal">
+                <h2 id="home-about-title">Conheça o Elo</h2>
+                <p>O <strong>Elo</strong> é uma plataforma web que busca <mark>facilitar a conexão entre doadores, pessoas que precisam de sangue e hemocentros</mark>. O projeto surgiu da percepção de que, mesmo com pessoas dispostas a doar, nem sempre é fácil encontrar informações ou saber como participar desse processo. Além disso, <mark>manter os estoques de sangue abastecidos continua sendo um desafio</mark>, especialmente diante da necessidade constante de novos doadores.</p>
+                <p>Muitas vezes, quem deseja doar não sabe onde procurar, quais são os requisitos para a doação ou quando poderá doar novamente. Pensando nisso, o Elo <mark>reúne essas informações em um único ambiente</mark>, oferecendo recursos que facilitam o acesso e a comunicação entre os usuários e os hemocentros.</p>
+                <p>Com isso, o Elo busca <mark>facilitar o caminho entre a intenção de doar e a realização da doação</mark>. Ao reunir informações, necessidades dos hemocentros e recursos de acompanhamento em um só lugar, a plataforma pretende tornar esse processo mais prático e acessível, contribuindo para ampliar a participação de doadores e melhorar a comunicação entre todos os envolvidos. <strong>Conectando pessoas, aproximando doadores e contribuindo para salvar vidas.</strong></p>
+            </div>
+        </div>
+        <span class="home-wave home-wave-to-white" aria-hidden="true"></span>
+    </section>
 
-    <p>
-        Quer saber como funciona a orientação inicial para doação de sangue?
-    </p>
+    <section class="home-section home-objective" aria-labelledby="home-objective-title">
+        <div class="home-section-inner home-objective-inner">
+            <div class="home-objective-heading home-reveal">
+                <h2 id="home-objective-title">Nosso Objetivo</h2>
+                <div class="home-objective-visual home-reveal home-reveal-delay" aria-hidden="true">
+                    <svg viewBox="0 0 260 150" role="presentation">
+                        <path d="M28 91 C66 36, 104 37, 130 76 S194 116, 232 58" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 8" />
+                        <path d="M29 76 C29 76, 18 89, 18 98 C18 105, 23 110, 29 110 C35 110, 40 105, 40 98 C40 89, 29 76, 29 76Z" fill="currentColor" opacity=".95" />
+                        <circle cx="130" cy="76" r="17" fill="currentColor" opacity=".12" stroke="currentColor" stroke-width="2" />
+                        <path d="M232 43 C232 43, 221 56, 221 65 C221 72, 226 77, 232 77 C238 77, 243 72, 243 65 C243 56, 232 43, 232 43Z" fill="currentColor" opacity=".95" />
+                        <path d="M130 88 C119 76, 108 69, 108 59 C108 52, 116 49, 121 55 L130 65 L139 55 C144 49, 152 52, 152 59 C152 69, 141 76, 130 88Z" fill="currentColor" opacity=".9" />
+                    </svg>
+                </div>
+            </div>
+            <div class="home-objective-copy home-reveal">
+                <p class="home-objective-highlight">Mais do que desenvolver um site, queremos ajudar a tornar a doação de sangue um processo mais acessível e organizado, que não dependa apenas de situações de urgência.</p>
+                <p>A ideia é facilitar o acesso à informação e incentivar que mais pessoas se tornem doadoras e continuem contribuindo ao longo do tempo.</p>
+                <p>O Elo busca aproximar doadores, pessoas que precisam de sangue e hemocentros, facilitando a identificação de necessidades e a divulgação de campanhas e pedidos de doação. Para isso, a plataforma oferece recursos que permitem acompanhar os estoques, receber alertas sobre a necessidade de determinados tipos sanguíneos e consultar orientações antes de procurar um local de coleta.</p>
+                <p class="home-objective-last">Acreditamos que facilitar o acesso à informação também faz parte desse processo. Afinal, muitas vezes, a vontade de ajudar existe, mas falta saber <em>onde, quando e como</em> fazer isso.</p>
+            </div>
+        </div>
+        <span class="home-wave home-wave-to-red home-wave-objective" aria-hidden="true"></span>
+    </section>
 
-    <p>
-        <a href="{% url 'accounts:triagem_apresentacao' %}">
-            Conhecer a triagem
-        </a>
-    </p>
-</section>
-
-<section class="faq-section" id="duvidas">
-    <h2>Dúvidas frequentes</h2>
-    <details><summary>A triagem confirma se posso doar?</summary><p>Não. Ela é orientativa e deve sempre ser confirmada pela equipe do hemocentro.</p></details>
-    <details><summary>Preciso de conta para consultar informações?</summary><p>Não. Estoques, postos e pedidos publicados podem ser consultados publicamente.</p></details>
-</section>
-
-<section>
-    <h2>Postos de coleta</h2>
-
-    <form method="get">
-        <label for="q">Pesquisar por posto, cidade, UF ou endereco</label>
-        <input
-            type="search"
-            id="q"
-            name="q"
-            value="{{ consulta }}"
-            placeholder="Ex.: Campinas, SP ou Hemocentro"
-        >
-        <button type="submit">Pesquisar</button>
-    </form>
-
-    {% if postos %}
-        <ul>
-            {% for posto in postos %}
-                <li>
-                    <strong>{{ posto.nome }}</strong><br>
-                    {{ posto.endereco }} - {{ posto.cidade }}/{{ posto.estado }}<br>
-                    {{ posto.horario }}
-                </li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p>Nenhum posto encontrado para "{{ consulta }}".</p>
-    {% endif %}
-</section>
-
-<section>
-    <h2>Estoque geral</h2>
-
-    <table class="tabela-estoque-geral">
-        <thead>
-            <tr>
-                <th>Tipo sanguineo</th>
-                <th>Nivel</th>
-                <th>Ocupacao</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in estoque_geral %}
-                <tr>
-                    <td>{{ item.tipo }}</td>
-                    <td>{{ item.nivel }}</td>
-                    <td>{{ item.percentual }}%</td>
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</section>
-
-<section>
-    <h2>Pedidos ativos</h2>
-
-    <ul>
-        {% for pedido in pedidos_ativos %}
-            <li>
-                <strong>{{ pedido.titulo }}</strong><br>
-                {{ pedido.tipo_sanguineo }} - {{ pedido.cidade }} - Urgencia {{ pedido.urgencia }}
-            </li>
-        {% endfor %}
-    </ul>
-</section>
-
+    <section class="home-section home-how" id="postos" aria-labelledby="home-how-title">
+        <div class="home-section-inner">
+            <div class="home-how-heading home-reveal">
+                <h2 id="home-how-title">Como o Elo funciona?</h2>
+                <p>A plataforma reúne diferentes ferramentas para facilitar a jornada de quem deseja ajudar e de quem precisa de uma doação.</p>
+            </div>
+            <div class="home-feature-grid">
+                <article class="home-feature-card home-reveal">
+                    <span class="home-feature-icon" aria-hidden="true">✓</span><span class="home-feature-number">01</span>
+                    <h3>Triagem orientativa</h3>
+                    <p>Por meio de perguntas sobre condições de saúde, histórico e requisitos básicos, você recebe uma orientação inicial sobre sua possível aptidão para doar. Essa etapa ajuda a esclarecer dúvidas e não substitui a avaliação clínica presencial.</p>
+                    <a class="home-feature-link" href="{% url 'accounts:triagem_apresentacao' %}">Acessar triagem <span aria-hidden="true">↗</span></a>
+                </article>
+                <article class="home-feature-card home-reveal">
+                    <span class="home-feature-icon" aria-hidden="true">◉</span><span class="home-feature-number">02</span>
+                    <h3>Acompanhamento dos estoques</h3>
+                    <p>Consulte a situação dos estoques de sangue por tipo sanguíneo e hemocentro, identificando quais apresentam níveis baixos ou críticos.</p>
+                    <a class="home-feature-link" href="{% url 'accounts:estoque_publico' %}">Consultar estoques <span aria-hidden="true">↗</span></a>
+                </article>
+                <article class="home-feature-card home-reveal">
+                    <span class="home-feature-icon" aria-hidden="true">⌁</span><span class="home-feature-number">03</span>
+                    <h3>Notificações personalizadas</h3>
+                    <p>Doadores podem receber avisos quando estiverem próximos de poder realizar uma nova doação ou quando houver necessidade de um tipo sanguíneo compatível.</p>
+                    <a class="home-feature-link" href="{% url 'accounts:notificacoes' %}">Ver notificações <span aria-hidden="true">↗</span></a>
+                </article>
+                <article class="home-feature-card home-reveal">
+                    <span class="home-feature-icon" aria-hidden="true">+</span><span class="home-feature-number">04</span>
+                    <h3>Pedidos de doação</h3>
+                    <p>Familiares, receptores e outros usuários podem divulgar pedidos de sangue, facilitando o encontro entre pessoas que precisam de ajuda e possíveis doadores.</p>
+                    <a class="home-feature-link" href="{% url 'accounts:consultar_pedidos' %}">Ver pedidos <span aria-hidden="true">↗</span></a>
+                </article>
+                <article class="home-feature-card home-reveal">
+                    <span class="home-feature-icon" aria-hidden="true">⌖</span><span class="home-feature-number">05</span>
+                    <h3>Localização de pontos de coleta</h3>
+                    <p>Encontre informações sobre hemocentros e locais de doação, ajudando você a descobrir onde pode contribuir.</p>
+                    <a class="home-feature-link" href="{% url 'accounts:inicio' %}#postos">Encontrar postos <span aria-hidden="true">↗</span></a>
+                </article>
+            </div>
+        </div>
+    </section>
+</div>
+<script src="{% static 'js/inicio.js' %}" defer></script>
 {% endblock %}

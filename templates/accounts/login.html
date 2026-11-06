@@ -1,4 +1,8 @@
 {% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/auth.css' %}?v=20261106-auth-1">{% endblock %}
+{% load static %}
 
 {% comment %}
 RESUMO DO ARQUIVO
@@ -8,30 +12,41 @@ a autenticacao usando o model configurado em AUTH_USER_MODEL.
 {% endcomment %}
 
 {% block title %}Entrar | Elo{% endblock %}
-{% block body_class %}page-login{% endblock %}
+{% block body_class %}page-auth page-login{% endblock %}
 {% block content %}
-<h1>Entrar</h1>
+<section class="auth-shell" data-auth-screen="login">
+    <div class="auth-panel auth-panel-form">
+        <div class="auth-heading">
+            <span class="auth-kicker">Bem-vindo de volta</span>
+            <h1>Entre no seu Elo.</h1>
+            <p>Acompanhe suas atividades e encontre caminhos para ajudar quem precisa.</p>
+        </div>
 
-<form method="post">
-    {% csrf_token %}
+        <form method="post" class="auth-form">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            {% for field in form %}
+                <p class="form-field{% if field.errors %} has-error{% endif %}">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {{ field.errors }}
+                </p>
+            {% endfor %}
 
-    <!-- Exibe e-mail, senha e eventuais erros de autenticacao. -->
-    {{ form.as_p }}
+            {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+            <button class="auth-submit" type="submit">Entrar <span aria-hidden="true">→</span></button>
+        </form>
 
-    {% if next %}
-        <!-- Quando login_required enviou a pessoa para o login, next guarda a
-             pagina original para que ela possa retornar depois de entrar. -->
-        <input type="hidden" name="next" value="{{ next }}">
-    {% endif %}
-
-    <button type="submit">Entrar</button>
-</form>
-
-<p>
-    Ainda nao tem conta?
-    <a href="{% url 'accounts:cadastro' %}">Criar conta</a>
-</p>
-<p>
-    <a href="{% url 'accounts:inicio' %}">Continuar como visitante</a>
-</p>
+        <p class="auth-footnote">Ainda não tem conta? <a data-auth-transition="signup" href="{% url 'accounts:cadastro' %}">Criar conta</a></p>
+        <a class="auth-visitor" href="{% url 'accounts:inicio' %}">Continuar como visitante</a>
+    </div>
+    <aside class="auth-panel auth-panel-brand">
+        <span class="auth-brand-mark">elo</span>
+        <span class="auth-kicker">Uma rede que aproxima</span>
+        <h2>Doar começa com informação.</h2>
+        <p>Consulte estoques, conheça a triagem e encontre hemocentros de forma simples e segura.</p>
+        <a class="auth-panel-link" data-auth-transition="signup" href="{% url 'accounts:cadastro' %}">Quero criar minha conta <span aria-hidden="true">↗</span></a>
+    </aside>
+</section>
+<script src="{% static 'js/auth.js' %}" defer></script>
 {% endblock %}

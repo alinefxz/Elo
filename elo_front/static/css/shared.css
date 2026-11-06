@@ -1,0 +1,8 @@
+/*
+ * Entrada única dos estilos compartilhados do Elo.
+ *
+ * O arquivo elo.css continua sendo a base legada/compartilhada durante a
+ * migração incremental. As páginas carregam seus módulos específicos depois
+ * desta entrada, sem duplicar regras entre templates.
+ */
+@import url("elo.css?v=20261106-menu-2");

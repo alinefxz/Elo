@@ -585,6 +585,12 @@ def inicio(request):
     )
 
 
+def como_doar(request):
+    """Apresenta o guia publico da jornada de doacao no Elo."""
+
+    return render(request, "accounts/como_doar.html")
+
+
 def cadastro(request):
     """
     Exibe e processa o cadastro de usuarios.

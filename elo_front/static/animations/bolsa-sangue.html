@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bolsa de Sangue Animada</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: transparent;
+            overflow: hidden;
+            font-family: serif;
+        }
+
+        .bag-container {
+            position: relative;
+            width: 300px;
+            height: 400px;
+            animation: float 8s ease-in-out infinite alternate;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 6px 16px rgba(0,0,0,0.04));
+        }
+
+        :root {
+            --bag-outline: #E3D1CC;
+            --bag-fill: #FCF5F3;
+            --blood-base: #521816;
+            --blood-top: #782522;
+            --cross: #FCF5F3;
+            --tube: #E3D1CC;
+        }
+
+        .blood-group {
+            animation: fillBlood 24s cubic-bezier(0.35, 0, 0.65, 1) infinite;
+        }
+
+        .drip-container {
+            animation: dripVisibility 24s cubic-bezier(0.35, 0, 0.65, 1) infinite;
+        }
+
+        .drip {
+            animation: dripFall 1.2s ease-in infinite;
+        }
+
+        .cross-pulse {
+            transform-origin: 100px 100px;
+            animation: pulseHeart 3s ease-in-out infinite;
+        }
+
+        @keyframes fillBlood {
+            0%, 10% { transform: translateY(75px); }
+            45%, 55% { transform: translateY(5px); }
+            90%, 100% { transform: translateY(75px); }
+        }
+
+        @keyframes dripVisibility {
+            0%, 8% { opacity: 0; }
+            10%, 42% { opacity: 1; }
+            45%, 100% { opacity: 0; }
+        }
+
+        @keyframes dripFall {
+            0% { transform: translateY(0) scale(0.8); opacity: 0; }
+            20% { transform: translateY(15px) scale(1); opacity: 1; }
+            80% { transform: translateY(70px) scale(1, 1.2); opacity: 1; }
+            100% { transform: translateY(90px) scale(1, 0.5); opacity: 0; }
+        }
+
+        @keyframes float {
+            0% { transform: translateY(12px); }
+            100% { transform: translateY(-12px); }
+        }
+
+        .highlight {
+            animation: pulseGlow 6s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulseGlow {
+            0% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes pulseHeart {
+            0%, 100% { transform: scale(1); }
+            10% { transform: scale(1.08); }
+            20% { transform: scale(1); }
+            30% { transform: scale(1.08); }
+            40% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="bag-container">
+        <svg viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 100 170 C 100 240, 160 220, 140 280 C 120 340, 40 290, 40 240 C 40 220, 25 210, 15 220"
+                  fill="none" stroke="var(--tube)" stroke-width="5" stroke-linecap="round"/>
+            <rect x="5" y="215" width="14" height="10" rx="3" fill="none" stroke="var(--tube)" stroke-width="4" transform="rotate(-15, 10, 220)"/>
+            <path d="M 90 30 C 90 8, 110 8, 110 30" fill="none" stroke="var(--bag-outline)" stroke-width="5" stroke-linecap="round"/>
+            <rect x="45" y="30" width="110" height="140" rx="22" fill="var(--bag-fill)" stroke="var(--bag-outline)" stroke-width="7"/>
+            <clipPath id="bag-shape">
+                <rect x="48.5" y="33.5" width="103" height="133" rx="18.5"/>
+            </clipPath>
+            <g clip-path="url(#bag-shape)">
+                <g class="drip-container">
+                    <ellipse class="drip" cx="100" cy="35" rx="3.5" ry="7" fill="var(--blood-top)"/>
+                </g>
+                <g class="blood-group">
+                    <rect x="30" y="60" width="140" height="130" fill="var(--blood-base)"/>
+                    <ellipse cx="100" cy="60" rx="70" ry="14" fill="var(--blood-top)"/>
+                </g>
+                <g class="cross-pulse">
+                    <line x1="100" y1="86" x2="100" y2="114" stroke="var(--cross)" stroke-width="12" stroke-linecap="round"/>
+                    <line x1="86" y1="100" x2="114" y2="100" stroke="var(--cross)" stroke-width="12" stroke-linecap="round"/>
+                </g>
+            </g>
+            <g class="highlight">
+                <path d="M 56 60 Q 53 100 58 145" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+                <path d="M 65 45 L 75 45" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+                <path d="M 135 153 L 145 153" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+            </g>
+            <path d="M 88 170 L 112 170 L 116 186 L 84 186 Z" fill="var(--bag-fill)" stroke="var(--bag-outline)" stroke-width="5" stroke-linejoin="round"/>
+            <rect x="80" y="184" width="40" height="7" rx="3.5" fill="var(--bag-outline)"/>
+        </svg>
+    </div>
+</body>
+</html>
