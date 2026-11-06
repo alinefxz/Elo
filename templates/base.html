@@ -22,7 +22,7 @@ A navegacao tambem respeita a particularizacao por perfil:
     <meta name="description" content="Elo - sistema de doacao de sangue.">
 
     <title>{% block title %}Elo{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/shared.css' %}?v=20261106-modular-2">
+    <link rel="stylesheet" href="{% static 'css/shared.css' %}?v=20261106-modular-3">
     <link rel="icon" type="image/png" href="{% static 'css/favicon.png' %}">
     {% block extra_css %}{% endblock %}
 </head>
@@ -151,10 +151,10 @@ A navegacao tambem respeita a particularizacao por perfil:
                 <span class="brand-name">elo</span>
             </a>
 
-            <p>Conectando pessoas, hemocentros e vidas.</p>
+            <div class="footer-content">
+                <p>Conectando pessoas, hemocentros e vidas.</p>
 
-            
-        <div class="footer-links">
+                <div class="footer-links">
             <a href="{% url 'accounts:como_doar' %}">
                 Como doar
             </a>
@@ -180,7 +180,8 @@ A navegacao tambem respeita a particularizacao por perfil:
                 <a href="{% url 'accounts:login' %}">Entrar</a>
                 <a href="{% url 'accounts:cadastro' %}">Criar conta</a>
             {% endif %}
-        </div>
+                </div>
+            </div>
         </div>
     </footer>
 
