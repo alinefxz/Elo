@@ -1,15 +1,14 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/auth.css' %}?v=20261106-auth-1">{% endblock %}
-{% load static %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/auth.css' %}?v=20261109-auth-9">{% endblock %}
 
 {% block title %}Criar conta | Elo{% endblock %}
 
 {% block body_class %}page-auth page-signup{% endblock %}
 {% block content %}
 
-<section class="auth-shell auth-shell-signup" data-auth-screen="signup">
+<div class="auth-shell auth-shell-signup" data-auth-screen="signup">
 <div class="auth-panel auth-panel-form">
     <div class="auth-heading">
         <span class="auth-kicker">Faça parte do Elo</span>
@@ -24,61 +23,57 @@
     {{ form.non_field_errors }}
 
     {% for campo in form %}
-
-        {% if campo.name != "aceite_lgpd" %}
-
-            <p class="form-field{% if campo.errors %} has-error{% endif %}">
-                <label for="{{ campo.id_for_label }}">
-                    {{ campo.label }}
-                </label>
-
-                {{ campo }}
-
+        {% if campo.name == "perfil" %}
+            <fieldset class="form-field signup-perfil"{% if campo.errors %} aria-describedby="{{ campo.auto_id }}_error"{% endif %}>
+                <legend>{{ campo.label }}</legend>
+                <div class="signup-perfil-opcoes" id="{{ campo.auto_id }}">
+                    {% for opcao in campo %}
+                        <label for="{{ opcao.id_for_label }}">
+                            {{ opcao.tag }}
+                            <svg class="signup-perfil-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                {% if opcao.data.value == "DOADOR" %}
+                                    <path d="M12 3c-2.4 3.8-6 7.1-6 11a6 6 0 0 0 12 0c0-3.9-3.6-7.2-6-11Z"/>
+                                {% elif opcao.data.value == "RECEPTOR" %}
+                                    <path d="M20.8 8.8c0 4-8.8 9.7-8.8 9.7s-8.8-5.7-8.8-9.7a4.4 4.4 0 0 1 8.8 0 4.4 4.4 0 0 1 8.8 0Z"/>
+                                {% elif opcao.data.value == "HEMOCENTRO" %}
+                                    <rect x="4" y="4" width="16" height="16" rx="3"/>
+                                    <path d="M12 8v8m-4-4h8"/>
+                                {% else %}
+                                    <path d="M3 12s3-6 9-6 9 6 9 6-3 6-9 6-9-6-9-6Z"/>
+                                    <circle cx="12" cy="12" r="2.5"/>
+                                {% endif %}
+                            </svg>
+                            <span>{{ opcao.choice_label }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
                 {{ campo.errors }}
-
-                {% if campo.help_text %}
-                    <small>{{ campo.help_text }}</small>
-                {% endif %}
-            </p>
-
+            </fieldset>
+        {% elif campo.name != "aceite_lgpd" %}
+            {% if campo.field.widget.input_type == "checkbox" %}
+                <div class="form-field signup-check">
+                    {{ campo }}
+                    <label for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                    {{ campo.errors }}
+                </div>
+            {% else %}
+                <div class="form-field{% if campo.errors %} has-error{% endif %}" data-signup-field="{{ campo.name }}">
+                    <label for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                    {{ campo }}
+                    {{ campo.errors }}
+                </div>
+            {% endif %}
         {% endif %}
-
     {% endfor %}
 
-    <!-- O usuário clica diretamente nas palavras para ler os documentos -->
-    <p>
-        <input
-            type="checkbox"
-            id="{{ form.aceite_lgpd.id_for_label }}"
-            name="{{ form.aceite_lgpd.html_name }}"
-            required
-            {% if form.aceite_lgpd.value %}checked{% endif %}
-        >
-
+    <div class="form-field signup-check">
+        {{ form.aceite_lgpd }}
         <label for="{{ form.aceite_lgpd.id_for_label }}">
-            Li e aceito os
-
-            <a
-                class="legal-link"
-                href="#modal-termos"
-                data-open-modal="modal-termos"
-            >
-                Termos de Uso
-            </a>
-
-            e a
-
-            <a
-                class="legal-link"
-                href="#modal-privacidade"
-                data-open-modal="modal-privacidade"
-            >
-                Política de Privacidade
-            </a>
+            Li e aceito os <a class="legal-link" href="#modal-termos" data-open-modal="modal-termos">Termos de Uso</a>
+            e a <a class="legal-link" href="#modal-privacidade" data-open-modal="modal-privacidade">Política de Privacidade</a>
         </label>
-
         {{ form.aceite_lgpd.errors }}
-    </p>
+    </div>
 
     <button class="auth-submit" type="submit">Criar conta <span aria-hidden="true">→</span></button>
 
@@ -209,8 +204,7 @@
     <p>Tenha acesso à triagem orientativa, estoques públicos e pedidos publicados por hemocentros.</p>
     <a class="auth-panel-link" data-auth-transition="login" href="{% url 'accounts:login' %}">Já tenho uma conta <span aria-hidden="true">↗</span></a>
 </aside>
-</section>
+</div>
 
-<script src="{% static 'js/localidades.js' %}" defer></script>
 <script src="{% static 'js/auth.js' %}" defer></script>
 {% endblock %}

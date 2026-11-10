@@ -1,0 +1,273 @@
+/* Gestão de estoque do hemocentro. */
+.page-estoque-hemocentro {
+    --meu-estoque-largura: min(1120px, calc(100% - clamp(32px, 7vw, 64px)));
+    min-width: 0;
+    background: #fff;
+}
+
+.page-estoque-hemocentro main > .meu-estoque,
+.page-estoque-hemocentro main > .messages-wrap {
+    width: var(--meu-estoque-largura);
+    margin-inline: auto;
+}
+
+.page-estoque-hemocentro .message {
+    box-shadow: none;
+}
+
+.meu-estoque {
+    padding-bottom: clamp(30px, 5vw, 60px);
+    color: var(--elo-ink);
+}
+
+.meu-estoque-abertura {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px 24px;
+    padding-block: clamp(20px, 3vw, 36px);
+}
+
+.meu-estoque p {
+    margin: 0;
+    color: var(--elo-muted);
+}
+
+.meu-estoque-abertura .meu-estoque-rotulo {
+    margin-bottom: 8px;
+    color: var(--elo-red-dark);
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.meu-estoque h1,
+.meu-estoque-secao h2 {
+    margin: 0 0 8px;
+    font-family: "Playfair Display", Georgia, serif;
+    line-height: 1.15;
+    letter-spacing: -.025em;
+}
+
+.meu-estoque h1 {
+    font-size: clamp(2rem, 4.5vw, 3.45rem);
+}
+
+.meu-estoque-secao {
+    padding-block: clamp(18px, 2.7vw, 30px);
+    border-top: 1px solid var(--elo-border);
+    scroll-margin-top: 92px;
+}
+
+.meu-estoque-secao h2 {
+    font-size: clamp(1.4rem, 2.5vw, 1.9rem);
+}
+
+.meu-estoque-item {
+    padding-block: 16px;
+}
+
+.meu-estoque-item + .meu-estoque-item {
+    border-top: 1px solid var(--elo-border);
+}
+
+.meu-estoque-resumo {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px 14px;
+}
+
+.meu-estoque-tipo {
+    display: grid;
+    min-width: 54px;
+    min-height: 50px;
+    margin: 0;
+    padding: 3px 8px;
+    place-items: center;
+    border-radius: 10px;
+    background: var(--elo-red-soft);
+    color: var(--elo-red-dark);
+    font-size: 1.15rem;
+}
+
+.meu-estoque .meu-estoque-quantidade {
+    color: var(--elo-ink);
+    line-height: 1.2;
+}
+
+.meu-estoque-quantidade strong {
+    font-size: 1.45rem;
+}
+
+.meu-estoque-data {
+    font-size: .85rem;
+}
+
+.meu-estoque-status {
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #eef7f1;
+    color: var(--success);
+    font-size: .85rem;
+    font-weight: 700;
+}
+
+.meu-estoque-status[data-status="BAIXO"] {
+    background: #fff3d8;
+    color: #744900;
+}
+
+.meu-estoque-status[data-status="CRITICO"] {
+    background: var(--elo-red-dark);
+    color: #fff;
+}
+
+.meu-estoque-limites {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 20px;
+    margin: 12px 0 8px;
+    font-size: .9rem;
+}
+
+.meu-estoque-limites > div {
+    display: flex;
+    gap: 6px;
+}
+
+.meu-estoque-limites dt {
+    color: var(--elo-muted);
+}
+
+.meu-estoque-limites dd {
+    margin: 0;
+    font-weight: 700;
+}
+
+.meu-estoque-detalhes summary {
+    width: fit-content;
+    min-height: 36px;
+    padding-block: 5px;
+    color: var(--elo-red-dark);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.meu-estoque-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 20px;
+    margin: 12px 0;
+}
+
+.meu-estoque-campo {
+    min-width: 0;
+}
+
+.meu-estoque-campo-largo {
+    grid-column: 1 / -1;
+}
+
+.meu-estoque-form .meu-estoque-campo {
+    margin: 0;
+}
+
+.meu-estoque-campo fieldset {
+    min-inline-size: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.meu-estoque-campo legend,
+.meu-estoque-campo > label {
+    margin: 0 0 6px;
+    padding: 0;
+    font-size: .9rem;
+    font-weight: 700;
+}
+
+.meu-estoque-campo fieldset > div:not(.helptext) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+}
+
+.meu-estoque-campo label:has(> input[type="radio"]) {
+    align-items: center;
+    min-height: 44px;
+    margin: 0;
+    padding: 6px 10px;
+    border: 1px solid var(--elo-border);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.meu-estoque-campo label:has(> input[type="radio"]:checked),
+.meu-estoque-campo label:has(> input[type="radio"]):hover {
+    border-color: var(--elo-red);
+    background: var(--elo-red-soft);
+}
+
+.meu-estoque-campo input[type="radio"] {
+    width: 17px;
+    height: 17px;
+    min-height: 0;
+    margin: 0;
+    accent-color: var(--elo-red);
+}
+
+.meu-estoque-campo textarea {
+    min-height: 80px;
+}
+
+.meu-estoque .button {
+    box-shadow: none;
+}
+
+.meu-estoque-tabela-area {
+    max-width: 100%;
+    margin: 6px 0 12px;
+    overflow-x: auto;
+}
+
+.meu-estoque-tabela {
+    display: table;
+    width: 100%;
+    min-width: 620px;
+    margin: 0;
+    border: 0;
+    box-shadow: none;
+}
+
+.meu-estoque :is(a, summary, button, input, select, textarea, .meu-estoque-tabela-area):focus-visible {
+    outline: 2px solid var(--elo-red-dark);
+    outline-offset: 2px;
+}
+
+.meu-estoque-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+@media (max-width: 620px) {
+    .meu-estoque-form {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .meu-estoque-resumo {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .meu-estoque-status {
+        grid-column: 2;
+        justify-self: start;
+    }
+}

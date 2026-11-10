@@ -1,213 +1,114 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Meu Estoque | Elo{% endblock %}
+{% block body_class %}page-estoque-hemocentro{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/meu-estoque.css' %}?v=20261109-1">{% endblock %}
 
 {% block content %}
+<div class="meu-estoque">
+    <header class="meu-estoque-abertura">
+        <div>
+            <p class="meu-estoque-rotulo">Gestão do hemocentro</p>
+            <h1>Meu Estoque</h1>
+            <p>Gerencie a quantidade de bolsas disponíveis por tipo sanguíneo.</p>
+        </div>
+    </header>
 
-<section class="estoque-hemocentro">
+    <section class="meu-estoque-secao" aria-labelledby="estoques-cadastrados-titulo">
+        <h2 id="estoques-cadastrados-titulo">Estoques cadastrados</h2>
+        {% for estoque in estoques %}
+            <article class="meu-estoque-item" aria-labelledby="estoque-tipo-{{ estoque.pk }}">
+                <header class="meu-estoque-resumo">
+                    <h3 id="estoque-tipo-{{ estoque.pk }}" class="meu-estoque-tipo">
+                        <span class="meu-estoque-sr-only">Tipo sanguíneo </span>{{ estoque.tipo_sanguineo }}
+                    </h3>
+                    <div>
+                        <p class="meu-estoque-quantidade"><strong>{{ estoque.quantidade_bolsas }}</strong> {{ estoque.quantidade_bolsas|pluralize:'bolsa,bolsas' }}</p>
+                        <p class="meu-estoque-data">Última atualização em <time datetime="{{ estoque.data_atualizacao|date:'c' }}">{{ estoque.data_atualizacao|date:"d/m/Y H:i" }}</time></p>
+                    </div>
+                    <span class="meu-estoque-status" data-status="{{ estoque.status_calculado }}">{{ estoque.get_status_calculado_display }}</span>
+                </header>
 
-    <h1>Meu Estoque</h1>
+                <dl class="meu-estoque-limites">
+                    <div>
+                        <dt>Nível mínimo</dt>
+                        <dd>{{ estoque.nivel_minimo }} {{ estoque.nivel_minimo|pluralize:'bolsa,bolsas' }}</dd>
+                    </div>
+                    <div>
+                        <dt>Nível crítico</dt>
+                        <dd>{{ estoque.nivel_critico }} {{ estoque.nivel_critico|pluralize:'bolsa,bolsas' }}</dd>
+                    </div>
+                </dl>
 
-    <p>
-        Gerencie a quantidade de bolsas disponíveis por tipo sanguíneo.
-    </p>
+                <details class="meu-estoque-detalhes">
+                    <summary>Atualizar estoque</summary>
+                    <form method="post" class="plain-form meu-estoque-form" action="{% url 'accounts:atualizar_estoque' estoque.pk %}">
+                        {% csrf_token %}
+                        {% for campo in estoque.form_movimentacao %}
+                            <div class="meu-estoque-campo{% if campo.name == 'tipo_movimento' %} meu-estoque-campo-largo{% endif %}">{{ campo.as_field_group }}</div>
+                        {% endfor %}
+                        <div class="meu-estoque-campo-largo">
+                            <button class="button button-primary" type="submit">Salvar movimentação</button>
+                        </div>
+                    </form>
+                </details>
 
-    <section>
-        <h2>Estoques cadastrados</h2>
-
-        {% if estoques %}
-
-            <div class="estoques-grid">
-
-                {% for estoque in estoques %}
-
-                    <article class="estoque-card">
-
-                        <h3>{{ estoque.tipo_sanguineo }}</h3>
-
-                        <p>
-                            <strong>Quantidade:</strong>
-                            {{ estoque.quantidade_bolsas }} bolsas
-                        </p>
-
-                        <p>
-                            <strong>Status:</strong>
-                            {{ estoque.get_status_calculado_display }}
-                        </p>
-
-                        <p>
-                            <strong>Última atualização:</strong>
-                            {{ estoque.data_atualizacao|date:"d/m/Y H:i" }}
-                        </p>
-
-                        <p>
-                            <strong>Nível mínimo:</strong>
-                            {{ estoque.nivel_minimo }} bolsas
-                            <br>
-                            <strong>Nível crítico:</strong>
-                            {{ estoque.nivel_critico }} bolsas
-                        </p>
-
-
-                        <h4>Atualizar estoque</h4>
-
-                        <form
-                            method="post"
-                            action="{% url 'accounts:atualizar_estoque' estoque.id_estoque %}"
-                        >
-                            {% csrf_token %}
-
-                            <div>
-                                {{ form_movimentacao.tipo_movimento.label_tag }}
-                                {{ form_movimentacao.tipo_movimento }}
-                            </div>
-
-                            <div>
-                                {{ form_movimentacao.quantidade.label_tag }}
-                                {{ form_movimentacao.quantidade }}
-
-                                {% if form_movimentacao.quantidade.help_text %}
-                                    <small>
-                                        {{ form_movimentacao.quantidade.help_text }}
-                                    </small>
-                                {% endif %}
-                            </div>
-
-                            <div>
-                                {{ form_movimentacao.motivo.label_tag }}
-                                {{ form_movimentacao.motivo }}
-                                {% if form_movimentacao.motivo.help_text %}
-                                    <small>
-                                        {{ form_movimentacao.motivo.help_text }}
-                                    </small>
-                                {% endif %}
-                            </div>
-
-                            <button type="submit">
-                                Atualizar estoque
-                            </button>
-                        </form>
-
-                        <h4>Histórico de movimentações</h4>
-
-                        {% with movimentacoes=estoque.movimentacoes.all %}
-                            {% if movimentacoes %}
-                                <table>
+                <details class="meu-estoque-detalhes">
+                    <summary>Histórico de movimentações</summary>
+                    {% with movimentacoes=estoque.movimentacoes.all %}
+                        {% if movimentacoes %}
+                            <div class="meu-estoque-tabela-area" role="region" aria-label="Movimentações do tipo {{ estoque.tipo_sanguineo }}" tabindex="0">
+                                <table class="meu-estoque-tabela">
                                     <thead>
                                         <tr>
-                                            <th>Data</th>
-                                            <th>Movimentação</th>
-                                            <th>Anterior</th>
-                                            <th>Nova</th>
-                                            <th>Responsável</th>
-                                            <th>Motivo</th>
+                                            <th scope="col">Data</th>
+                                            <th scope="col">Movimentação</th>
+                                            <th scope="col">Anterior</th>
+                                            <th scope="col">Nova</th>
+                                            <th scope="col">Responsável</th>
+                                            <th scope="col">Motivo</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for movimentacao in movimentacoes %}
                                             <tr>
-                                                <td>
-                                                    {{ movimentacao.data_hora|date:"d/m/Y H:i" }}
-                                                </td>
-                                                <td>
-                                                    {{ movimentacao.get_tipo_movimento_display }}
-                                                </td>
+                                                <td>{{ movimentacao.data_hora|date:"d/m/Y H:i" }}</td>
+                                                <td>{{ movimentacao.get_tipo_movimento_display }}</td>
                                                 <td>{{ movimentacao.quantidade_anterior }}</td>
                                                 <td>{{ movimentacao.quantidade_nova }}</td>
-                                                <td>
-                                                    {% if movimentacao.usuario_resp %}
-                                                        {{ movimentacao.usuario_resp.nome }}
-                                                    {% else %}
-                                                        Usuário removido
-                                                    {% endif %}
-                                                </td>
+                                                <td>{{ movimentacao.usuario_resp.nome|default:"Usuário removido" }}</td>
                                                 <td>{{ movimentacao.motivo }}</td>
                                             </tr>
                                         {% endfor %}
                                     </tbody>
                                 </table>
-                            {% else %}
-                                <p>Nenhuma movimentação registrada.</p>
-                            {% endif %}
-                        {% endwith %}
-
-                    </article>
-
-                {% endfor %}
-
-            </div>
-
-        {% else %}
-
-            <p>
-                Nenhum estoque foi cadastrado ainda.
-            </p>
-
-        {% endif %}
+                            </div>
+                        {% else %}
+                            <p>Nenhuma movimentação registrada.</p>
+                        {% endif %}
+                    {% endwith %}
+                </details>
+            </article>
+        {% empty %}
+            <p>Nenhum estoque foi cadastrado ainda.</p>
+        {% endfor %}
     </section>
 
-
     {% if tipos_disponiveis %}
-
-        <section>
-            <h2>Cadastrar novo estoque</h2>
-
-            <p>
-                Cadastre os tipos sanguíneos que ainda não possuem estoque.
-            </p>
-
-            <form
-                method="post"
-                action="{% url 'accounts:cadastrar_estoque' %}"
-            >
+        <section class="meu-estoque-secao" id="cadastrar-estoque" aria-labelledby="cadastrar-estoque-titulo">
+            <h2 id="cadastrar-estoque-titulo">Cadastrar novo estoque</h2>
+            <p>Cadastre os tipos sanguíneos que ainda não possuem estoque.</p>
+            <form method="post" class="plain-form meu-estoque-form" action="{% url 'accounts:cadastrar_estoque' %}">
                 {% csrf_token %}
-
-                <div>
-                    {{ form_cadastro.tipo_sanguineo.label_tag }}
-                    {{ form_cadastro.tipo_sanguineo }}
+                {% for campo in form_cadastro %}
+                    <div class="meu-estoque-campo">{{ campo.as_field_group }}</div>
+                {% endfor %}
+                <div class="meu-estoque-campo-largo">
+                    <button class="button button-primary" type="submit">Cadastrar estoque</button>
                 </div>
-
-                <div>
-                    {{ form_cadastro.quantidade_bolsas.label_tag }}
-                    {{ form_cadastro.quantidade_bolsas }}
-
-                    {% if form_cadastro.quantidade_bolsas.help_text %}
-                        <small>
-                            {{ form_cadastro.quantidade_bolsas.help_text }}
-                        </small>
-                    {% endif %}
-                </div>
-
-                <div>
-                    {{ form_cadastro.nivel_minimo.label_tag }}
-                    {{ form_cadastro.nivel_minimo }}
-
-                    {% if form_cadastro.nivel_minimo.help_text %}
-                        <small>
-                            {{ form_cadastro.nivel_minimo.help_text }}
-                        </small>
-                    {% endif %}
-                </div>
-
-                <div>
-                    {{ form_cadastro.nivel_critico.label_tag }}
-                    {{ form_cadastro.nivel_critico }}
-
-                    {% if form_cadastro.nivel_critico.help_text %}
-                        <small>
-                            {{ form_cadastro.nivel_critico.help_text }}
-                        </small>
-                    {% endif %}
-                </div>
-
-                <button type="submit">
-                    Cadastrar estoque
-                </button>
             </form>
         </section>
-
     {% endif %}
-
-</section>
-
+</div>
 {% endblock %}

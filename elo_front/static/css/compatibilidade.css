@@ -1,34 +1,205 @@
 /* Página de compatibilidade: carregada somente nesta rota. */
-.compatibilidade-pagina {
-    padding-top: 28px;
-    padding-bottom: 32px;
+.page-compatibilidade {
+    --compatibilidade-largura: min(1120px, calc(100% - clamp(32px, 7vw, 64px)));
+    min-width: 0;
+    background: #fff;
 }
 
-.compatibilidade-pagina h1 { margin-top: 0; }
-.compatibilidade-pagina > section { margin-top: 28px; }
+.page-compatibilidade main > .compatibilidade-pagina {
+    width: var(--compatibilidade-largura);
+    margin-inline: auto;
+}
 
-main .compatibilidade-consulta {
+.compatibilidade-pagina {
+    padding-bottom: clamp(24px, 4vw, 48px);
+    color: var(--elo-ink);
+}
+
+.compatibilidade-abertura {
+    padding-block: clamp(18px, 3vw, 36px);
+}
+
+.compatibilidade-abertura p {
+    max-width: 64ch;
+    margin: 0;
+    color: var(--elo-muted);
+}
+
+.compatibilidade-abertura .compatibilidade-rotulo {
+    margin-bottom: 8px;
+    color: var(--elo-red-dark);
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.compatibilidade-pagina h1,
+.compatibilidade-secao h2 {
+    margin: 0 0 8px;
+    font-family: "Playfair Display", Georgia, serif;
+    line-height: 1.15;
+    letter-spacing: -.025em;
+}
+
+.compatibilidade-pagina h1 {
+    font-size: clamp(2rem, 4.5vw, 3.45rem);
+    text-wrap: balance;
+}
+
+.compatibilidade-secao {
+    padding-block: clamp(18px, 2.5vw, 30px);
+    border-top: 1px solid var(--elo-border);
+}
+
+.compatibilidade-secao h2 {
+    font-size: clamp(1.4rem, 2.5vw, 1.9rem);
+}
+
+.compatibilidade-consulta {
     display: grid;
-    grid-template-columns: minmax(180px, 260px) auto;
+    grid-template-columns: minmax(0, 260px) auto;
     align-items: end;
     justify-content: start;
-    gap: 8px 12px;
-    margin: 0;
+    gap: 5px 12px;
+    margin-top: 14px;
 }
 
-.compatibilidade-consulta label { grid-column: 1 / -1; }
-main .compatibilidade-consulta select { width: 100%; min-height: 48px; }
-.compatibilidade-resultado { margin-top: 24px; }
-.compatibilidade-resultado h3,
-.compatibilidade-resultado p { margin: 0 0 10px; }
-.compatibilidade-tabela-area { width: 960px; max-width: 100%; overflow-x: auto; }
-main .compatibilidade-tabela { display: table; width: 100%; min-width: 600px; max-width: none; margin: 0; }
-.compatibilidade-tabela caption { padding-bottom: 10px; text-align: left; }
+.compatibilidade-consulta label {
+    grid-column: 1 / -1;
+    font-size: .9rem;
+}
+
+.compatibilidade-consulta select {
+    min-height: 48px;
+}
+
+.compatibilidade-erro {
+    margin: 10px 0 0;
+    color: var(--elo-red-dark);
+    font-weight: 700;
+}
+
+.compatibilidade-resultado {
+    margin-top: 20px;
+    padding-inline-start: 16px;
+    border-inline-start: 2px solid var(--elo-border-dark);
+}
+
+.compatibilidade-resultado h3 {
+    margin: 0 0 8px;
+    font-size: 1.15rem;
+}
+
+.compatibilidade-resultado h4 {
+    margin: 0;
+    color: var(--elo-muted);
+    font-size: .9rem;
+}
+
+.compatibilidade-resultado-grupos {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 24px;
+}
+
+.compatibilidade-tipos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.compatibilidade-tipos li {
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: var(--elo-red-soft);
+    color: var(--elo-red-dark);
+    font-size: .875rem;
+    font-weight: 700;
+}
+
+.compatibilidade-tabela-area {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.compatibilidade-tabela {
+    display: table;
+    width: 100%;
+    min-width: 570px;
+    margin: 0;
+    border: 0;
+    box-shadow: none;
+}
+
+.compatibilidade-tabela caption {
+    padding-bottom: 10px;
+    color: var(--elo-muted);
+    text-align: left;
+}
+
 .compatibilidade-tabela th,
-.compatibilidade-tabela td { vertical-align: middle; }
-.compatibilidade-pagina ul { padding-left: 22px; }
+.compatibilidade-tabela td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--elo-border);
+    vertical-align: middle;
+}
+
+.compatibilidade-tabela tbody th {
+    background: none;
+    font-size: .95rem;
+    white-space: nowrap;
+}
+
+.compatibilidade-tabela tbody tr:nth-child(even) {
+    background: var(--elo-blush);
+}
+
+.compatibilidade-tabela tbody .compatibilidade-tipo-selecionado {
+    background: var(--elo-red-soft);
+    font-weight: 700;
+}
+
+.compatibilidade-tabela-dica {
+    display: none;
+    margin: 0 0 8px;
+    color: var(--elo-muted);
+    font-size: .875rem;
+}
+
+.compatibilidade-notas {
+    max-width: 72ch;
+    margin: 12px 0 0;
+    padding-inline-start: 20px;
+    color: var(--elo-muted);
+}
+
+.compatibilidade-notas li + li {
+    margin-top: 6px;
+}
+
+.compatibilidade-pagina :is(button, select, .compatibilidade-tabela-area):focus-visible {
+    outline: 2px solid var(--elo-red-dark);
+    outline-offset: 2px;
+}
+
+@media (max-width: 635px) {
+    .compatibilidade-tabela-dica {
+        display: block;
+    }
+}
 
 @media (max-width: 520px) {
-    main .compatibilidade-consulta { grid-template-columns: minmax(0, 1fr); }
-    .compatibilidade-consulta button { justify-self: start; }
+    .compatibilidade-consulta,
+    .compatibilidade-resultado-grupos {
+        grid-template-columns: minmax(0, 1fr);
+        justify-content: stretch;
+    }
+
+    .compatibilidade-consulta button {
+        margin-top: 4px;
+    }
 }

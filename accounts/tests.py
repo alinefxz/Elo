@@ -240,7 +240,10 @@ class ValidacaoHemocentroTests(TestCase):
         self.assertContains(painel, self.hemocentro.nome)
         self.assertContains(painel, "Pendente")
         self.assertContains(painel, "Voltar ao painel")
-        self.assertContains(painel, "Página inicial")
+        self.assertContains(
+            painel,
+            f'class="page-return-link" href="{reverse("accounts:dashboard")}"',
+        )
         self.assertContains(painel, "Estoques públicos")
 
     def test_admin_aprova_pelo_painel_e_libera_estoque(self):

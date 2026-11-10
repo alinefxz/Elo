@@ -1,0 +1,188 @@
+/* Formulário de solicitação de pedido de sangue. */
+.page-solicitacao {
+    min-width: 0;
+    background: #fff;
+}
+
+.page-solicitacao main > .solicitacao {
+    width: min(1040px, calc(100% - clamp(32px, 7vw, 64px)));
+    margin-inline: auto;
+    padding-bottom: clamp(30px, 5vw, 60px);
+    color: var(--elo-ink);
+}
+
+.solicitacao-abertura {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(230px, .5fr);
+    align-items: end;
+    gap: 18px 32px;
+    padding-block: clamp(20px, 4vw, 42px);
+}
+
+.solicitacao-abertura p {
+    max-width: 62ch;
+    margin: 0;
+    color: var(--elo-muted);
+}
+
+.solicitacao-abertura .solicitacao-rotulo {
+    margin-bottom: 8px;
+    color: var(--elo-red-dark);
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.solicitacao-abertura h1,
+.solicitacao-secao h2 {
+    margin: 0 0 8px;
+    font-family: "Playfair Display", Georgia, serif;
+    line-height: 1.15;
+    letter-spacing: -.025em;
+}
+
+.solicitacao-abertura h1 {
+    font-size: clamp(2rem, 4.5vw, 3.45rem);
+    text-wrap: balance;
+}
+
+.solicitacao-nota {
+    padding-inline-start: 14px;
+    border-inline-start: 2px solid var(--elo-border-dark);
+    font-size: .9rem;
+}
+
+.solicitacao-nota h2 {
+    margin: 0 0 4px;
+    color: var(--elo-red-dark);
+    font-size: 1rem;
+}
+
+.solicitacao-secao {
+    padding-block: clamp(18px, 2.8vw, 30px);
+    border-top: 1px solid var(--elo-border);
+}
+
+.solicitacao-secao h2 {
+    margin-bottom: 16px;
+    font-size: clamp(1.4rem, 2.8vw, 1.9rem);
+}
+
+.solicitacao-campos {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 16px 24px;
+}
+
+.solicitacao-campo {
+    min-width: 0;
+}
+
+.solicitacao-campo-largo {
+    grid-column: 1 / -1;
+}
+
+.solicitacao-campo fieldset {
+    min-inline-size: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.solicitacao-campo legend,
+.solicitacao-campo > label {
+    margin: 0 0 6px;
+    padding: 0;
+    font-size: .9rem;
+    font-weight: 700;
+}
+
+.solicitacao-campo fieldset > div:not(.helptext) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+}
+
+.solicitacao-campo label:has(> input[type="radio"]) {
+    align-items: center;
+    min-height: 44px;
+    margin: 0;
+    padding: 6px 10px;
+    border: 1px solid var(--elo-border);
+    border-radius: 8px;
+    font-size: .9rem;
+    cursor: pointer;
+}
+
+.solicitacao-campo label:has(> input[type="radio"]):hover,
+.solicitacao-campo label:has(> input[type="radio"]:checked) {
+    border-color: var(--elo-red);
+    background: var(--elo-red-soft);
+}
+
+.solicitacao-campo input[type="radio"] {
+    width: 17px;
+    height: 17px;
+    min-height: 0;
+    margin: 0;
+    accent-color: var(--elo-red);
+}
+
+.solicitacao-campo input:disabled {
+    background: var(--soft);
+}
+
+.solicitacao-campo textarea {
+    min-height: 90px;
+}
+
+.solicitacao-erros,
+.solicitacao-form .errorlist {
+    color: var(--elo-red-dark);
+    font-size: .9rem;
+}
+
+.solicitacao-erros {
+    margin-bottom: 16px;
+}
+
+.solicitacao-form .errorlist {
+    margin: 4px 0 6px;
+    padding-inline-start: 18px;
+}
+
+.solicitacao-form [aria-invalid="true"] {
+    border-color: var(--elo-red);
+}
+
+.solicitacao-acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-top: 16px;
+    border-top: 1px solid var(--elo-border);
+}
+
+.solicitacao-acoes .button {
+    box-shadow: none;
+}
+
+.solicitacao :is(a, button, input, select, textarea):focus-visible {
+    outline: 2px solid var(--elo-red-dark);
+    outline-offset: 2px;
+}
+
+@media (max-width: 700px) {
+    .solicitacao-abertura,
+    .solicitacao-campos {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 420px) {
+    .solicitacao-acoes .button {
+        width: 100%;
+    }
+}

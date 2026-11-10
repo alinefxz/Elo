@@ -40,7 +40,6 @@ class CadastroUsuarioForm(UserCreationForm):
     )
     cidade = forms.CharField(
         label="Cidade", required=False, max_length=100,
-        help_text="Selecione o estado e busque seu município nas sugestões do IBGE.",
         widget=CidadeSugeridaInput(attrs={
             'list': 'cidades-cadastro', 'autocomplete': 'address-level2',
             'data-municipios-url': reverse_lazy('accounts:localidades_cidades'),
@@ -51,7 +50,6 @@ class CadastroUsuarioForm(UserCreationForm):
         label="CPF",
         required=False,
         max_length=14,
-        help_text="Obrigatorio para Doador e Receptor/Solicitante.",
         widget=forms.TextInput(
             attrs={
                 "placeholder": "000.000.000-00",
@@ -65,7 +63,6 @@ class CadastroUsuarioForm(UserCreationForm):
         label="CNPJ",
         required=False,
         max_length=18,
-        help_text="Obrigatorio somente para Hemocentro.",
         widget=forms.TextInput(
             attrs={
                 "placeholder": "00.000.000/0000-00",
@@ -83,17 +80,12 @@ class CadastroUsuarioForm(UserCreationForm):
             (Usuario.Perfil.HEMOCENTRO, "Hemocentro"),
             (Usuario.Perfil.OBSERVADOR, "Observador"),
         ],
-        help_text=(
-            "Escolha Hemocentro somente para uma instituicao que sera "
-            "analisada por um administrador."
-        ),
         widget=forms.RadioSelect,
     )
 
     data_nascimento = forms.DateField(
         label="Data de nascimento",
         required=False,
-        help_text="Obrigatoria para Doador e Receptor/Solicitante.",
         widget=forms.DateInput(
             attrs={
                 "type": "date",
@@ -110,7 +102,6 @@ class CadastroUsuarioForm(UserCreationForm):
         label="Autorizo alertas internos de estoque e pedidos compativeis (para Doadores).",
         required=False,
         initial=False,
-        help_text="Opcional. Posso cancelar a autorizacao no meu painel.",
     )
 
     class Meta:
@@ -160,11 +151,10 @@ class CadastroUsuarioForm(UserCreationForm):
         super().__init__(*args, **kwargs)
 
         self.fields["password1"].label = "Senha"
-        self.fields["password1"].help_text = (
-            "Use no minimo 8 caracteres, incluindo letras e numeros."
-        )
-
         self.fields["password2"].label = "Confirme a senha"
+        self.fields["password1"].help_text = ""
+        self.fields["password2"].help_text = ""
+        self.fields["email"].widget.attrs.pop("autofocus", None)
 
     def clean_nome(self):
         """Remove espacos desnecessarios do nome."""
@@ -783,7 +773,7 @@ class FiltroPedidoSangueForm(forms.Form):
         configurar_cidades_filtro(self, 'pedidos')
 
     tipo_sanguineo = forms.ChoiceField(
-        label="Tipo sanguineo",
+        label="Tipo sanguíneo",
         required=False,
         choices=[
             ("", "Todos")
@@ -791,7 +781,7 @@ class FiltroPedidoSangueForm(forms.Form):
     )
 
     urgencia = forms.ChoiceField(
-        label="Urgencia",
+        label="Urgência",
         required=False,
         choices=[("", "Todas")] + list(PedidoSangue.Urgencia.choices),
     )
@@ -825,6 +815,8 @@ class FiltroEstoquePublicoForm(forms.Form):
     A situação usa os códigos calculados pelo sistema. Os níveis mínimo e
     crítico continuam ocultos, pois são parâmetros internos do Hemocentro.
     """
+
+    field_order = ["estado", "cidade", "tipo_sanguineo", "situacao", "hemocentro", "busca"]
 
     estado = forms.ChoiceField(label="Estado (UF)", required=False,
         choices=[('', 'Todos os estados')] + [(uf, f'{nome} ({uf})') for uf, nome in ESTADOS])

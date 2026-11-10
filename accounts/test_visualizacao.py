@@ -157,8 +157,16 @@ class VisualizacaoPublicaTests(TestCase):
             nivel_critico=5,
         )
 
+        consulta = reverse("accounts:estoque_publico")
+        resposta = self.client.get(consulta)
+        self.assertEqual(
+            {item["codigo"]: item["total"] for item in resposta.context["indicadores"]},
+            {"CRITICO": 1, "BAIXO": 0, "ADEQUADO": 1, "ALTO": 0},
+        )
+        self.assertContains(resposta, "1 estoque em nível crítico.")
+
         resposta = self.client.get(
-            reverse("accounts:estoque_publico"),
+            consulta,
             {
                 "tipo_sanguineo": "O-",
                 "situacao": "CRITICO",
@@ -171,6 +179,14 @@ class VisualizacaoPublicaTests(TestCase):
         self.assertContains(resposta, "Crítico")
         self.assertNotContains(resposta, "20 bolsas")
         self.assertNotContains(resposta, "Hemocentro Pendente")
+        self.assertEqual(
+            {item["codigo"]: item["total"] for item in resposta.context["indicadores"]},
+            {"CRITICO": 1, "BAIXO": 0, "ADEQUADO": 0, "ALTO": 0},
+        )
+
+        resposta_vazia = self.client.get(consulta, {"tipo_sanguineo": "B+"})
+        self.assertFalse(any(item["total"] for item in resposta_vazia.context["indicadores"]))
+        self.assertNotContains(resposta_vazia, "Ver estoques críticos")
 
     def test_consulta_de_estoques_preserva_parametros_antigos(self):
         cadastrar_estoque(

@@ -1,0 +1,197 @@
+/* Apresentação pública e escolha da modalidade de triagem. */
+.page-triagem-apresentacao {
+    --triagem-apresentacao-largura: min(1120px, calc(100% - clamp(32px, 7vw, 64px)));
+    min-width: 0;
+    background: #fff;
+}
+
+.page-triagem-apresentacao main > .triagem-apresentacao,
+.page-triagem-apresentacao main > .messages-wrap {
+    width: var(--triagem-apresentacao-largura);
+    margin-inline: auto;
+}
+
+.triagem-apresentacao {
+    --triagem-apresentacao-espaco: clamp(22px, 4vw, 44px);
+    padding-bottom: var(--triagem-apresentacao-espaco);
+    color: var(--elo-ink);
+}
+
+.triagem-apresentacao p {
+    max-width: 67ch;
+    margin: 0;
+    color: var(--elo-muted);
+}
+
+.triagem-apresentacao strong {
+    color: var(--elo-ink);
+}
+
+.triagem-apresentacao-abertura {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, .47fr);
+    align-items: end;
+    gap: 24px var(--triagem-apresentacao-espaco);
+    padding-block: var(--triagem-apresentacao-espaco);
+}
+
+.triagem-apresentacao .triagem-apresentacao-rotulo {
+    margin-bottom: 10px;
+    color: var(--elo-red-dark);
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.triagem-apresentacao h1,
+.triagem-apresentacao-secao h2 {
+    margin: 0 0 10px;
+    font-family: "Playfair Display", Georgia, serif;
+    line-height: 1.13;
+    letter-spacing: -.025em;
+}
+
+.triagem-apresentacao h1 {
+    max-width: 21ch;
+    font-size: clamp(2.1rem, 4.5vw, 3.45rem);
+    text-wrap: balance;
+}
+
+.triagem-apresentacao-aviso {
+    padding-inline-start: 18px;
+    border-inline-start: 2px solid var(--elo-border-dark);
+    font-size: .925rem;
+}
+
+.triagem-apresentacao-aviso h2 {
+    margin: 0 0 5px;
+    color: var(--elo-red-dark);
+    font-size: 1rem;
+}
+
+.triagem-apresentacao-secao {
+    padding-block: clamp(18px, 2.4vw, 28px);
+    border-top: 1px solid var(--elo-border);
+}
+
+.triagem-apresentacao-secao h2 {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+}
+
+.triagem-apresentacao-cabecalho {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px 24px;
+    margin-bottom: 18px;
+}
+
+.triagem-apresentacao-modalidades {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.triagem-apresentacao-opcao {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 12px var(--triagem-apresentacao-espaco) 4px 0;
+}
+
+.triagem-apresentacao-opcao + .triagem-apresentacao-opcao {
+    padding-inline: var(--triagem-apresentacao-espaco) 0;
+    border-inline-start: 1px solid var(--elo-border);
+}
+
+.triagem-apresentacao-opcao h3 {
+    margin: 0 0 6px;
+    font-size: clamp(1.12rem, 2vw, 1.35rem);
+    line-height: 1.25;
+}
+
+.triagem-apresentacao-form {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.triagem-apresentacao-form .triagem-apresentacao-aceite {
+    margin: 0;
+    color: var(--elo-ink);
+    font-size: .9rem;
+}
+
+.triagem-apresentacao-form input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    min-height: 0;
+    margin: 3px 2px 0 0;
+    accent-color: var(--elo-red);
+}
+
+.triagem-apresentacao-form .button {
+    max-width: 100%;
+    margin-top: auto;
+    box-shadow: none;
+}
+
+.triagem-apresentacao-form .button-outline[type="submit"] {
+    border: 1px solid var(--elo-border-dark);
+    background: #fff;
+    color: var(--elo-red-dark);
+}
+
+.triagem-apresentacao-form .button-outline[type="submit"]:hover {
+    background: var(--elo-red-soft);
+}
+
+.triagem-apresentacao-orientacoes p + p {
+    margin-top: 8px;
+}
+
+.triagem-apresentacao-orientacoes details {
+    margin-top: 12px;
+}
+
+.triagem-apresentacao-orientacoes summary,
+.triagem-apresentacao .triagem-apresentacao-link {
+    width: fit-content;
+    color: var(--elo-red-dark);
+    font-weight: 700;
+}
+
+.triagem-apresentacao-orientacoes summary {
+    padding-block: 4px;
+    cursor: pointer;
+}
+
+.triagem-apresentacao :is(a, button, input, summary):focus-visible {
+    outline: 2px solid var(--elo-red-dark);
+    outline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+    .triagem-apresentacao-abertura,
+    .triagem-apresentacao-modalidades {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .triagem-apresentacao-opcao,
+    .triagem-apresentacao-opcao + .triagem-apresentacao-opcao {
+        padding: 14px 0;
+        border-inline-start: 0;
+    }
+
+    .triagem-apresentacao-opcao + .triagem-apresentacao-opcao {
+        border-top: 1px solid var(--elo-border);
+    }
+
+    .triagem-apresentacao-form .button {
+        width: 100%;
+    }
+}

@@ -28,6 +28,7 @@ document.querySelectorAll('input[data-municipios-url]').forEach((campo) => {
     let consulta;
     const carregar = async (mudou = false) => {
         consulta?.abort();
+        status.classList.remove('localidade-status-erro');
         if (mudou) {
             campo.value = '';
             lista.replaceChildren();
@@ -35,7 +36,9 @@ document.querySelectorAll('input[data-municipios-url]').forEach((campo) => {
         const uf = estado.value;
         campo.disabled = !uf && !campo.value;
         if (!uf) {
-            status.textContent = 'Selecione um estado para buscar os municípios.';
+            status.textContent = campo.form.classList.contains('auth-form-signup')
+                ? ''
+                : 'Selecione um estado para buscar os municípios.';
             return;
         }
         campo.disabled = false;
@@ -55,6 +58,7 @@ document.querySelectorAll('input[data-municipios-url]').forEach((campo) => {
             status.textContent = `${dados.cidades.length} municípios disponíveis. Digite para buscar.`;
         } catch (erro) {
             if (erro.name !== 'AbortError' && consulta === controlador) {
+                status.classList.add('localidade-status-erro');
                 status.textContent = 'Não foi possível carregar as sugestões. Digite seu município; ele será validado ao salvar.';
             }
         } finally {

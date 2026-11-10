@@ -567,11 +567,6 @@ main table {
     line-height: 1.45;
 }
 
-main table.tabela-estoque-geral {
-    margin-left: 0;
-    margin-right: auto;
-}
-
 main th,
 main td {
     padding: 8px 12px;
@@ -593,67 +588,6 @@ main th {
     main th,
     main td {
         padding: 6px 8px;
-    }
-}
-
-/* Filtro de estoque: campos proporcionais e alinhados ao conteudo. */
-main form.filtro-estoque {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px 18px;
-    width: 100%;
-    max-width: 860px;
-    margin: 20px 0 28px;
-}
-
-.filtro-estoque p {
-    margin: 0;
-    min-width: 0;
-}
-
-.filtro-estoque label {
-    display: block;
-    margin-bottom: 5px;
-    font-size: 14px;
-    font-weight: 600;
-}
-
-main .filtro-estoque input,
-main .filtro-estoque select {
-    width: 100%;
-    min-height: 40px;
-    padding: 8px 10px;
-    font-size: 14px;
-}
-
-.filtro-estoque .helptext {
-    font-size: 12px;
-    color: var(--muted);
-}
-
-.filtro-estoque-acoes {
-    grid-column: 1 / -1;
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 14px;
-}
-
-main .filtro-estoque button[type="submit"] {
-    min-height: 40px;
-    padding: 9px 16px;
-    font-size: 14px;
-}
-
-@media (max-width: 720px) {
-    main form.filtro-estoque {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
-
-@media (max-width: 520px) {
-    main form.filtro-estoque {
-        grid-template-columns: 1fr;
     }
 }
 
@@ -1251,7 +1185,7 @@ summary:focus-visible {
     }
 }
 
-/* A camada de blur fica acima do header e abaixo do painel, preservando o menu nítido. */
+/* O cabeçalho e o menu ficam acima da camada de escurecimento. */
 .site-header {
     z-index: 100 !important;
 }
@@ -1371,15 +1305,42 @@ body > main {
     z-index: 50;
     height: 78px;
     border-bottom: 1px solid rgba(234, 223, 227, .86);
-    background: rgba(255, 255, 255, .94);
+    background: #fff;
     box-shadow: 0 3px 18px rgba(59, 30, 38, .04);
-    backdrop-filter: blur(14px);
+}
+
+.header-inner,
+.page-return {
+    width: min(1240px, calc(100% - 56px));
 }
 
 .header-inner {
-    width: min(1240px, calc(100% - 56px));
     min-height: 78px;
     gap: 20px;
+}
+
+.page-return {
+    margin: 8px auto 0;
+}
+
+.page-return-link {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    place-items: center;
+    border: 1px solid var(--elo-border);
+    border-radius: 12px;
+    background: #fff;
+    color: var(--elo-red-dark);
+}
+
+.page-return-link:hover {
+    background: var(--elo-red-soft);
+}
+
+.page-return-link:focus-visible {
+    outline: 2px solid var(--elo-red-dark);
+    outline-offset: 2px;
 }
 
 .brand { gap: 9px; color: var(--elo-red); }
@@ -1624,7 +1585,7 @@ body:not(.page-auth) main > section h2::before { content: ""; display: inline-bl
 .footer-links a:hover { color: #fff; }
 
 @media (max-width: 1100px) {
-    .header-inner { width: min(100% - 36px, 900px); }
+    .header-inner, .page-return { width: min(100% - 36px, 900px); }
     .main-nav { gap: 7px; }
     .nav-primary, .nav-actions { gap: 1px; }
     .main-nav > .nav-primary > a, .main-nav > .nav-actions > a { padding-inline: 7px; font-size: 12px; }
@@ -1644,6 +1605,7 @@ body:not(.page-auth) main > section h2::before { content: ""; display: inline-bl
 }
 
 @media (max-width: 620px) {
+    .page-return,
     .header-inner, .messages-wrap, .central-notificacoes, .home-feature, .home-data-section, main > h1, main > h1 + p, main > h1 + p + p, main > form:not(.plain-form), main > section:not(.hero):not(.info-section):not(.faq-section):not(.home-feature):not(.home-data-section) { width: calc(100% - 32px); }
     .hero { min-height: auto; padding: 74px 16px 80px; }
     .hero::after { right: -50px; bottom: 7%; width: 130px; height: 130px; }
@@ -1815,43 +1777,12 @@ main form p:has(> input[type="checkbox"]) > .errorlist {
 }
 
 /* Mantem os componentes que ja possuem layout proprio. */
-main .filtro-estoque > p {
-    margin: 0;
-}
-
-main .filtro-estoque label {
-    margin-bottom: 5px;
-}
-
 main .compatibilidade-consulta label {
     margin-bottom: 0;
 }
 
 main .notificacao-acoes form {
     margin: 0;
-}
-
-/* Formularios e historicos dos estoques ficam separados por tipo. */
-.estoques-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
-    gap: 24px;
-    margin: 20px 0 32px;
-}
-
-.estoque-card {
-    min-width: 0;
-    padding: 20px;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-}
-
-.estoque-card h3 {
-    margin-top: 0;
-}
-
-.estoque-hemocentro > section {
-    margin-bottom: 32px;
 }
 
 main > section > table {
@@ -2033,21 +1964,6 @@ main form.request-form {
 
 .request-form-actions button.button {
     border: 1px solid transparent;
-}
-
-.request-back-link {
-    margin: 18px 0 0;
-    color: var(--muted);
-    font-size: 14px;
-}
-
-.request-back-link a {
-    color: var(--red);
-    font-weight: 600;
-}
-
-.request-back-link a:hover {
-    text-decoration: underline;
 }
 
 /* CONFIRMACAO E ACOMPANHAMENTO DA SOLICITACAO. */
@@ -2495,10 +2411,6 @@ main form.tracking-form {
         width: calc(100% - 32px);
         margin-left: 16px;
     }
-
-    .estoque-card {
-        padding: 16px;
-    }
 }
 
 
@@ -2569,30 +2481,6 @@ main form.tracking-form {
 /* Menu global: sempre recolhido, em desktop, notebook, tablet e celular. */
 body.menu-open {
     overflow: hidden;
-}
-
-/* O cabeçalho não muda de cor: fica transparente sob a mesma camada de
-   escurecimento e blur aplicada ao restante da página. */
-body.menu-open .site-header {
-    z-index: 100 !important;
-    border-bottom-color: transparent;
-    background: transparent !important;
-    box-shadow: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-}
-
-body.menu-open .site-header::before {
-    position: absolute;
-    z-index: 1;
-    inset: 0;
-    display: block;
-    border-radius: inherit;
-    background: rgba(38, 38, 42, .72);
-    content: "";
-    pointer-events: none;
-    backdrop-filter: blur(9px);
-    -webkit-backdrop-filter: blur(9px);
 }
 
 .menu-toggle {

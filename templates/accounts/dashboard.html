@@ -1,396 +1,263 @@
 {% extends "base.html" %}
-
-{% comment %}
-RESUMO DO ARQUIVO
-=================
-Painel protegido do usuario cadastrado.
-
-A view envia dois dicionarios principais:
-- painel: textos gerais do perfil logado;
-- visibilidade: regras que dizem quais blocos cada usuario pode enxergar.
-
-Assim, a particularizacao fica centralizada na view e o template apenas mostra
-ou esconde as secoes correspondentes.
-{% endcomment %}
+{% load static %}
 
 {% block title %}Painel | Elo{% endblock %}
+{% block body_class %}page-dashboard{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261109-3">{% endblock %}
 
 {% block content %}
+<div class="dashboard">
+    <header class="dashboard-abertura">
+        <div>
+            <p class="dashboard-perfil">{{ painel.rotulo }}</p>
+            <h1>Olá, {{ user.get_short_name }}!</h1>
+            <p class="dashboard-intro">{{ painel.descricao }}</p>
+        </div>
+        <a class="button button-outline" href="{% url 'accounts:perfil' %}">Acessar meu perfil</a>
+    </header>
 
-<!-- get_short_name retorna o primeiro nome ou, se vazio, o e-mail. -->
-<h1>Ola, {{ user.get_short_name }}!</h1>
+    {% if visibilidade.mostra_triagem %}
+        <section class="dashboard-secao dashboard-triagem" aria-labelledby="dashboard-triagem">
+            <div>
+                <h2 id="dashboard-triagem">Triagem para doação</h2>
+                <p>Responda à triagem inicial antes de procurar um posto de coleta.</p>
+                {% if ultima_triagem %}
+                    <p class="dashboard-ultima-triagem">
+                        <strong>Última triagem:</strong>
+                        {{ ultima_triagem.get_modalidade_display }} · {{ ultima_triagem.get_status_display }}
+                    </p>
+                {% endif %}
+            </div>
+            <div class="dashboard-links dashboard-triagem-acoes">
+                <a class="button button-primary" href="{% url 'accounts:triagem_apresentacao' %}">Escolher ou continuar uma triagem</a>
+                <a href="{% url 'accounts:triagem_historico' %}">Ver meu histórico de triagens</a>
+            </div>
+        </section>
+    {% endif %}
 
-<p>
-    <strong>{{ painel.rotulo }}</strong>
-</p>
-<p><a class="button button-primary" href="{% url 'accounts:perfil' %}">Acessar meu perfil</a></p>
-
-{% if preferencia_convocacao %}
-    <section>
-        <h2>Alertas de doação</h2>
-        <p>Receba até {{ convocacao_limite }} alerta(s) a cada {{ convocacao_intervalo_horas }} horas,
-            quando houver compatibilidade e sua última triagem concluída permitir.</p>
-        <form method="post">
-            {% csrf_token %}
-            {{ preferencia_convocacao.as_p }}
-            <button type="submit">Salvar preferência</button>
-        </form>
-    </section>
-{% endif %}
-
-<section>
-    <h2>{{ painel.titulo }}</h2>
-    <p>{{ painel.descricao }}</p>
-
-    <ul>
-        {% for acao in painel.acoes %}
-            <li>{{ acao }}</li>
-        {% endfor %}
-    </ul>
-</section>
-
-
-{% comment %}
-=================================================================
-TRIAGEM
-=================================================================
-Somente o Doador pode acessar a triagem. Outros perfis nao
-devem ver esse bloco no dashboard.
-{% endcomment %}
-
-{% if visibilidade.mostra_triagem %}
-
-    <section>
-        <h2>Triagem para doação</h2>
-
-        {% if user.perfil == "DOADOR" %}
-
-            <p>
-                Responda à triagem inicial antes de procurar um posto de coleta.
-            </p>
-
+    <div class="dashboard-secoes">
+        {% if visibilidade.pode_analisar_pedidos %}
+            <section class="dashboard-secao">
+                <h2>Análise de solicitações</h2>
+                <p>Somente o Hemocentro aprovado pode decidir pela publicação.</p>
+                <div class="dashboard-links">
+                    <a href="{% url 'accounts:painel_pedidos_hemocentro' %}">Analisar solicitações recebidas</a>
+                </div>
+            </section>
         {% endif %}
 
-        <p>
-            <a href="{% url 'accounts:triagem_apresentacao' %}">
-                Escolher ou continuar uma triagem
-            </a>
-        </p>
-
-        <p>
-            <a href="{% url 'accounts:triagem_historico' %}">
-                Ver meu histórico de triagens
-            </a>
-        </p>
-
-        {% if ultima_triagem %}
-            <p>
-                <strong>Última triagem:</strong>
-                {{ ultima_triagem.get_modalidade_display }} -
-                {{ ultima_triagem.get_status_display }}
-            </p>
-        {% endif %}
-    </section>
-
-{% endif %}
-
-
-{% comment %}
-=================================================================
-CAMPANHAS
-=================================================================
-Doador e Observador veem campanhas publicas. Hemocentro pendente nao publica
-campanha; Hemocentro aprovado pode ganhar uma tela propria futuramente.
-{% endcomment %}
-
-{% if visibilidade.mostra_campanhas %}
-
-    <section>
-        <h2>Campanhas e mutiroes</h2>
-
-        <ul>
-            {% for campanha in campanhas_ativas %}
-                <li>
-                    <strong>{{ campanha.titulo }}</strong><br>
-                    {{ campanha.cidade }} - {{ campanha.data }}
-                </li>
-            {% empty %}
-                <li>Nenhuma campanha ativa no momento.</li>
-            {% endfor %}
-        </ul>
-    </section>
-
-{% endif %}
-
-
-{% comment %}
-=================================================================
-ESTOQUE PUBLICO
-=================================================================
-Doador, Receptor e Observador podem consultar a situacao publica dos estoques.
-Gerenciar estoque e diferente de consultar estoque publico.
-{% endcomment %}
-
-{% if visibilidade.mostra_estoque_publico %}
-
-    <section>
-        <h2>Estoque público</h2>
-
-        <p>
-            Consulte os estoques informados pelos Hemocentros aprovados.
-        </p>
-
-        <p>
-            <a href="{% url 'accounts:estoque_publico' %}">
-                Ver estoque público completo
-            </a>
-        </p>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Tipo sanguineo</th>
-                    <th>Nivel</th>
-                    <th>Ocupacao</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                {% for item in estoque_geral %}
-                    <tr>
-                        <td>{{ item.tipo }}</td>
-                        <td>{{ item.nivel }}</td>
-                        <td>{{ item.percentual }}%</td>
-                    </tr>
-                {% empty %}
-                    <tr>
-                        <td colspan="3">
-                            Nenhum dado de estoque disponivel.
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </section>
-
-{% endif %}
-
-
-{% comment %}
-=================================================================
-PEDIDOS
-=================================================================
-Doador, Receptor, Observador e Hemocentro podem ver pedidos ativos. O
-Administrador nao precisa receber essa lista no painel administrativo.
-{% endcomment %}
-
-{% if visibilidade.mostra_pedidos %}
-
-    <section>
-        <h2>Pedidos ativos</h2>
-        <p><a href="{% url 'accounts:consultar_pedidos' %}">Consultar pedidos ativos</a></p>
-
-        {% if visibilidade.pode_solicitar_divulgacao %}
-            <p>
-                <a href="{% url 'accounts:pedido_publicar' %}">
-                    Solicitar divulgação de necessidade
-                </a>
-            </p>
-            <p>
-                <a href="{% url 'accounts:minhas_solicitacoes' %}">
-                    Acompanhar minhas solicitações
-                </a>
-            </p>
+        {% if visibilidade.mostra_status_hemocentro %}
+            <section class="dashboard-secao">
+                <h2>Status da validação institucional</h2>
+                {% if request.user.status_validacao == "PENDENTE" %}
+                    <h3>Pendente</h3>
+                    <p>Seu cadastro de Hemocentro está aguardando análise de um administrador.</p>
+                    <p>Enquanto a análise não for concluída, a publicação de estoques e campanhas permanece bloqueada.</p>
+                {% elif request.user.status_validacao == "APROVADO" %}
+                    <h3>Aprovado</h3>
+                    <p>Seu Hemocentro foi aprovado pelo administrador.</p>
+                    <p>O Hemocentro está autorizado a cadastrar e atualizar estoques.</p>
+                    {% if visibilidade.pode_gerenciar_estoque %}
+                        <div class="dashboard-links">
+                            <a href="{% url 'accounts:estoque_hemocentro' %}">Cadastrar e atualizar estoque</a>
+                        </div>
+                    {% endif %}
+                {% elif request.user.status_validacao == "RECUSADO" %}
+                    <h3>Cadastro recusado</h3>
+                    <p>O cadastro do Hemocentro foi recusado.</p>
+                    {% if validacao_atual and validacao_atual.parecer %}
+                        <p><strong>Parecer do administrador:</strong> {{ validacao_atual.parecer }}</p>
+                        <p><strong>Data da análise:</strong> {{ validacao_atual.data_analise|date:"d/m/Y H:i" }}</p>
+                    {% endif %}
+                {% elif request.user.status_validacao == "CORRECAO" %}
+                    <h3>Correção necessária</h3>
+                    <p>O administrador solicitou alterações no cadastro do Hemocentro.</p>
+                    {% if validacao_atual and validacao_atual.parecer %}
+                        <p><strong>Orientação do administrador:</strong> {{ validacao_atual.parecer }}</p>
+                        <p><strong>Data da análise:</strong> {{ validacao_atual.data_analise|date:"d/m/Y H:i" }}</p>
+                    {% endif %}
+                {% endif %}
+            </section>
         {% endif %}
 
-        <ul>
-            {% for pedido in pedidos_ativos %}
-                <li>
-                    <strong>{{ pedido.titulo }}</strong><br>
-                    {{ pedido.tipo_sanguineo }} -
-                    {{ pedido.cidade }} -
-                    Urgencia {{ pedido.urgencia }}
-                </li>
-            {% empty %}
-                <li>Nenhum pedido ativo no momento.</li>
-            {% endfor %}
-        </ul>
-    </section>
+        {% if visibilidade.pode_aprovar_hemocentros %}
+            <section class="dashboard-secao">
+                <h2>Validação de Hemocentros</h2>
+                <p>Analise cadastros pendentes e libere o acesso institucional somente depois da aprovação.</p>
+                <div class="dashboard-links">
+                    <a href="{% url 'accounts:painel_aprovacao_hemocentros' %}">Acessar aprovação de Hemocentros</a>
+                </div>
+            </section>
+        {% endif %}
 
-{% endif %}
+        {% if visibilidade.pode_moderar_pedidos %}
+            <section class="dashboard-secao">
+                <h2>Moderação de pedidos</h2>
+                <p>Analise pedidos suspeitos ou pendentes sem publicar em nome do Hemocentro.</p>
+                <div class="dashboard-links">
+                    <a href="{% url 'accounts:painel_validacao_pedidos' %}">Acessar moderação de pedidos</a>
+                </div>
+            </section>
+        {% endif %}
+    </div>
 
-{% if visibilidade.pode_analisar_pedidos %}
-    <section>
-        <h2>Análise de solicitações</h2>
-        <p>Somente o Hemocentro aprovado pode decidir pela publicação.</p>
-        <p>
-            <a href="{% url 'accounts:painel_pedidos_hemocentro' %}">
-                Analisar solicitações recebidas
-            </a>
-        </p>
-    </section>
-{% endif %}
+    {% if visibilidade.mostra_estoque_publico or visibilidade.mostra_pedidos or visibilidade.mostra_campanhas or visibilidade.mostra_postos %}
+        <section class="dashboard-secao dashboard-consultas" aria-labelledby="dashboard-consultas">
+            <h2 id="dashboard-consultas">Consultas e serviços</h2>
 
-
-{% comment %}
-=================================================================
-POSTOS DE COLETA
-=================================================================
-Doador e Observador recebem a lista de postos no dashboard. Outros perfis
-podem acessar informacoes publicas pela pagina inicial quando necessario.
-{% endcomment %}
-
-{% if visibilidade.mostra_postos %}
-
-    <section>
-        <h2>Postos de coleta</h2>
-
-        <ul>
-            {% for posto in postos %}
-                <li>
-                    <strong>{{ posto.nome }}</strong><br>
-                    {{ posto.cidade }}/{{ posto.estado }} -
-                    {{ posto.horario }}
-                </li>
-            {% empty %}
-                <li>Nenhum posto de coleta cadastrado.</li>
-            {% endfor %}
-        </ul>
-    </section>
-
-{% endif %}
-
-
-{% comment %}
-=================================================================
-STATUS DA VALIDACAO DO HEMOCENTRO
-=================================================================
-Mostra para o Hemocentro a situacao atual do cadastro institucional.
-Somente Hemocentro aprovado recebe o link para gerenciar estoque.
-{% endcomment %}
-
-{% if visibilidade.mostra_status_hemocentro %}
-
-    <section>
-
-        <h2>Status da validação institucional</h2>
-
-        {% if request.user.status_validacao == "PENDENTE" %}
-
-            <h3>Pendente</h3>
-
-            <p>
-                Seu cadastro de Hemocentro está aguardando análise
-                de um administrador.
-            </p>
-
-            <p>
-                Enquanto a análise não for concluída, a publicação
-                de estoques e campanhas permanece bloqueada.
-            </p>
-
-        {% elif request.user.status_validacao == "APROVADO" %}
-
-            <h3>Aprovado</h3>
-
-            <p>
-                Seu Hemocentro foi aprovado pelo administrador.
-            </p>
-
-            <p>
-                O Hemocentro está autorizado a cadastrar e atualizar estoques.
-            </p>
-
-            {% if visibilidade.pode_gerenciar_estoque %}
-                <p>
-                    <a href="{% url 'accounts:estoque_hemocentro' %}">
-                        Cadastrar e atualizar estoque
-                    </a>
-                </p>
+            {% if visibilidade.mostra_estoque_publico %}
+                <div class="dashboard-consulta">
+                    <div class="dashboard-consulta-cabecalho">
+                        <div>
+                            <h3>Estoque público</h3>
+                            <p>Consulte os estoques informados pelos Hemocentros aprovados.</p>
+                        </div>
+                        <a class="dashboard-atalho" href="{% url 'accounts:estoque_publico' %}">Ver estoque completo <span aria-hidden="true">→</span></a>
+                    </div>
+                    <details class="dashboard-resumo">
+                        <summary>Ver resumo por tipo sanguíneo</summary>
+                        <table class="dashboard-estoque" aria-label="Resumo do estoque público">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Tipo sanguíneo</th>
+                                    <th scope="col">Nível</th>
+                                    <th scope="col">Ocupação</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in estoque_geral %}
+                                    <tr>
+                                        <td>{{ item.tipo }}</td>
+                                        <td>{{ item.nivel }}</td>
+                                        <td>{{ item.percentual }}%</td>
+                                    </tr>
+                                {% empty %}
+                                    <tr><td colspan="3">Nenhum dado de estoque disponível.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </details>
+                </div>
             {% endif %}
 
-        {% elif request.user.status_validacao == "RECUSADO" %}
-
-            <h3>Cadastro recusado</h3>
-
-            <p>
-                O cadastro do Hemocentro foi recusado.
-            </p>
-
-            {% if validacao_atual and validacao_atual.parecer %}
-
-                <p>
-                    <strong>Parecer do administrador:</strong>
-                    {{ validacao_atual.parecer }}
-                </p>
-
-                <p>
-                    <strong>Data da análise:</strong>
-                    {{ validacao_atual.data_analise|date:"d/m/Y H:i" }}
-                </p>
-
+            {% if visibilidade.mostra_pedidos %}
+                <div class="dashboard-consulta">
+                    <div class="dashboard-consulta-cabecalho">
+                        <div>
+                            <h3>Pedidos ativos</h3>
+                            {% if not pedidos_ativos %}
+                                <p>Nenhum pedido ativo no momento.</p>
+                            {% endif %}
+                        </div>
+                        <a class="dashboard-atalho" href="{% url 'accounts:consultar_pedidos' %}">Consultar pedidos ativos <span aria-hidden="true">→</span></a>
+                    </div>
+                    {% if pedidos_ativos %}
+                        <details class="dashboard-resumo">
+                            <summary>Ver pedidos recentes</summary>
+                            <ul class="dashboard-lista">
+                                {% for pedido in pedidos_ativos %}
+                                    <li>
+                                        <strong>{{ pedido.titulo }}</strong>
+                                        <span>{{ pedido.tipo_sanguineo }} · {{ pedido.cidade }} · Urgência {{ pedido.urgencia }}</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </details>
+                    {% endif %}
+                    {% if visibilidade.pode_solicitar_divulgacao %}
+                        <div class="dashboard-links">
+                            <a href="{% url 'accounts:pedido_publicar' %}">Solicitar divulgação de necessidade</a>
+                            <a href="{% url 'accounts:minhas_solicitacoes' %}">Acompanhar minhas solicitações</a>
+                        </div>
+                    {% endif %}
+                </div>
             {% endif %}
 
-        {% elif request.user.status_validacao == "CORRECAO" %}
-
-            <h3>Correção necessária</h3>
-
-            <p>
-                O administrador solicitou alterações no cadastro
-                do Hemocentro.
-            </p>
-
-            {% if validacao_atual and validacao_atual.parecer %}
-
-                <p>
-                    <strong>Orientação do administrador:</strong>
-                    {{ validacao_atual.parecer }}
-                </p>
-
-                <p>
-                    <strong>Data da análise:</strong>
-                    {{ validacao_atual.data_analise|date:"d/m/Y H:i" }}
-                </p>
-
+            {% if visibilidade.mostra_campanhas %}
+                <div class="dashboard-consulta">
+                    <h3>Campanhas e mutirões</h3>
+                    {% if campanhas_ativas %}
+                        <details class="dashboard-resumo">
+                            <summary>Ver campanhas ativas</summary>
+                            <ul class="dashboard-lista">
+                                {% for campanha in campanhas_ativas %}
+                                    <li>
+                                        <strong>{{ campanha.titulo }}</strong>
+                                        <span>{{ campanha.cidade }} · {{ campanha.data }}</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </details>
+                    {% else %}
+                        <p>Nenhuma campanha ativa no momento.</p>
+                    {% endif %}
+                </div>
             {% endif %}
 
-        {% endif %}
+            {% if visibilidade.mostra_postos %}
+                <div class="dashboard-consulta">
+                    <h3>Postos de coleta</h3>
+                    {% if postos %}
+                        <details class="dashboard-resumo">
+                            <summary>Ver locais e horários</summary>
+                            <ul class="dashboard-lista">
+                                {% for posto in postos %}
+                                    <li>
+                                        <strong>{{ posto.nome }}</strong>
+                                        <span>{{ posto.cidade }}/{{ posto.estado }} · {{ posto.horario }}</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </details>
+                    {% else %}
+                        <p>Nenhum posto de coleta cadastrado.</p>
+                    {% endif %}
+                </div>
+            {% endif %}
 
-    </section>
+            {% if visibilidade.mostra_triagem %}
+                <div class="dashboard-consulta dashboard-consulta-cabecalho">
+                    <h3>Compatibilidade sanguínea</h3>
+                    <a class="dashboard-atalho" href="{% url 'accounts:compatibilidade_sanguinea' %}">Consultar compatibilidade <span aria-hidden="true">→</span></a>
+                </div>
+            {% endif %}
+        </section>
+    {% endif %}
 
-{% endif %}
-
-
-{% comment %}
-=================================================================
-ACESSO DO ADMINISTRADOR
-=================================================================
-Mostra o link para a tela de aprovação quando o usuário é administrador.
-Administrador nao e tratado como Hemocentro.
-{% endcomment %}
-
-{% if visibilidade.pode_aprovar_hemocentros %}
-    <section>
-        <h2>Validação de Hemocentros</h2>
-
-        <p>
-            Analise cadastros pendentes e libere o acesso institucional
-            somente depois da aprovação.
-        </p>
-
-        <p>
-            <a href="{% url 'accounts:painel_aprovacao_hemocentros' %}">
-                Acessar aprovação de Hemocentros
-            </a>
-        </p>
-    </section>
-{% endif %}
-
-{% if visibilidade.pode_moderar_pedidos %}
-    <section>
-        <h2>Moderação de pedidos</h2>
-        <p>Analise pedidos suspeitos ou pendentes sem publicar em nome do Hemocentro.</p>
-        <p><a href="{% url 'accounts:painel_validacao_pedidos' %}">Acessar moderação de pedidos</a></p>
-    </section>
-{% endif %}
+    {% if preferencia_convocacao %}
+        <section class="dashboard-secao dashboard-alertas" aria-labelledby="dashboard-alertas">
+            <div>
+                <h2 id="dashboard-alertas">Alertas de doação</h2>
+                <p>Receba até {{ convocacao_limite }} alerta{{ convocacao_limite|pluralize }} a cada {{ convocacao_intervalo_horas }} horas,
+                    quando houver compatibilidade e sua última triagem concluída permitir.</p>
+            </div>
+            <form method="post" class="plain-form dashboard-preferencia">
+                {% csrf_token %}
+                {{ preferencia_convocacao.non_field_errors }}
+                {% with campo=preferencia_convocacao.aceita_convocacoes %}
+                    {{ campo.errors }}
+                    <label class="dashboard-preferencia-opcao">
+                        {{ campo }}
+                        <span>{{ campo.label }}</span>
+                    </label>
+                    {% if campo.help_text %}
+                        <p class="dashboard-preferencia-ajuda" id="{{ campo.auto_id }}_helptext">{{ campo.help_text }}</p>
+                    {% endif %}
+                {% endwith %}
+                <button class="button button-outline" type="submit">Salvar preferência</button>
+            </form>
+        </section>
+    {% elif painel.acoes %}
+        <section class="dashboard-secao" aria-label="{{ painel.titulo }}">
+            <details class="dashboard-resumo">
+                <summary>Ver funções do perfil</summary>
+                <ul class="dashboard-lista">
+                    {% for acao in painel.acoes %}
+                        <li>{{ acao }}</li>
+                    {% endfor %}
+                </ul>
+            </details>
+        </section>
+    {% endif %}
+</div>
 {% endblock %}

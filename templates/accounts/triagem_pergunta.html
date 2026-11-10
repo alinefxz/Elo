@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/triagem.css' %}?v=20261106-page-css-1">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/triagem-perguntas.css' %}?v=20261109-1">{% endblock %}
+{% block body_class %}page-triagem-pergunta{% endblock %}
 
 {% comment %}
 Uma pergunta por página deixa o formulário legível. O Django cria os campos
@@ -11,49 +12,54 @@ de data e complemento somente quando a regra da pergunta precisa deles.
 {% block title %}Pergunta da triagem | Elo{% endblock %}
 
 {% block content %}
-<h1>{{ triagem.get_modalidade_display }}</h1>
+<div class="triagem-pergunta">
+    <div class="triagem-pergunta-topo">
+        <p class="triagem-pergunta-modalidade">{{ triagem.get_modalidade_display }} · Nº {{ triagem.id_triagem }}</p>
+        <a href="{% url 'accounts:triagem_historico' %}">Meu histórico de triagens</a>
+    </div>
 
-<p>Triagem {{ triagem.id_triagem }} — Pergunta {{ numero_pergunta }} de {{ total_perguntas }}</p>
+    <div class="triagem-pergunta-progresso">
+        <p>Pergunta {{ numero_pergunta }} de {{ total_perguntas }}</p>
+        <progress value="{{ numero_pergunta }}" max="{{ total_perguntas }}" aria-label="Posição no questionário"></progress>
+        <details>
+            <summary>Navegar pelas perguntas</summary>
+            <nav class="triagem-pergunta-etapas" aria-label="Progresso da triagem">
+                {% for etapa in progresso_triagem %}
+                    {% if etapa.editavel %}
+                        <a class="triagem-pergunta-etapa" data-estado="{{ etapa.estado }}"
+                           href="{% url 'accounts:triagem_pergunta' triagem.id_triagem %}?pergunta={{ etapa.id }}"
+                           aria-label="Pergunta {{ etapa.indice }}{% if etapa.estado == 'respondida' %}, respondida{% endif %}"
+                           {% if etapa.estado == 'atual' %}aria-current="step"{% endif %}>
+                            {{ etapa.indice }}
+                        </a>
+                    {% else %}
+                        <span class="triagem-pergunta-etapa" data-estado="{{ etapa.estado }}">{{ etapa.indice }}</span>
+                    {% endif %}
+                {% endfor %}
+            </nav>
+        </details>
+    </div>
 
-<nav class="triagem-progresso" aria-label="Progresso da triagem">
-    {% for etapa in progresso_triagem %}
-        {% if etapa.editavel %}
-            <a class="triagem-etapa triagem-etapa-{{ etapa.estado }}"
-               href="{% url 'accounts:triagem_pergunta' triagem.id_triagem %}?pergunta={{ etapa.id }}"
-               aria-label="Pergunta {{ etapa.indice }}{% if etapa.estado == 'respondida' %}, respondida{% else %}, atual{% endif %}">
-                {{ etapa.indice }}
-            </a>
-        {% else %}
-            <span class="triagem-etapa triagem-etapa-{{ etapa.estado }}"
-                  aria-label="Pergunta {{ etapa.indice }}, ainda não disponível">
-                {{ etapa.indice }}
-            </span>
-        {% endif %}
-    {% endfor %}
-</nav>
+    <header class="triagem-pergunta-enunciado">
+        <h1>{{ pergunta.titulo }}</h1>
+        <p>{{ pergunta.explicacao }}</p>
+    </header>
 
-<h2>{{ pergunta.titulo }}</h2>
-<p>{{ pergunta.explicacao }}</p>
+    <form class="plain-form triagem-pergunta-form" method="post">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
 
-<form method="post">
-    {% csrf_token %}
-    {{ form.non_field_errors }}
+        {% for field in form %}
+            <div class="triagem-pergunta-campo">{{ field.as_field_group }}</div>
+        {% endfor %}
 
-    {% for field in form %}
-        <p>
-            {{ field.label_tag }}<br>
-            {{ field }}
-            {% if field.help_text %}<br><small>{{ field.help_text }}</small>{% endif %}
-            {% for error in field.errors %}<br>{{ error }}{% endfor %}
-        </p>
-    {% endfor %}
-
-    {% if numero_pergunta > 1 %}
-        <button type="submit" name="acao" value="anterior">Anterior</button>
-    {% endif %}
-    <button type="submit" name="acao" value="salvar">Salvar e sair</button>
-    <button type="submit" name="acao" value="continuar">Continuar</button>
-</form>
-
-<p><a href="{% url 'accounts:triagem_historico' %}">Meu histórico de triagens</a></p>
+        <div class="triagem-pergunta-acoes">
+            {% if numero_pergunta > 1 %}
+                <button class="button button-outline" type="submit" name="acao" value="anterior" formnovalidate>Anterior</button>
+            {% endif %}
+            <button class="button button-outline" type="submit" name="acao" value="salvar">Salvar e sair</button>
+            <button class="button button-primary" type="submit" name="acao" value="continuar">Continuar</button>
+        </div>
+    </form>
+</div>
 {% endblock %}

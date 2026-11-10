@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/triagem.css' %}?v=20261106-page-css-1">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/triagem-apresentacao.css' %}?v=20261109-1">{% endblock %}
+{% block body_class %}page-triagem-apresentacao{% endblock %}
 
 {% comment %}
 Esta página é pública para que a pessoa entenda a triagem antes de entrar.
@@ -11,113 +12,126 @@ Somente os formulários abaixo iniciam um registro no histórico.
 {% block title %}Triagem para doação | Elo{% endblock %}
 
 {% block content %}
-<h1>Seu gesto de cuidado começa aqui.</h1>
+<div class="triagem-apresentacao">
+    <header class="triagem-apresentacao-abertura">
+        <div>
+            <p class="triagem-apresentacao-rotulo">Pré-triagem para doação</p>
+            <h1>Seu gesto de cuidado começa aqui.</h1>
+            <p>
+                Esta triagem foi preparada para orientar você antes da doação, de forma
+                simples, tranquila e cuidadosa. As perguntas ajudam a identificar situações
+                que podem precisar de mais atenção ou que talvez façam com que a doação
+                precise ser adiada.
+            </p>
+        </div>
+        <aside class="triagem-apresentacao-aviso" aria-labelledby="triagem-aviso-titulo">
+            <h2 id="triagem-aviso-titulo">Triagem orientativa</h2>
+            <p>
+                Ela não substitui a avaliação feita no hemocentro e não confirma se você pode
+                ou não doar sangue. <strong>Quem dará a resposta final será sempre a equipe
+                do hemocentro</strong>, após a entrevista e as avaliações realizadas no local.
+            </p>
+        </aside>
+    </header>
 
-<p>
-    Esta triagem foi preparada para orientar você antes da doação, de forma
-    simples, tranquila e cuidadosa. As perguntas ajudam a identificar situações
-    que podem precisar de mais atenção ou que talvez façam com que a doação
-    precise ser adiada.
-</p>
-
-<p>
-    Para tornar esse processo mais adequado a cada pessoa, você poderá escolher
-    entre <strong>duas formas de triagem</strong>. A
-    <strong>triagem extensa</strong> é mais completa e indicada principalmente
-    para quem nunca doou sangue, está fazendo essa avaliação pela primeira vez
-    ou ainda tem dúvidas sobre alguma condição, procedimento, medicamento ou
-    situação específica. Por ter mais perguntas e trazer mais detalhes, ela pode
-    levar um pouco mais de tempo. Já a <strong>triagem simplificada</strong>
-    possui perguntas mais diretas e resumidas, sendo uma opção mais ágil para
-    quem já conhece essas informações e precisa apenas verificar se houve alguma
-    mudança importante desde a última avaliação.
-</p>
-
-<p>
-    Algumas questões envolvem sua saúde, seus hábitos e acontecimentos recentes.
-    Responda com calma e sinceridade. Se não souber ou não se lembrar de alguma
-    informação, tudo bem — basta indicar isso ao longo da triagem.
-</p>
-
-<p>
-    É importante lembrar que esta triagem é <strong>somente orientativa</strong>.
-    Ela não substitui a avaliação feita no hemocentro e não confirma se você pode
-    ou não doar sangue. <strong>Quem dará a resposta final será sempre a equipe
-    do hemocentro</strong>, após a entrevista e as avaliações realizadas no
-    local.
-</p>
-
-<p>
-    A ideia aqui é apenas ajudar você a chegar mais informado(a), seguro(a) e
-    preparado(a) para esse momento.
-</p>
-
-<p>
-    <strong>Quando estiver pronto(a), escolha a opção que mais combina com você
-    e podemos começar.</strong>
-</p>
-
-<section>
-    <h2>Triagem extensa</h2>
-    <p>Questionário completo, indicado para a primeira avaliação ou para revisar todo o histórico.</p>
-
-    {% if pode_iniciar %}
-        <form method="post" action="{% url 'accounts:triagem_iniciar' modalidade='extensa' %}">
-            {% csrf_token %}
-            <label>
-                <input type="checkbox" name="aceite_termo" required>
-                Li e estou ciente de que a pré-triagem é orientativa e não
-                substitui a avaliação clínica presencial do hemocentro.
-            </label>
-            {% if triagem_extensa_reutilizavel %}
-                <label>
-                    <input type="checkbox" name="reutilizar_respostas">
-                    Reutilizar respostas da última triagem extensa concluída.
-                </label>
+    <section class="triagem-apresentacao-secao" aria-labelledby="triagem-modalidades-titulo">
+        <div class="triagem-apresentacao-cabecalho">
+            <div>
+                <h2 id="triagem-modalidades-titulo">Escolha sua triagem</h2>
+                {% if pode_iniciar %}
+                    <p>Quando estiver pronto(a), escolha a opção que mais combina com você.</p>
+                {% elif user.is_authenticated %}
+                    <p>A triagem para doação está disponível para o perfil Doador.</p>
+                {% else %}
+                    <p>Para responder e salvar sua triagem, crie uma conta ou entre no sistema.</p>
+                {% endif %}
+            </div>
+            {% if pode_iniciar %}
+                <a class="triagem-apresentacao-link" href="{% url 'accounts:triagem_historico' %}">Ver meu histórico de triagens</a>
             {% endif %}
-            <button type="submit">Iniciar ou continuar triagem extensa</button>
-        </form>
-    {% elif not user.is_authenticated %}
-        <form method="get" action="{% url 'accounts:cadastro' %}">
-            <button type="submit">Criar conta para iniciar a triagem extensa</button>
-        </form>
-    {% endif %}
-</section>
+        </div>
 
-<section>
-    <h2>Triagem simplificada</h2>
-    <p>
-        Verificação mais rápida para informar mudanças. Ela pode ser iniciada
-        mesmo sem uma triagem extensa anterior, mas nesse caso a orientação será
-        limitada e deverá ser confirmada presencialmente no hemocentro.
-    </p>
+        <div class="triagem-apresentacao-modalidades">
+            <section class="triagem-apresentacao-opcao">
+                <h3>Triagem extensa</h3>
+                <p>Questionário completo, indicado para a primeira avaliação ou para revisar todo o histórico.</p>
 
-    {% if pode_simplificada %}
-        <form method="post" action="{% url 'accounts:triagem_iniciar' modalidade='simplificada' %}">
-            {% csrf_token %}
-            <label>
-                <input type="checkbox" name="aceite_termo" required>
-                Li e estou ciente de que a pré-triagem é orientativa e não
-                substitui a avaliação clínica presencial do hemocentro.
-            </label>
-            <button type="submit">Iniciar ou continuar triagem simplificada</button>
-        </form>
-    {% elif pode_iniciar %}
-        <p>A triagem simplificada está disponível para você.</p>
-    {% elif not user.is_authenticated %}
-        <form method="get" action="{% url 'accounts:login' %}">
-            <button type="submit">Entrar para continuar uma triagem</button>
-        </form>
-    {% endif %}
-</section>
+                {% if pode_iniciar %}
+                    <form class="plain-form triagem-apresentacao-form" method="post" action="{% url 'accounts:triagem_iniciar' modalidade='extensa' %}">
+                        {% csrf_token %}
+                        <label class="triagem-apresentacao-aceite">
+                            <input type="checkbox" name="aceite_termo" required>
+                            <span>Li e estou ciente de que a pré-triagem é orientativa e não substitui a avaliação clínica presencial do hemocentro.</span>
+                        </label>
+                        {% if triagem_extensa_reutilizavel %}
+                            <label class="triagem-apresentacao-aceite">
+                                <input type="checkbox" name="reutilizar_respostas">
+                                <span>Reutilizar respostas da última triagem extensa concluída.</span>
+                            </label>
+                        {% endif %}
+                        <button class="button button-primary" type="submit">Iniciar ou continuar triagem extensa</button>
+                    </form>
+                {% elif not user.is_authenticated %}
+                    <form class="plain-form triagem-apresentacao-form" method="get" action="{% url 'accounts:cadastro' %}">
+                        <button class="button button-primary" type="submit">Criar conta para iniciar a triagem extensa</button>
+                    </form>
+                {% endif %}
+            </section>
 
-{% if pode_iniciar %}
-    <p><a href="{% url 'accounts:triagem_historico' %}">Ver meu histórico de triagens</a></p>
-{% elif user.is_authenticated %}
-    <p>A triagem para doação está disponível para o perfil Doador.</p>
-{% else %}
-    <p>Para responder e salvar sua triagem, crie uma conta ou entre no sistema.</p>
-{% endif %}
+            <section class="triagem-apresentacao-opcao">
+                <h3>Triagem simplificada</h3>
+                <p>
+                    Verificação mais rápida para informar mudanças. Ela pode ser iniciada
+                    mesmo sem uma triagem extensa anterior, mas nesse caso a orientação será
+                    limitada e deverá ser confirmada presencialmente no hemocentro.
+                </p>
 
-<p><a href="{% url 'accounts:inicio' %}">Voltar para a página inicial</a></p>
+                {% if pode_simplificada %}
+                    <form class="plain-form triagem-apresentacao-form" method="post" action="{% url 'accounts:triagem_iniciar' modalidade='simplificada' %}">
+                        {% csrf_token %}
+                        <label class="triagem-apresentacao-aceite">
+                            <input type="checkbox" name="aceite_termo" required>
+                            <span>Li e estou ciente de que a pré-triagem é orientativa e não substitui a avaliação clínica presencial do hemocentro.</span>
+                        </label>
+                        <button class="button button-primary" type="submit">Iniciar ou continuar triagem simplificada</button>
+                    </form>
+                {% elif pode_iniciar %}
+                    <p>A triagem simplificada está disponível para você.</p>
+                {% elif not user.is_authenticated %}
+                    <form class="plain-form triagem-apresentacao-form" method="get" action="{% url 'accounts:login' %}">
+                        <button class="button button-outline" type="submit">Entrar para continuar uma triagem</button>
+                    </form>
+                {% endif %}
+            </section>
+        </div>
+    </section>
+
+    <section class="triagem-apresentacao-secao triagem-apresentacao-orientacoes" aria-labelledby="triagem-orientacoes-titulo">
+        <h2 id="triagem-orientacoes-titulo">Antes de responder</h2>
+        <p>
+            Algumas questões envolvem sua saúde, seus hábitos e acontecimentos recentes.
+            Responda com calma e sinceridade. Se não souber ou não se lembrar de alguma
+            informação, tudo bem — basta indicar isso ao longo da triagem.
+        </p>
+        <p>
+            A ideia aqui é apenas ajudar você a chegar mais informado(a), seguro(a) e
+            preparado(a) para esse momento.
+        </p>
+        <details>
+            <summary>Saiba mais sobre as duas modalidades</summary>
+            <p>
+                A <strong>triagem extensa</strong> é mais completa e indicada principalmente
+                para quem nunca doou sangue, está fazendo essa avaliação pela primeira vez
+                ou ainda tem dúvidas sobre alguma condição, procedimento, medicamento ou
+                situação específica. Por ter mais perguntas e trazer mais detalhes, ela pode
+                levar um pouco mais de tempo.
+            </p>
+            <p>
+                A <strong>triagem simplificada</strong> possui perguntas mais diretas e
+                resumidas, sendo uma opção mais ágil para quem já conhece essas informações
+                e precisa apenas verificar se houve alguma mudança importante desde a última avaliação.
+            </p>
+        </details>
+    </section>
+</div>
 {% endblock %}

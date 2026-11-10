@@ -18,6 +18,8 @@ seja salva. O dashboard usa login_required para bloquear visitantes.
 
 """
 
+from collections import Counter
+
 from django import forms
 
 from django.contrib import messages
@@ -64,6 +66,7 @@ from .models import (
 )
 
 from .estoque import (
+    STATUS_PUBLICO_LABEL,
     cadastrar_estoque,
     obter_estoques_publicos,
     registrar_movimentacao_estoque,
@@ -1401,12 +1404,24 @@ def visualizacao_publica_estoque(request):
                 ).lower()
             ]
 
+    contagem_por_situacao = Counter(estoque["status_codigo"] for estoque in estoques)
+    indicadores = [
+        {"codigo": codigo, "label": label, "total": contagem_por_situacao[codigo]}
+        for codigo, label in STATUS_PUBLICO_LABEL.items()
+    ]
+    parametros_criticos = parametros.copy()
+    parametros_criticos["situacao"] = "CRITICO"
+
     return render(
         request,
         "accounts/estoque_publico.html",
         {
             "estoques": estoques,
             "form": form,
+            "indicadores": indicadores,
+            "escala_indicadores": max(contagem_por_situacao.values(), default=1),
+            "total_criticos": contagem_por_situacao["CRITICO"],
+            "filtro_criticos": parametros_criticos.urlencode(),
         },
     )
 
@@ -1463,6 +1478,9 @@ def estoque_hemocentro(request):
         for tipo in tipos_disponiveis
     ]
 
+    for estoque in estoques:
+        estoque.form_movimentacao = MovimentarEstoqueForm(auto_id=f"estoque-{estoque.pk}-%s")
+
     return render(
         request,
         "accounts/estoque_hemocentro.html",
@@ -1470,7 +1488,6 @@ def estoque_hemocentro(request):
             "estoques": estoques,
             "tipos_disponiveis": tipos_disponiveis,
             "form_cadastro": form_cadastro,
-            "form_movimentacao": MovimentarEstoqueForm(),
         },
     )
 

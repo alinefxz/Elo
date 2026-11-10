@@ -1,150 +1,145 @@
 {% extends "base.html" %}
-
-{% comment %}
-RF 32 - Visualização pública de estoques
-
-Esta página pode ser acessada por visitantes e usuários autenticados.
-
-São exibidos somente dados públicos:
-- Nome do Hemocentro
-- Cidade e estado
-- Tipo sanguíneo
-- Quantidade de bolsas
-- Situação do estoque
-- Última atualização
-
-Não são exibidos dados internos, como:
-- CPF
-- CNPJ
-- E-mail
-- Responsável pelas movimentações
-- Histórico
-- Nível mínimo
-- Nível crítico
-- Auditorias
-{% endcomment %}
+{% load static l10n %}
 
 {% block title %}Estoques de Sangue | Elo{% endblock %}
+{% block body_class %}page-estoque-publico{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/estoque.css' %}?v=20261109-estoque-11">{% endblock %}
 
 {% block content %}
+<div class="estoque-publico">
+    <header class="estoque-abertura">
+        <div class="estoque-conteudo">
+            <p class="estoque-sobretitulo">Rede Elo · Consulta pública</p>
+            <h1>Estoques de sangue</h1>
+            <p>Veja a situação dos estoques por tipo sanguíneo nos hemocentros aprovados no Elo.</p>
+        </div>
+    </header>
 
-<h1>Estoques de Sangue</h1>
+    <section class="estoque-consulta" id="consulta-estoque" aria-labelledby="titulo-consulta-estoque">
+        <div class="estoque-conteudo">
+            <div class="estoque-cabecalho">
+                <h2 id="titulo-consulta-estoque">Filtrar estoques</h2>
+                <p>Encontre o tipo sanguíneo ou o hemocentro que você procura.</p>
+            </div>
+            <form method="get" action="{% url 'accounts:estoque_publico' %}#indicadores-estoque" class="filtro-estoque">
+                {{ form.as_p }}
+                <div class="filtro-estoque-acoes">
+                    <button type="submit">Filtrar estoque</button>
+                    <a href="{% url 'accounts:estoque_publico' %}#consulta-estoque">Limpar filtros</a>
+                </div>
+            </form>
+        </div>
+    </section>
 
-<p>
-    Consulte a situação dos estoques disponíveis nos Hemocentros cadastrados e aprovados no Elo.
-</p>
-
-<div class="filtros-estoque">
-<form method="get" class="filtro-estoque">
-    {{ form.as_p }}
-
-    <div class="filtro-estoque-acoes">
-    <button type="submit">
-        Filtrar estoque
-    </button>
-
-    <a href="{% url 'accounts:estoque_publico' %}">
-        Limpar filtros
-    </a>
-    </div>
-</form>
-</div>
-
-<section>
-    <h2>Indicadores</h2>
-
-    <ul>
-        <li>
-            <strong>Crítico</strong> - estoque em situação crítica.
-        </li>
-
-        <li>
-            <strong>Baixo</strong> - estoque abaixo do nível esperado.
-        </li>
-
-        <li>
-            <strong>Adequado</strong> - estoque dentro da faixa esperada.
-        </li>
-
-        <li>
-            <strong>Alto</strong> - estoque acima da faixa adequada.
-        </li>
-    </ul>
-</section>
-
-<section>
-    <h2>Estoques por Hemocentro</h2>
-
-    {% if estoques %}
-
-        {% regroup estoques by nome as hemocentros %}
-
-        {% for hemocentro in hemocentros %}
-
-            <article>
-                <h3>{{ hemocentro.grouper }}</h3>
-
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Tipo sanguíneo</th>
-                            <th>Quantidade</th>
-                            <th>Situação</th>
-                            <th>Última atualização</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {% for item in hemocentro.list %}
-                            <tr>
-                                <td>
-                                    <strong>
-                                        {{ item.tipo_sanguineo }}
-                                    </strong>
-                                </td>
-
-                                <td>
-                                    {{ item.quantidade_bolsas }} bolsas
-                                </td>
-
-                                <td>
-                                    {{ item.status_label }}
-                                </td>
-
-                                <td>
-                                    {{ item.data_atualizacao|date:"d/m/Y H:i" }}
-                                </td>
-                            </tr>
+    <section class="estoque-painel" aria-labelledby="indicadores-estoque">
+        <div class="estoque-conteudo">
+            <div class="estoque-cabecalho">
+                <h2 id="indicadores-estoque">Níveis de estoque</h2>
+                <p>Os indicadores acompanham os resultados dos filtros.</p>
+            </div>
+            {% if total_criticos %}
+                <div class="estoque-alerta">
+                    <span class="estoque-alerta-icone" aria-hidden="true">!</span>
+                    <p><strong>{{ total_criticos }} {{ total_criticos|pluralize:"estoque,estoques" }} em nível crítico.</strong></p>
+                    <a href="?{{ filtro_criticos }}#resultados-estoque">Ver estoques críticos <span aria-hidden="true">→</span></a>
+                </div>
+            {% endif %}
+            <div class="estoque-visualizacao">
+                <div class="estoque-grafico" style="--escala: {{ escala_indicadores|unlocalize }}">
+                    <div class="estoque-grafico-escala" aria-hidden="true">
+                        <span>{{ escala_indicadores }}</span>
+                        <span>0</span>
+                    </div>
+                    <dl class="estoque-grafico-colunas">
+                        {% for indicador in indicadores %}
+                            <div class="estoque-grafico-coluna{% if indicador.codigo == 'CRITICO' and indicador.total %} estoque-grafico-critico{% endif %}" data-nivel="{{ indicador.codigo|lower }}">
+                                <dt>{{ indicador.label }}</dt>
+                                <dd>
+                                    <span class="estoque-barra" style="--quantidade: {{ indicador.total|unlocalize }}" aria-hidden="true"></span>
+                                    <strong class="estoque-grafico-total">{{ indicador.total }}</strong>
+                                </dd>
+                            </div>
                         {% endfor %}
-                    </tbody>
-                </table>
+                    </dl>
+                </div>
+                <dl class="estoque-legendas">
+                    {% for indicador in indicadores %}
+                        <div data-nivel="{{ indicador.codigo|lower }}">
+                            <dt>{{ indicador.label }}</dt>
+                            <dd>
+                                {% if indicador.codigo == "CRITICO" %}No limite crítico ou abaixo
+                                {% elif indicador.codigo == "BAIXO" %}Abaixo da faixa esperada
+                                {% elif indicador.codigo == "ADEQUADO" %}Dentro da faixa esperada
+                                {% else %}Acima da faixa esperada{% endif %}
+                            </dd>
+                        </div>
+                    {% endfor %}
+                </dl>
+            </div>
+        </div>
+    </section>
 
-                <p>
-                    <strong>Localização:</strong>
-                    {{ hemocentro.list.0.cidade }}/{{ hemocentro.list.0.estado }}
-                </p>
-            </article>
-
-            <hr>
-
-        {% endfor %}
-
-    {% else %}
-
-        <p>
-            Nenhum estoque público disponível no momento.
-        </p>
-
-    {% endif %}
-</section>
-
-<section>
-    <p>
-        <strong>Importante:</strong>
-        os dados apresentados têm finalidade informativa.
-        A disponibilidade real das bolsas deve ser confirmada diretamente
-        com o Hemocentro.
-    </p>
-</section>
-
+    <section class="estoque-resultados" id="resultados-estoque" aria-labelledby="titulo-resultados-estoque">
+        <div class="estoque-conteudo">
+            <div class="estoque-cabecalho">
+                <h2 id="titulo-resultados-estoque">Estoques por hemocentro</h2>
+            </div>
+            {% regroup estoques by nome as hemocentros %}
+            {% for hemocentro in hemocentros %}
+                <article class="estoque-unidade">
+                    <header>
+                        <h3 id="estoque-unidade-{{ forloop.counter }}">{{ hemocentro.grouper }}</h3>
+                        {% with local=hemocentro.list.0 %}
+                            <p>
+                                {% if local.cidade or local.estado %}
+                                    {{ local.cidade }}{% if local.cidade and local.estado %} · {% endif %}{{ local.estado }}
+                                {% else %}
+                                    Localização não informada
+                                {% endif %}
+                            </p>
+                        {% endwith %}
+                    </header>
+                    <table role="table" aria-labelledby="estoque-unidade-{{ forloop.counter }}">
+                        <thead role="rowgroup">
+                            <tr role="row">
+                                <th scope="col" role="columnheader">Tipo sanguíneo</th>
+                                <th scope="col" role="columnheader">Quantidade</th>
+                                <th scope="col" role="columnheader">Situação</th>
+                                <th scope="col" role="columnheader">Atualizado em</th>
+                            </tr>
+                        </thead>
+                        <tbody role="rowgroup">
+                            {% for item in hemocentro.list %}
+                                <tr role="row" data-nivel="{{ item.status_codigo|lower }}">
+                                    <td role="cell">
+                                        <span class="estoque-rotulo-celula" aria-hidden="true">Tipo sanguíneo</span>
+                                        <strong class="estoque-tipo">{{ item.tipo_sanguineo }}</strong>
+                                    </td>
+                                    <td role="cell">
+                                        <span class="estoque-rotulo-celula" aria-hidden="true">Quantidade</span>
+                                        <strong class="estoque-quantidade">{{ item.quantidade_bolsas }} bolsa{{ item.quantidade_bolsas|pluralize }}</strong>
+                                    </td>
+                                    <td role="cell">
+                                        <span class="estoque-rotulo-celula" aria-hidden="true">Situação</span>
+                                        <span class="estoque-situacao">
+                                            {% if item.status_codigo == "CRITICO" %}<span aria-hidden="true">!</span>{% endif %}
+                                            {{ item.status_label }}
+                                        </span>
+                                    </td>
+                                    <td role="cell">
+                                        <span class="estoque-rotulo-celula" aria-hidden="true">Atualizado em</span>
+                                        <time datetime="{{ item.data_atualizacao|date:'c' }}">{{ item.data_atualizacao|date:"d/m/Y H:i" }}</time>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </article>
+            {% empty %}
+                <p class="estoque-sem-resultados">Nenhum estoque público encontrado para esta consulta.</p>
+            {% endfor %}
+            <p class="estoque-nota">Confirme a disponibilidade das bolsas diretamente com o hemocentro.</p>
+        </div>
+    </section>
+</div>
 {% endblock %}

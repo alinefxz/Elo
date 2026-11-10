@@ -1,0 +1,210 @@
+/* Lista pública de pedidos de sangue. */
+.page-pedidos-ativos {
+    min-width: 0;
+    background: #fff;
+}
+
+.page-pedidos-ativos main > .pedidos-ativos {
+    width: min(1120px, calc(100% - clamp(32px, 7vw, 64px)));
+    margin-inline: auto;
+    padding-bottom: clamp(28px, 5vw, 56px);
+    color: var(--elo-ink);
+}
+
+.pedidos-ativos-abertura {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px 24px;
+    padding-block: clamp(18px, 3vw, 36px);
+}
+
+.pedidos-ativos-abertura > div {
+    flex: 1 1 460px;
+    min-width: 0;
+}
+
+.pedidos-ativos-abertura p {
+    max-width: 62ch;
+    margin: 0;
+    color: var(--elo-muted);
+}
+
+.pedidos-ativos-abertura .pedidos-ativos-rotulo {
+    margin-bottom: 8px;
+    color: var(--elo-red-dark);
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.pedidos-ativos-abertura h1,
+.pedidos-ativos-secao h2 {
+    margin: 0 0 8px;
+    font-family: "Playfair Display", Georgia, serif;
+    line-height: 1.15;
+    letter-spacing: -.025em;
+}
+
+.pedidos-ativos-abertura h1 {
+    font-size: clamp(2rem, 4.5vw, 3.45rem);
+    text-wrap: balance;
+}
+
+.pedidos-ativos-secao {
+    padding-block: clamp(18px, 2.7vw, 30px);
+    border-top: 1px solid var(--elo-border);
+}
+
+.pedidos-ativos-secao h2 {
+    margin-bottom: 14px;
+    font-size: clamp(1.4rem, 2.5vw, 1.9rem);
+}
+
+.pedidos-ativos-campos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 195px), 1fr));
+    gap: 12px 16px;
+}
+
+.pedidos-ativos-campo {
+    min-width: 0;
+}
+
+.pedidos-ativos-campo label {
+    font-size: .9rem;
+    font-weight: 700;
+}
+
+.pedidos-ativos-campo input:disabled {
+    background: var(--soft);
+}
+
+.pedidos-ativos-form .errorlist {
+    margin: 0 0 5px;
+    padding-inline-start: 18px;
+    color: var(--elo-red-dark);
+    font-size: .875rem;
+}
+
+.pedidos-ativos-filtros-extras {
+    margin-top: 10px;
+}
+
+.pedidos-ativos-filtros-extras summary {
+    width: fit-content;
+    padding-block: 4px;
+    color: var(--elo-red-dark);
+    font-size: .875rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.pedidos-ativos-filtros-extras > .pedidos-ativos-campos {
+    margin-top: 8px;
+}
+
+.pedidos-ativos-acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.pedidos-ativos .button {
+    max-width: 100%;
+    box-shadow: none;
+}
+
+.pedidos-ativos-item {
+    padding-block: 14px;
+    border-bottom: 1px solid var(--elo-border);
+    overflow-wrap: anywhere;
+}
+
+.pedidos-ativos-item-topo {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 6px 14px;
+}
+
+.pedidos-ativos-identidade h3 {
+    margin: 0;
+    font-size: clamp(1.05rem, 2vw, 1.25rem);
+    line-height: 1.3;
+}
+
+.pedidos-ativos-identidade p {
+    margin: 3px 0 0;
+    color: var(--elo-muted);
+    font-size: .9rem;
+}
+
+.pedidos-ativos-tipo {
+    display: grid;
+    min-width: 48px;
+    min-height: 44px;
+    padding: 3px 6px;
+    place-items: center;
+    border-radius: 9px;
+    background: var(--elo-red-soft);
+    color: var(--elo-red-dark);
+    font-weight: 800;
+}
+
+.pedidos-ativos-urgencia {
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: var(--soft);
+    font-size: .8rem;
+    font-weight: 700;
+}
+
+.pedidos-ativos-urgencia[data-urgencia="ALTA"] {
+    background: var(--elo-red-soft);
+    color: var(--elo-red-dark);
+}
+
+.pedidos-ativos-urgencia[data-urgencia="CRITICA"] {
+    background: var(--elo-red-dark);
+    color: #fff;
+}
+
+.pedidos-ativos-descricao {
+    max-width: 75ch;
+    margin: 10px 0 0;
+    white-space: pre-line;
+}
+
+.pedidos-ativos-item-rodape {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 14px;
+    margin-top: 8px;
+    color: var(--elo-muted);
+    font-size: .85rem;
+}
+
+.pedidos-ativos-vazio {
+    margin: 0;
+    color: var(--elo-muted);
+}
+
+.pedidos-ativos :is(a, button, summary, input, select):focus-visible {
+    outline: 2px solid var(--elo-red-dark);
+    outline-offset: 2px;
+}
+
+@media (max-width: 540px) {
+    .pedidos-ativos-item-topo {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .pedidos-ativos-urgencia {
+        grid-column: 2;
+        justify-self: start;
+    }
+}

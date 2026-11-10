@@ -1,0 +1,230 @@
+/* Estilos compartilhados por todas as perguntas das duas modalidades. */
+.page-triagem-pergunta {
+    --triagem-pergunta-largura: min(880px, calc(100% - clamp(32px, 7vw, 64px)));
+    min-width: 0;
+    background: #fff;
+}
+
+.page-triagem-pergunta main > .triagem-pergunta,
+.page-triagem-pergunta main > .messages-wrap {
+    width: var(--triagem-pergunta-largura);
+    margin-inline: auto;
+}
+
+.triagem-pergunta {
+    padding-block: clamp(18px, 3vw, 30px) clamp(28px, 6vw, 64px);
+    color: var(--elo-ink);
+}
+
+.triagem-pergunta-topo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px 20px;
+    margin-bottom: 14px;
+}
+
+.triagem-pergunta-modalidade {
+    margin: 0;
+    color: var(--elo-red-dark);
+    font-size: .8rem;
+    font-weight: 700;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+}
+
+.triagem-pergunta .triagem-pergunta-topo a,
+.triagem-pergunta-progresso summary {
+    color: var(--elo-red-dark);
+    font-size: .875rem;
+    font-weight: 700;
+}
+
+.triagem-pergunta-progresso {
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--elo-border);
+}
+
+.triagem-pergunta-progresso p {
+    margin: 0;
+    color: var(--elo-muted);
+    font-size: .875rem;
+    font-weight: 700;
+}
+
+.triagem-pergunta-progresso progress {
+    display: block;
+    width: 100%;
+    height: 8px;
+    margin: 6px 0;
+    accent-color: var(--elo-red);
+}
+
+.triagem-pergunta-progresso summary {
+    width: fit-content;
+    padding-block: 4px;
+    cursor: pointer;
+}
+
+.triagem-pergunta-etapas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.triagem-pergunta .triagem-pergunta-etapa {
+    display: inline-grid;
+    min-width: 36px;
+    min-height: 36px;
+    padding: 3px 6px;
+    place-items: center;
+    border: 1px solid var(--elo-border);
+    border-radius: 7px;
+    color: var(--elo-muted);
+    font-size: .8rem;
+    text-decoration: none;
+}
+
+.triagem-pergunta .triagem-pergunta-etapa[data-estado="respondida"] {
+    color: var(--elo-red-dark);
+    background: var(--elo-red-soft);
+    font-weight: 700;
+}
+
+.triagem-pergunta .triagem-pergunta-etapa[aria-current="step"] {
+    border-color: var(--elo-red-dark);
+    background: var(--elo-red-dark);
+    color: #fff;
+    font-weight: 700;
+}
+
+.triagem-pergunta-enunciado {
+    padding-block: clamp(18px, 3vw, 30px) 18px;
+}
+
+.triagem-pergunta-enunciado h1 {
+    margin: 0 0 8px;
+    font: 700 clamp(1.85rem, 4vw, 3rem)/1.15 "Playfair Display", Georgia, serif;
+    letter-spacing: -.025em;
+    text-wrap: balance;
+}
+
+.triagem-pergunta-enunciado p {
+    max-width: 67ch;
+    margin: 0;
+    color: var(--elo-muted);
+    white-space: pre-line;
+}
+
+.triagem-pergunta-form {
+    display: grid;
+    gap: 20px;
+}
+
+.triagem-pergunta-form .triagem-pergunta-campo {
+    min-width: 0;
+    margin: 0;
+}
+
+.triagem-pergunta-campo fieldset {
+    min-inline-size: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.triagem-pergunta-campo legend {
+    margin: 0 0 10px;
+    padding: 0;
+    font-size: clamp(1.1rem, 2vw, 1.35rem);
+    font-weight: 700;
+    line-height: 1.4;
+    white-space: pre-line;
+}
+
+.triagem-pergunta-campo label {
+    color: var(--elo-ink);
+}
+
+.triagem-pergunta-campo label:has(> input:is([type="radio"], [type="checkbox"])) {
+    gap: 10px;
+    min-height: 44px;
+    margin: 0 0 6px;
+    padding: 9px 12px;
+    border: 1px solid var(--elo-border);
+    border-radius: 8px;
+    line-height: 1.45;
+    cursor: pointer;
+}
+
+.triagem-pergunta-campo label:has(> input:is([type="radio"], [type="checkbox"])):hover,
+.triagem-pergunta-campo label:has(> input:checked) {
+    border-color: var(--elo-red);
+    background: var(--elo-red-soft);
+}
+
+.triagem-pergunta-campo input:is([type="radio"], [type="checkbox"]) {
+    width: 18px;
+    height: 18px;
+    min-height: 0;
+    margin: 3px 0 0;
+    accent-color: var(--elo-red);
+}
+
+.triagem-pergunta-campo :is(input[type="date"], select) {
+    max-width: 24rem;
+}
+
+.triagem-pergunta-campo textarea {
+    min-height: 82px;
+}
+
+.triagem-pergunta-campo .helptext {
+    margin: 0 0 6px;
+}
+
+.triagem-pergunta-form .errorlist {
+    margin: 0 0 6px;
+    padding-inline-start: 1.25em;
+    color: var(--elo-red-dark);
+}
+
+.triagem-pergunta-acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 14px;
+    border-top: 1px solid var(--elo-border);
+}
+
+.triagem-pergunta-acoes button[type="submit"] {
+    box-shadow: none;
+}
+
+.triagem-pergunta-acoes button[type="submit"].button-outline[name="acao"] {
+    margin: 0;
+    border-color: var(--elo-border-dark);
+    color: var(--elo-red-dark);
+}
+
+.triagem-pergunta-acoes .button-primary {
+    margin-inline-start: auto;
+}
+
+.triagem-pergunta :is(a, summary, button, input, select, textarea):focus-visible {
+    outline: 2px solid var(--elo-red-dark);
+    outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+    .triagem-pergunta-acoes .button {
+        flex: 1 1 auto;
+    }
+
+    .triagem-pergunta-acoes .button-primary {
+        flex-basis: 100%;
+        margin-inline-start: 0;
+    }
+}

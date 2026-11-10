@@ -86,7 +86,7 @@ class HistoricoUsuario:
     @staticmethod
     def _triagem(item):
         rota = "accounts:triagem_resultado" if item.status == Triagem.Status.CONCLUIDA else "accounts:triagem_pergunta"
-        return {"titulo": f"Triagem {item.get_modalidade_display()}", "descricao": "Registro orientativo de triagem para doação.", "status": item.get_status_display(), "data": item.iniciada_em, "url": reverse(rota, args=[item.pk])}
+        return {"titulo": item.get_modalidade_display(), "descricao": "Registro orientativo de triagem para doação.", "status": item.get_status_display(), "data": item.iniciada_em, "url": reverse(rota, args=[item.pk])}
 
     @staticmethod
     def _solicitacao(item):
@@ -123,5 +123,5 @@ def resumo_usuario(usuario):
         ]
     resumo = [{"rotulo": "Solicitações enviadas", "valor": usuario.pedidos_sangue.count()}]
     if acessos_usuario(usuario)["responder_triagem"]:
-        resumo.insert(0, {"rotulo": "Triagens realizadas", "valor": usuario.triagens.count()})
+        resumo.insert(0, {"rotulo": "Triagens registradas", "valor": usuario.triagens.count()})
     return resumo

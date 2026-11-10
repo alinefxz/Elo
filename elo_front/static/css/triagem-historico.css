@@ -1,0 +1,132 @@
+/* Histórico de triagens, com a mesma largura da tela de apresentação. */
+.page-triagem-historico {
+    --triagem-historico-largura: min(1120px, calc(100% - clamp(32px, 7vw, 64px)));
+    min-width: 0;
+    background: #fff;
+}
+
+.page-triagem-historico main > .triagem-historico,
+.page-triagem-historico main > .messages-wrap {
+    width: var(--triagem-historico-largura);
+    margin-inline: auto;
+}
+
+.triagem-historico {
+    padding-bottom: clamp(28px, 5vw, 56px);
+    color: var(--elo-ink);
+}
+
+.triagem-historico-cabecalho {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px 24px;
+    padding-block: clamp(20px, 3vw, 36px);
+}
+
+.triagem-historico-rotulo {
+    margin: 0 0 9px;
+    color: var(--elo-red-dark);
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.triagem-historico h1 {
+    margin: 0;
+    font: 700 clamp(2rem, 4.5vw, 3.45rem)/1.13 "Playfair Display", Georgia, serif;
+    letter-spacing: -.025em;
+    text-wrap: balance;
+}
+
+.triagem-historico-vazio {
+    padding-block: 22px;
+    border-top: 1px solid var(--elo-border);
+}
+
+.triagem-historico-vazio p {
+    margin: 0 0 14px;
+    color: var(--elo-muted);
+}
+
+.triagem-historico .button {
+    max-width: 100%;
+    box-shadow: none;
+}
+
+.triagem-historico a:focus-visible {
+    outline: 2px solid var(--elo-red-dark);
+    outline-offset: 3px;
+}
+
+.triagem-historico-lista {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.triagem-historico-registro {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px 28px;
+    padding-block: 20px;
+    border-top: 1px solid var(--elo-border);
+    overflow-wrap: anywhere;
+}
+
+.triagem-historico-registro h2 {
+    margin: 0 0 4px;
+    font-size: 1.15rem;
+    line-height: 1.3;
+}
+
+.triagem-historico-registro p {
+    margin: 0;
+    color: var(--elo-muted);
+    font-size: .9rem;
+}
+
+.triagem-historico-dados {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: start;
+    gap: 8px 24px;
+    margin: 12px 0 0;
+    font-size: .875rem;
+}
+
+.triagem-historico-dados dt {
+    color: var(--elo-muted);
+}
+
+.triagem-historico-dados dd {
+    margin: 2px 0 0;
+    font-weight: 700;
+}
+
+.triagem-historico-status {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--soft);
+}
+
+.triagem-historico-status[data-status="EM_ANDAMENTO"] {
+    color: var(--elo-red-dark);
+    background: var(--elo-red-soft);
+}
+
+.triagem-historico-status[data-status="CONCLUIDA"] {
+    color: var(--success);
+    background: #f0f8f4;
+}
+
+@media (max-width: 620px) {
+    .triagem-historico-registro {
+        grid-template-columns: minmax(0, 1fr);
+        justify-items: start;
+    }
+}

@@ -1,99 +1,75 @@
 {% extends "base.html" %}
+{% load static %}
 
-{% comment %}
-Lista pública de pedidos de sangue que já foram aprovados.
-
-A view envia:
-- form: formulário de filtros;
-- pedidos: somente pedidos publicados.
-
-Pedidos pendentes, suspeitos ou recusados
-não aparecem nesta página.
-{% endcomment %}
-
-{% block title %}Pedidos de sangue | Elo{% endblock %}
+{% block title %}Pedidos de sangue ativos | Elo{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/pedidos-ativos.css' %}?v=20261109-1">{% endblock %}
+{% block body_class %}page-pedidos-ativos{% endblock %}
 
 {% block content %}
+<div class="pedidos-ativos">
+    <header class="pedidos-ativos-abertura">
+        <div>
+            <p class="pedidos-ativos-rotulo">Rede Elo · Consulta pública</p>
+            <h1>Pedidos de sangue ativos</h1>
+            <p>Consulte os pedidos publicados pelos hemocentros e encontre solicitações por tipo sanguíneo, urgência ou localização.</p>
+        </div>
+        {% if not user.is_authenticated or user.perfil == "DOADOR" or user.perfil == "RECEPTOR" or user.perfil == "OBSERVADOR" %}
+            <a class="button button-outline" href="{% url 'accounts:pedido_publicar' %}">Solicitar divulgação de necessidade</a>
+        {% endif %}
+    </header>
 
-<h1>Pedidos de sangue ativos</h1>
+    <section class="pedidos-ativos-secao" aria-labelledby="pedidos-filtros-titulo">
+        <h2 id="pedidos-filtros-titulo">Filtrar pedidos</h2>
+        <form method="get" class="plain-form pedidos-ativos-form">
+            {{ form.non_field_errors }}
+            <div class="pedidos-ativos-campos">
+                <div class="pedidos-ativos-campo">{{ form.tipo_sanguineo.as_field_group }}</div>
+                <div class="pedidos-ativos-campo">{{ form.urgencia.as_field_group }}</div>
+                <div class="pedidos-ativos-campo">{{ form.estado.as_field_group }}</div>
+                <div class="pedidos-ativos-campo">{{ form.cidade.as_field_group }}</div>
+            </div>
 
-<form method="get">
-    {{ form.as_p }}
+            <details class="pedidos-ativos-filtros-extras"{% if form.hemocentro.value or form.data.value or form.status.value or form.hemocentro.errors or form.data.errors or form.status.errors %} open{% endif %}>
+                <summary>Mais filtros</summary>
+                <div class="pedidos-ativos-campos">
+                    <div class="pedidos-ativos-campo">{{ form.hemocentro.as_field_group }}</div>
+                    <div class="pedidos-ativos-campo">{{ form.data.as_field_group }}</div>
+                    <div class="pedidos-ativos-campo">{{ form.status.as_field_group }}</div>
+                </div>
+            </details>
 
-    <button type="submit">
-        Filtrar pedidos
-    </button>
-
-    <a href="{% url 'accounts:consultar_pedidos' %}">
-        Limpar filtros
-    </a>
-</form>
-
-<hr>
-
-<h2>Pedidos encontrados</h2>
-
-{% for pedido in pedidos %}
-
-    <section>
-        <h3>{{ pedido.titulo }}</h3>
-
-        <p>
-            <strong>Tipo sanguíneo:</strong>
-            {{ pedido.tipo_sanguineo }}
-        </p>
-
-        <p>
-            <strong>Urgência:</strong>
-            {{ pedido.get_urgencia_display }}
-        </p>
-
-        <p>
-            <strong>Cidade:</strong>
-            {{ pedido.cidade }}
-        </p>
-
-        <p>
-            <strong>Hemocentro:</strong>
-            {{ pedido.hemocentro_destino.nome }}
-        </p>
-
-        <p>
-            <strong>Descrição:</strong>
-            {{ pedido.descricao }}
-        </p>
-
-        <p>
-            <strong>Status:</strong>
-            {{ pedido.get_status_display }}
-        </p>
-
-        <p>
-            <strong>Publicado em:</strong>
-            {{ pedido.publicado_em|default:pedido.data_criacao|date:"d/m/Y H:i" }}
-        </p>
+            <div class="pedidos-ativos-acoes">
+                <button class="button button-primary" type="submit">Filtrar pedidos</button>
+                <a class="button button-outline" href="{% url 'accounts:consultar_pedidos' %}">Limpar filtros</a>
+            </div>
+        </form>
     </section>
 
-{% empty %}
-
-    <p>
-        Nenhum pedido ativo encontrado.
-    </p>
-
-{% endfor %}
-
-{% if not user.is_authenticated or user.perfil == "DOADOR" or user.perfil == "RECEPTOR" or user.perfil == "OBSERVADOR" %}
-    <p>
-        <a href="{% url 'accounts:pedido_publicar' %}">
-            Solicitar divulgação de necessidade
-        </a>
-    </p>
-{% endif %}
-
-<p>
-    <a href="{% url 'accounts:dashboard' %}">
-        Voltar ao painel
-    </a>
-</p>
-
+    <section class="pedidos-ativos-secao" aria-labelledby="pedidos-resultados-titulo">
+        <h2 id="pedidos-resultados-titulo">Pedidos encontrados</h2>
+        <div class="pedidos-ativos-lista">
+            {% for pedido in pedidos %}
+                <article class="pedidos-ativos-item">
+                    <header class="pedidos-ativos-item-topo">
+                        <span class="pedidos-ativos-tipo" aria-label="Tipo sanguíneo {{ pedido.tipo_sanguineo }}">{{ pedido.tipo_sanguineo }}</span>
+                        <div class="pedidos-ativos-identidade">
+                            <h3>{{ pedido.titulo }}</h3>
+                            <p>{{ pedido.hemocentro_destino.nome }} · {{ pedido.cidade }}{% if pedido.hemocentro_destino.estado %}/{{ pedido.hemocentro_destino.estado }}{% endif %}</p>
+                        </div>
+                        <span class="pedidos-ativos-urgencia" data-urgencia="{{ pedido.urgencia }}">Urgência {{ pedido.get_urgencia_display|lower }}</span>
+                    </header>
+                    <p class="pedidos-ativos-descricao">{{ pedido.descricao }}</p>
+                    <footer class="pedidos-ativos-item-rodape">
+                        <span>{{ pedido.get_status_display }}</span>
+                        {% with data_publicacao=pedido.publicado_em|default:pedido.data_criacao %}
+                            <span>Publicado em <time datetime="{{ data_publicacao|date:'c' }}">{{ data_publicacao|date:"d/m/Y H:i" }}</time></span>
+                        {% endwith %}
+                    </footer>
+                </article>
+            {% empty %}
+                <p class="pedidos-ativos-vazio">Nenhum pedido ativo encontrado.</p>
+            {% endfor %}
+        </div>
+    </section>
+</div>
 {% endblock %}
